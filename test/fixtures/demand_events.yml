@@ -1,0 +1,13 @@
+# Read about fixtures at https://api.rubyonrails.org/classes/ActiveRecord/FixtureSet.html
+
+one:
+  idpk: MyString
+  event_type: MyString
+  package_body: 
+  received_at: 2026-08-26 23:13:33
+
+two:
+  idpk: MyString
+  event_type: MyString
+  package_body: 
+  received_at: 2026-08-26 23:13:33

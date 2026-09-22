@@ -1,0 +1,74 @@
+services:
+  db:
+    image: postgres:15-alpine
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: password
+      POSTGRES_DB: energyshark_prod
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  master1:
+    build:
+      context: .
+      dockerfile: Dockerfile.dev
+    container_name: master1
+    command: bash -c "rm -f tmp/pids/server.pid && bundle exec rails s -b 0.0.0.0 -p 3000"
+    ports:
+      - "3001:3000"
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: "postgres://postgres:password@db:5432/energyshark_prod"
+      RAILS_ENV: development
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3000/healthz"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+
+  master2:
+    build:
+      context: .
+      dockerfile: Dockerfile.dev
+    container_name: master2
+    command: bash -c "rm -f tmp/pids/server.pid && bundle exec rails s -b 0.0.0.0 -p 3000"
+    ports:
+      - "3002:3000"
+    depends_on:
+      master1:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: "postgres://postgres:password@db:5432/energyshark_prod"
+      RAILS_ENV: development
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3000/healthz"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+
+  connector:
+    build:
+      context: ./connector
+    container_name: connector
+    depends_on:
+      master1:
+        condition: service_healthy
+    environment:
+      RABBITMQ_URL: "amqps://observer.22:0sxW2ynRgBZ5A6k7x5ezNAnp@broker.iic2173.org:5671/energy"
+      OBSERVER_ID: "22"
+      MASTER_URL: "http://master1:3000/events"
+    healthcheck:
+      test: ["CMD-SHELL", "ps aux | grep -v grep | grep consumer.rb || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+
+volumes:
+  pgdata:
