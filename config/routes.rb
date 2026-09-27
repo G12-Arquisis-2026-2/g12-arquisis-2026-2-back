@@ -18,4 +18,21 @@ Rails.application.routes.draw do
   # Endpoints requeridos (RF1, RF2, RF3, RF4)
   get '/history', to: 'history#index'
   get '/history/:id', to: 'history#show'
+
+
+  # --- ENDPOINTS E1 PARA EL FRONTEND ---
+
+  # RF01: Historial de ciclos
+  get '/cycles',     to: 'cycles#index'
+  get '/cycles/:id', to: 'cycles#show'
+
+  # RF02: Tabla de conectividad vigente
+  get '/connectivity', to: 'connectivity#index'
+
+  # RF04: Negociaciones voluntarias (listar y proponer)
+  get  '/proposals', to: 'proposals#index'
+  post '/proposals', to: 'proposals#create'
+
+  # RF05: Auditoría de anomalías (duplicados, descartes y NACKs)
+  get '/audit-logs', to: 'audit_logs#index'
 end
