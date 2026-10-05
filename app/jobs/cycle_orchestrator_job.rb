@@ -9,7 +9,7 @@ class CycleOrchestratorJob < ApplicationJob
 
     unless status_event
       Rails.logger.warn "[CycleOrchestrator] status-statement no recibido. Emitiendo petición directa (type: request)..."
-      city_id = ENV.fetch('CITY_ID', 'COR')
+      city_id = ENV.fetch('CITY_ID', 'TK3')
       request_payload = CycleService.build_direct_request(city_id)
       RabbitMQPublisher.publish(request_payload) if defined?(RabbitMQPublisher)
     end
