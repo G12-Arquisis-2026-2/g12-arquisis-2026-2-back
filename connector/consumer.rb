@@ -3,14 +3,14 @@ require 'net/http'
 require 'json'
 require 'uri'
 
-rabbitmq_url = ENV.fetch('RABBITMQ_URL', 'amqps://observer.22:0sxW2ynRgBZ5A6k7x5ezNAnp@broker.iic2173.org:5671/energy')
+rabbitmq_url = ENV.fetch('RABBITMQ_URL')
 observer_id  = ENV.fetch('OBSERVER_ID', '22')
 queue_name   = "observer.#{observer_id}.q"
 rails_api    = URI(ENV.fetch('MASTER_URL', 'http://master1:3000/events'))
 
 loop do
   begin
-    puts "[Connector] Conectando a #{rabbitmq_url}..."
+    puts "[Connector] Conectando a #{URI(rabbitmq_url).host}..."
     # tls: true y verify_peer: false para evitar el warning de certificado cliente
     conn = Bunny.new(rabbitmq_url, tls: true, tls_silence_warnings: true, verify_peer: false, automatically_recover: true)
     conn.start

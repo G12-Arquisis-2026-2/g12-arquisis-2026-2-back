@@ -1,14 +1,15 @@
 # syntax=docker/dockerfile:1
 # check=error=true
 
-# This Dockerfile is designed for production, not development. Use with Kamal or build'n'run by hand:
-# docker build -t e0 .
-# docker run -d -p 80:80 -e RAILS_MASTER_KEY=<value from config/master.key> --name e0 e0
+# This Dockerfile is designed for production, not development. Use with docker compose:
+# docker compose -f docker-compose.prod.yml --env-file .env up -d --build
+#
+# The container listens on port 80 (Thruster), which proxies to Puma on port 3000.
 
-# For a containerized dev environment, see Dev Containers: https://guides.rubyonrails.org/getting_started_with_devcontainer.html
+# For a containerized dev environment, see Dockerfile.dev and docker-compose.yml
 
-# Make sure RUBY_VERSION matches the Ruby version in .ruby-version
-ARG RUBY_VERSION=4.0.1
+# Make sure RUBY_VERSION matches the Ruby version used to generate Gemfile.lock
+ARG RUBY_VERSION=3.3
 FROM docker.io/library/ruby:$RUBY_VERSION-slim AS base
 
 # Rails app lives here

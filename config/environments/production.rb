@@ -85,7 +85,14 @@ Rails.application.configure do
   # Skip DNS rebinding protection for the default health check endpoint.
   # config.host_authorization = { exclude: ->(request) { request.path == "/up" } }
 
-  config.hosts << "cmlagb.me"
-  config.hosts << "www.cmlagb.me"
-  config.hosts << "34.239.99.230"
+  # "web" es el nombre del servicio en docker-compose.prod.yml (lo usa el connector).
+  # Hosts públicos adicionales vienen de ALLOWED_HOSTS, separados por comas.
+  config.hosts = [
+    "web",
+    "localhost",
+    *ENV.fetch("ALLOWED_HOSTS", "").split(",").map(&:strip).reject(&:empty?)
+  ]
+
+  # Healthchecks sin verificación de host.
+  config.host_authorization = { exclude: ->(request) { request.path.in?(%w[/up /healthz]) } }
 end
