@@ -1,11 +1,14 @@
 class CycleService
   # Solicitud directa de estado si status-statement no ha llegado en la ventana de negociación
-  def self.build_direct_request(city_id)
+  def self.build_direct_request(ask)
     {
       idpk: SecureRandom.uuid,
       msgId: SecureRandom.uuid,
       type: "request",
-      cityId: city_id,
+      cityId: ENV.fetch('CITY_ID', 'TK3'),
+      data: {
+        ask: ask,
+      },
       timestamp: Time.current.iso8601
     }
   end
@@ -16,6 +19,7 @@ class CycleService
       idpk: SecureRandom.uuid,
       msgId: SecureRandom.uuid,
       type: "negotiation-report",
+      cityId: ENV.fetch('CITY_ID', 'TK3'),
       cycleId: cycle_id,
       data: {
         budgetBalance: budget_balance,

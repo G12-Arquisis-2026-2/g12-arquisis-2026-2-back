@@ -35,6 +35,14 @@ class NegotiationService
     max_cap = calculate_price_cap(generation_cost)
     quantity = calculate_quantity(price, energy)
 
+    cycle = Cycle.find_by(id: cycle_id)
+    generation_capacity = cycle.generationCapacity
+    consumption = cycle.consumption
+
+    if energy > available_capacity(generation_capacity, consumption)
+      raise OverCapacityError, "La cantidad (#{energy}) supera la capacidad disponible (#{available_capacity(generation_capacity, consumption)}) para el ciclo #{cycle_id}"
+    end
+
     # Validar tope de precio para evitar rechazo PRICE_ABOVE_CAP
     if price > max_cap
       raise PriceCapExceededError, "El precio (#{price}) supera el tope de #{max_cap} para el ciclo #{cycle_id}"
