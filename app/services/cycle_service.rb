@@ -3,6 +3,7 @@ class CycleService
   def self.build_direct_request(city_id)
     {
       idpk: SecureRandom.uuid,
+      msgId: SecureRandom.uuid,
       type: "request",
       cityId: city_id,
       timestamp: Time.current.iso8601
@@ -13,6 +14,7 @@ class CycleService
   def self.build_negotiation_report(cycle_id:, budget_balance:, energy_balance:)
     {
       idpk: SecureRandom.uuid,
+      msgId: SecureRandom.uuid,
       type: "negotiation-report",
       cycleId: cycle_id,
       data: {

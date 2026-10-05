@@ -25,10 +25,15 @@ class NegotiationService
     [0, generation_capacity.to_f - consumption.to_f].max
   end
 
+  def self.calculate_quantity(pricePerEnergy, energy)
+    (energy.to_f * pricePerEnergy).round(2)
+  end
+
   # 4. Construcción y validación de propuesta de negociación
-  def self.build_proposal(cycle_id:, direction:, quantity:, generation_cost:, existing_idpk: nil)
+  def self.build_proposal(cycle_id:, direction:, energy:, generation_cost:, existing_idpk: nil)
     price   = calculate_price(direction, generation_cost)
     max_cap = calculate_price_cap(generation_cost)
+    quantity = calculate_quantity(price, energy)
 
     # Validar tope de precio para evitar rechazo PRICE_ABOVE_CAP
     if price > max_cap
@@ -37,6 +42,7 @@ class NegotiationService
 
     {
       idpk: existing_idpk || SecureRandom.uuid, # Idempotencia: reutiliza idpk si es reintento
+      msgId: SecureRandom.uuid,
       type: "negotiation-proposal",
       cycleId: cycle_id,
       data: {
