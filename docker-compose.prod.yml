@@ -1,0 +1,46 @@
+services:
+  db:
+    image: postgres:15-alpine
+    restart: unless-stopped
+    env_file: .env
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    # Sin "ports": solo accesible desde la red interna de compose
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  web:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      RAILS_ENV: production
+    # Thruster escucha en el 80 del contenedor y hace proxy a Puma (3000)
+    ports:
+      - "127.0.0.1:3000:80"
+    depends_on:
+      db:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://localhost/up"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+
+  connector:
+    build:
+      context: ./connector
+    restart: unless-stopped
+    env_file: .env
+    depends_on:
+      web:
+        condition: service_healthy
+
+volumes:
+  pgdata:

@@ -1,0 +1,19 @@
+# Git
+.git
+
+# Logs y archivos temporales (se conservan los .keep para que existan los directorios)
+/log/*
+!/log/.keep
+/tmp/*
+!/tmp/.keep
+!/tmp/pids/
+!/tmp/pids/.keep
+!/tmp/storage/
+!/tmp/storage/.keep
+
+# Secretos
+.env
+
+# Otros
+node_modules
+.DS_Store

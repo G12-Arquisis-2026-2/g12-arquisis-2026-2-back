@@ -61,7 +61,7 @@ services:
       master1:
         condition: service_healthy
     environment:
-      RABBITMQ_URL: "amqps://observer.22:0sxW2ynRgBZ5A6k7x5ezNAnp@broker.iic2173.org:5671/energy"
+      RABBITMQ_URL: "${RABBITMQ_URL:?Define RABBITMQ_URL en .env}"
       OBSERVER_ID: "22"
       MASTER_URL: "http://master1:3000/events"
     healthcheck:
