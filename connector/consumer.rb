@@ -5,7 +5,7 @@ require 'uri'
 
 rabbitmq_url = ENV.fetch('RABBITMQ_URL')
 observer_id  = ENV.fetch('OBSERVER_ID', '22')
-queue_name   = "observer.#{observer_id}.q"
+queue_name   = ENV.fetch('QUEUE_NAME', "observer.#{observer_id}.q")
 rails_api    = URI(ENV.fetch('MASTER_URL', 'http://master1:3000/events'))
 
 loop do
