@@ -12,7 +12,8 @@ class AuditLog < ApplicationRecord
       reason: reason_code,
       raw_payload: payload
     )
-  rescue StandardError
+  rescue StandardError => error
+    Rails.logger.error("AuditLog.log_nack failed: #{error.class}: #{error.message}")
     nil
   end
 
@@ -21,9 +22,10 @@ class AuditLog < ApplicationRecord
       idpk: nil,
       event_type: "DISCARDED",
       reason: reason,
-      raw_payload: raw_string
+      raw_payload: { "raw_string" => raw_string }
     )
-  rescue StandardError
+  rescue StandardError => error
+    Rails.logger.error("AuditLog.log_discard failed: #{error.class}: #{error.message}")
     nil
   end
 end

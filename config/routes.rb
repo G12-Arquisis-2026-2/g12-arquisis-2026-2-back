@@ -35,4 +35,12 @@ Rails.application.routes.draw do
 
   # RF05: Auditoría de anomalías (duplicados, descartes y NACKs)
   get '/audit-logs', to: 'audit_logs#index'
+
+  namespace :api do
+    namespace :v1 do
+      get "ledger/:cycle_id", to: "ledger#show", as: :ledger
+      get "distances", to: "distances#index", as: :distances
+      get "audit-logs", to: "audit_logs#index", as: :audit_logs
+    end
+  end
 end

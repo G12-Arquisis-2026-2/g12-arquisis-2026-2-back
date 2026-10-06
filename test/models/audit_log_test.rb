@@ -1,6 +1,8 @@
 require "test_helper"
 
 class AuditLogTest < ActiveSupport::TestCase
+  self.fixture_table_names = []
+
   test "logs a NACK with the payload idpk and original payload" do
     payload = { "idpk" => "message-1", "type" => "transfer" }
 
@@ -27,12 +29,14 @@ class AuditLogTest < ActiveSupport::TestCase
     assert_nil audit_log.idpk
     assert_equal "DISCARDED", audit_log.event_type
     assert_equal "UNPARSEABLE MESSAGE", audit_log.reason
-    assert_equal raw_string, audit_log.raw_payload
+    assert_equal({ "raw_string" => raw_string }, audit_log.raw_payload)
   end
 
-  test "silently returns nil when audit persistence fails" do
-    AuditLog.stub(:create!, ->(**_attributes) { raise "database unavailable" }) do
-      assert_nil AuditLog.log_discard("raw", "UNPARSEABLE MESSAGE")
-    end
+  test "returns nil when NACK audit persistence fails" do
+    assert_nil AuditLog.log_nack(nil, "MALFORMED MESSAGE")
+  end
+
+  test "returns nil when discarded audit persistence fails" do
+    assert_nil AuditLog.log_discard("raw", nil)
   end
 end

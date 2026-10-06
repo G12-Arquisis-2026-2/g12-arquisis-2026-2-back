@@ -1,6 +1,8 @@
 require "test_helper"
 
 class DistanceTableProcessorServiceTest < ActiveSupport::TestCase
+  self.fixture_table_names = []
+
   test "creates and updates destinations from a distance table payload" do
     DistanceTableProcessorService.call(payload("HGW" => {
       "distance" => 62_763_183,
