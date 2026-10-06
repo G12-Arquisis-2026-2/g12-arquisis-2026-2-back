@@ -1,6 +1,8 @@
 require "test_helper"
 
 class LedgerProcessorServiceTest < ActiveSupport::TestCase
+  self.fixture_table_names = []
+
   test "processes transfers without changing energy" do
     transaction = LedgerProcessorService.call(
       "idpk" => "transfer-1",
@@ -40,6 +42,30 @@ class LedgerProcessorServiceTest < ActiveSupport::TestCase
     assert_equal 25, transaction.budget_change
   end
 
+  test "reads demand quantity and price from a nested balance object" do
+    transaction = LedgerProcessorService.call(
+      "idpk" => "demand-balance-object",
+      "cycleId" => "cycle-1",
+      "type" => "demand-statement",
+      "data" => { "balance" => { "quantity" => -4, "valuePerKwh" => 3 } }
+    )
+
+    assert_equal(-4, transaction.energy_change)
+    assert_equal 12, transaction.budget_change
+  end
+
+  test "reads demand quantity from a scalar balance" do
+    transaction = LedgerProcessorService.call(
+      "idpk" => "demand-balance-scalar",
+      "cycleId" => "cycle-1",
+      "type" => "demand-statement",
+      "data" => { "balance" => 4, "valuePerKwh" => 3 }
+    )
+
+    assert_equal 4, transaction.energy_change
+    assert_equal(-12, transaction.budget_change)
+  end
+
   test "logs a retry when the idpk already exists" do
     payload = {
       "idpk" => "transfer-duplicate",
@@ -65,9 +91,16 @@ class LedgerProcessorServiceTest < ActiveSupport::TestCase
       "data" => { "quantity" => 125 }
     }
 
-    Transaction.stub(:create!, ->(**_attributes) { raise ActiveRecord::RecordNotUnique }) do
-      assert_equal false, LedgerProcessorService.call(payload)
-    end
+    Transaction.new(
+      idpk: payload["idpk"],
+      cycle_id: payload["cycleId"],
+      operation_type: "transfer",
+      energy_change: 0,
+      budget_change: 125,
+      raw_data: payload
+    ).save!(validate: false)
+
+    assert_equal false, LedgerProcessorService.call(payload)
 
     audit_log = AuditLog.find_by!(idpk: "transfer-race", event_type: "DUPLICATE")
     assert_match(/retry/i, audit_log.reason)

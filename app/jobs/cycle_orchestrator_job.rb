@@ -1,7 +1,7 @@
 class CycleOrchestratorJob < ApplicationJob
   queue_as :default
 
-  limits_of concurrency: 1, key: "cycle_orchestrator_single_instance"
+  #limits_of concurrency: 1, key: "cycle_orchestrator_single_instance"
 
   def perform
     now = Time.current
