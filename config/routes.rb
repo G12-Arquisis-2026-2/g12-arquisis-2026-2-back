@@ -14,6 +14,7 @@ Rails.application.routes.draw do
 
   # Recepción desde el connector
   post '/events', to: 'events#create'
+  post '/events/rejected', to: 'events#rejected'
 
   # Endpoints requeridos (RF1, RF2, RF3, RF4)
   get '/history', to: 'history#index'
@@ -35,4 +36,12 @@ Rails.application.routes.draw do
 
   # RF05: Auditoría de anomalías (duplicados, descartes y NACKs)
   get '/audit-logs', to: 'audit_logs#index'
+
+  namespace :api do
+    namespace :v1 do
+      get "ledger/:cycle_id", to: "ledger#show", as: :ledger
+      get "distances", to: "distances#index", as: :distances
+      get "audit-logs", to: "audit_logs#index", as: :audit_logs
+    end
+  end
 end

@@ -1,0 +1,324 @@
+Using vips to process variants requires the libvips library. Please install libvips using the instructions on the libvips website.
+Using vips to process variants requires the libvips library. Please install libvips using the instructions on the libvips website.
+  [1m[35mSQL (0.7ms)[0m  [1m[35mSET search_path TO public[0m
+  [1m[35m (267.4ms)[0m  [1m[35mCREATE DATABASE "e0_test" ENCODING = 'unicode'[0m
+  [1m[35mSQL (1.1ms)[0m  [1m[35mCREATE EXTENSION IF NOT EXISTS "plpgsql" SCHEMA pg_catalog[0m
+  [1m[35m (1.3ms)[0m  [1m[35mDROP TABLE IF EXISTS "audit_logs" CASCADE[0m
+  [1m[35m (31.1ms)[0m  [1m[35mCREATE TABLE "audit_logs" ("id" bigserial primary key, "idpk" character varying, "event_type" character varying NOT NULL, "reason" character varying NOT NULL, "raw_payload" jsonb DEFAULT '{}' NOT NULL, "created_at" timestamp(6) NOT NULL)[0m
+  [1m[35m (0.6ms)[0m  [1m[35mDROP TABLE IF EXISTS "demand_events" CASCADE[0m
+  [1m[35m (16.9ms)[0m  [1m[35mCREATE TABLE "demand_events" ("id" bigserial primary key, "created_at" timestamp(6) NOT NULL, "event_type" character varying NOT NULL, "idpk" character varying NOT NULL, "package_body" jsonb DEFAULT '{}' NOT NULL, "received_at" timestamp(6) NOT NULL, "updated_at" timestamp(6) NOT NULL)[0m
+  [1m[35m (5.8ms)[0m  [1m[35mCREATE UNIQUE INDEX "index_demand_events_on_idpk" ON "demand_events" ("idpk")[0m
+  [1m[35m (7.7ms)[0m  [1m[35mCREATE INDEX "index_demand_events_on_received_at" ON "demand_events" ("received_at")[0m
+  [1m[35m (0.5ms)[0m  [1m[35mDROP TABLE IF EXISTS "distance_tables" CASCADE[0m
+  [1m[35m (14.7ms)[0m  [1m[35mCREATE TABLE "distance_tables" ("id" bigserial primary key, "destination_code" character varying NOT NULL, "distance" integer NOT NULL, "transport_cost" decimal NOT NULL, "enabled" boolean NOT NULL)[0m
+  [1m[35m (5.4ms)[0m  [1m[35mCREATE UNIQUE INDEX "index_distance_tables_on_destination_code" ON "distance_tables" ("destination_code")[0m
+  [1m[35m (0.6ms)[0m  [1m[35mDROP TABLE IF EXISTS "transactions" CASCADE[0m
+  [1m[35m (13.6ms)[0m  [1m[35mCREATE TABLE "transactions" ("id" bigserial primary key, "idpk" character varying NOT NULL, "cycle_id" character varying NOT NULL, "operation_type" character varying NOT NULL, "energy_change" decimal NOT NULL, "budget_change" decimal NOT NULL, "raw_data" jsonb DEFAULT '{}' NOT NULL, "created_at" timestamp(6) NOT NULL)[0m
+  [1m[35m (7.3ms)[0m  [1m[35mCREATE INDEX "index_transactions_on_cycle_id" ON "transactions" ("cycle_id")[0m
+  [1m[35m (5.9ms)[0m  [1m[35mCREATE UNIQUE INDEX "index_transactions_on_idpk" ON "transactions" ("idpk")[0m
+  [1m[35m (12.3ms)[0m  [1m[35mCREATE TABLE "schema_migrations" ("version" character varying NOT NULL PRIMARY KEY)[0m
+  [1m[36mActiveRecord::SchemaMigration Load (1.8ms)[0m  [1m[34mSELECT "schema_migrations"."version" FROM "schema_migrations" ORDER BY "schema_migrations"."version" ASC[0m
+  [1m[35m (2.5ms)[0m  [1m[32mINSERT INTO "schema_migrations" (version) VALUES (20261006000001)[0m
+  [1m[35m (2.7ms)[0m  [1m[32mINSERT INTO "schema_migrations" (version) VALUES
+(20261005000004),
+(20261005000003),
+(20261005000002),
+(20261005000001),
+(20260827031333);[0m
+  [1m[35m (14.1ms)[0m  [1m[35mCREATE TABLE "ar_internal_metadata" ("key" character varying NOT NULL PRIMARY KEY, "value" character varying, "created_at" timestamp(6) NOT NULL, "updated_at" timestamp(6) NOT NULL)[0m
+  [1m[36mActiveRecord::InternalMetadata Load (2.0ms)[0m  [1m[34mSELECT * FROM "ar_internal_metadata" WHERE "ar_internal_metadata"."key" = $1 ORDER BY "ar_internal_metadata"."key" ASC LIMIT 1[0m  [[nil, "environment"]]
+  [1m[36mActiveRecord::InternalMetadata Create (2.1ms)[0m  [1m[32mINSERT INTO "ar_internal_metadata" ("key", "value", "created_at", "updated_at") VALUES ('environment', 'test', '2026-10-06 03:17:51.890607', '2026-10-06 03:17:51.890613') RETURNING "key"[0m
+  [1m[36mActiveRecord::InternalMetadata Load (0.8ms)[0m  [1m[34mSELECT * FROM "ar_internal_metadata" WHERE "ar_internal_metadata"."key" = $1 ORDER BY "ar_internal_metadata"."key" ASC LIMIT 1[0m  [[nil, "environment"]]
+  [1m[36mActiveRecord::InternalMetadata Load (0.8ms)[0m  [1m[34mSELECT * FROM "ar_internal_metadata" WHERE "ar_internal_metadata"."key" = $1 ORDER BY "ar_internal_metadata"."key" ASC LIMIT 1[0m  [[nil, "schema_sha1"]]
+  [1m[36mActiveRecord::InternalMetadata Create (2.3ms)[0m  [1m[32mINSERT INTO "ar_internal_metadata" ("key", "value", "created_at", "updated_at") VALUES ('schema_sha1', '6ed1dfe8f2ddc50292768ed83752f0a898926216', '2026-10-06 03:17:51.898368', '2026-10-06 03:17:51.898376') RETURNING "key"[0m
+  [1m[35m (0.8ms)[0m  [1m[34mSELECT pg_try_advisory_lock(133534148676810735)[0m
+  [1m[36mActiveRecord::SchemaMigration Load (0.7ms)[0m  [1m[34mSELECT "schema_migrations"."version" FROM "schema_migrations" ORDER BY "schema_migrations"."version" ASC[0m
+  [1m[36mActiveRecord::InternalMetadata Load (1.0ms)[0m  [1m[34mSELECT * FROM "ar_internal_metadata" WHERE "ar_internal_metadata"."key" = $1 ORDER BY "ar_internal_metadata"."key" ASC LIMIT 1[0m  [[nil, "environment"]]
+  [1m[35m (0.9ms)[0m  [1m[34mSELECT pg_advisory_unlock(133534148676810735)[0m
+  [1m[36mActiveRecord::SchemaMigration Load (0.7ms)[0m  [1m[34mSELECT "schema_migrations"."version" FROM "schema_migrations" ORDER BY "schema_migrations"."version" ASC[0m
+  [1m[35mSQL (0.6ms)[0m  [1m[35mSET search_path TO public[0m
+  [1m[35mSQL (0.7ms)[0m  [1m[35mSET search_path TO "$user", public[0m
+  [1m[35mSQL (0.6ms)[0m  [1m[35mSET search_path TO public[0m
+  [1m[35mSQL (0.6ms)[0m  [1m[35mSET search_path TO "$user", public[0m
+Using vips to process variants requires the libvips library. Please install libvips using the instructions on the libvips website.
+  [1m[36mActiveRecord::InternalMetadata Load (2.6ms)[0m  [1m[34mSELECT * FROM "ar_internal_metadata" WHERE "ar_internal_metadata"."key" = $1 ORDER BY "ar_internal_metadata"."key" ASC LIMIT 1[0m  [[nil, "schema_sha1"]]
+  [1m[36mActiveRecord::SchemaMigration Load (1.9ms)[0m  [1m[34mSELECT "schema_migrations"."version" FROM "schema_migrations" ORDER BY "schema_migrations"."version" ASC[0m
+  [1m[36mTRANSACTION (0.5ms)[0m  [1m[35mBEGIN[0m
+  [1m[35m (1.9ms)[0m  [1m[35mALTER TABLE "audit_logs" DISABLE TRIGGER ALL;ALTER TABLE "demand_events" DISABLE TRIGGER ALL;ALTER TABLE "distance_tables" DISABLE TRIGGER ALL;ALTER TABLE "transactions" DISABLE TRIGGER ALL;ALTER TABLE "schema_migrations" DISABLE TRIGGER ALL;ALTER TABLE "ar_internal_metadata" DISABLE TRIGGER ALL[0m
+  [1m[36mFixtures Load (2.5ms)[0m  [1m[31mDELETE FROM "demand_events";
+INSERT INTO "demand_events" ("id", "created_at", "event_type", "idpk", "package_body", "received_at", "updated_at") VALUES (980190962, '2026-10-06 03:18:04.822650', 'MyString', 'MyString', NULL, '2026-08-26 23:13:33', '2026-10-06 03:18:04.822650'), (298486374, '2026-10-06 03:18:04.822650', 'MyString', 'MyString', NULL, '2026-08-26 23:13:33', '2026-10-06 03:18:04.822650')[0m
+  [1m[36mTRANSACTION (0.5ms)[0m  [1m[31mROLLBACK[0m
+  [1m[36mTRANSACTION (0.5ms)[0m  [1m[35mBEGIN[0m
+  [1m[35m (0.7ms)[0m  [1m[35mALTER TABLE "audit_logs" DISABLE TRIGGER ALL;ALTER TABLE "demand_events" DISABLE TRIGGER ALL;ALTER TABLE "distance_tables" DISABLE TRIGGER ALL;ALTER TABLE "transactions" DISABLE TRIGGER ALL;ALTER TABLE "schema_migrations" DISABLE TRIGGER ALL;ALTER TABLE "ar_internal_metadata" DISABLE TRIGGER ALL[0m
+  [1m[36mFixtures Load (1.8ms)[0m  [1m[31mDELETE FROM "demand_events";
+INSERT INTO "demand_events" ("id", "created_at", "event_type", "idpk", "package_body", "received_at", "updated_at") VALUES (980190962, '2026-10-06 03:18:04.880231', 'MyString', 'MyString', NULL, '2026-08-26 23:13:33', '2026-10-06 03:18:04.880231'), (298486374, '2026-10-06 03:18:04.880231', 'MyString', 'MyString', NULL, '2026-08-26 23:13:33', '2026-10-06 03:18:04.880231')[0m
+  [1m[36mTRANSACTION (0.6ms)[0m  [1m[31mROLLBACK[0m
+Using vips to process variants requires the libvips library. Please install libvips using the instructions on the libvips website.
+  [1m[36mActiveRecord::InternalMetadata Load (1.5ms)[0m  [1m[34mSELECT * FROM "ar_internal_metadata" WHERE "ar_internal_metadata"."key" = $1 ORDER BY "ar_internal_metadata"."key" ASC LIMIT 1[0m  [[nil, "schema_sha1"]]
+  [1m[36mActiveRecord::SchemaMigration Load (2.2ms)[0m  [1m[34mSELECT "schema_migrations"."version" FROM "schema_migrations" ORDER BY "schema_migrations"."version" ASC[0m
+  [1m[36mTRANSACTION (0.7ms)[0m  [1m[35mBEGIN[0m
+----------------------------------------------------------------------------------------------
+DistanceTableProcessorServiceTest: test_returns_zero_when_there_are_no_destinations_to_process
+----------------------------------------------------------------------------------------------
+  [1m[36mTRANSACTION (0.4ms)[0m  [1m[31mROLLBACK[0m
+  [1m[36mTRANSACTION (0.3ms)[0m  [1m[35mBEGIN[0m
+------------------------------------------------------------------------------------------------------
+DistanceTableProcessorServiceTest: test_creates_and_updates_destinations_from_a_distance_table_payload
+------------------------------------------------------------------------------------------------------
+  [1m[36mDistanceTable Load (1.7ms)[0m  [1m[34mSELECT "distance_tables".* FROM "distance_tables" WHERE "distance_tables"."destination_code" = $1 LIMIT $2[0m  [["destination_code", "HGW"], ["LIMIT", 1]]
+  [1m[36mTRANSACTION (0.3ms)[0m  [1m[35mSAVEPOINT active_record_1[0m
+  [1m[36mDistanceTable Create (2.1ms)[0m  [1m[32mINSERT INTO "distance_tables" ("destination_code", "distance", "transport_cost", "enabled") VALUES ($1, $2, $3, $4) RETURNING "id"[0m  [["destination_code", "HGW"], ["distance", 62763183], ["transport_cost", "0.0034"], ["enabled", true]]
+  [1m[36mTRANSACTION (0.5ms)[0m  [1m[35mRELEASE SAVEPOINT active_record_1[0m
+  [1m[36mDistanceTable Count (1.0ms)[0m  [1m[34mSELECT COUNT(*) FROM "distance_tables"[0m
+  [1m[36mDistanceTable Load (0.6ms)[0m  [1m[34mSELECT "distance_tables".* FROM "distance_tables" WHERE "distance_tables"."destination_code" = $1 LIMIT $2[0m  [["destination_code", "HGW"], ["LIMIT", 1]]
+  [1m[36mCACHE DistanceTable Load (0.0ms)[0m  [1m[34mSELECT "distance_tables".* FROM "distance_tables" WHERE "distance_tables"."destination_code" = $1 LIMIT $2[0m  [["destination_code", "HGW"], ["LIMIT", 1]]
+  [1m[36mTRANSACTION (0.4ms)[0m  [1m[35mSAVEPOINT active_record_1[0m
+  [1m[36mDistanceTable Update (1.6ms)[0m  [1m[33mUPDATE "distance_tables" SET "distance" = $1, "transport_cost" = $2, "enabled" = $3 WHERE "distance_tables"."id" = $4[0m  [["distance", 100], ["transport_cost", "2.5"], ["enabled", false], ["id", 1]]
+  [1m[36mTRANSACTION (0.3ms)[0m  [1m[35mRELEASE SAVEPOINT active_record_1[0m
+  [1m[36mDistanceTable Count (1.0ms)[0m  [1m[34mSELECT COUNT(*) FROM "distance_tables"[0m
+  [1m[36mDistanceTable Load (1.4ms)[0m  [1m[34mSELECT "distance_tables".* FROM "distance_tables" WHERE "distance_tables"."id" = $1 LIMIT $2[0m  [["id", 1], ["LIMIT", 1]]
+  [1m[36mTRANSACTION (0.5ms)[0m  [1m[31mROLLBACK[0m
+Using vips to process variants requires the libvips library. Please install libvips using the instructions on the libvips website.
+  [1m[36mActiveRecord::InternalMetadata Load (1.7ms)[0m  [1m[34mSELECT * FROM "ar_internal_metadata" WHERE "ar_internal_metadata"."key" = $1 ORDER BY "ar_internal_metadata"."key" ASC LIMIT 1[0m  [[nil, "schema_sha1"]]
+  [1m[36mActiveRecord::SchemaMigration Load (1.9ms)[0m  [1m[34mSELECT "schema_migrations"."version" FROM "schema_migrations" ORDER BY "schema_migrations"."version" ASC[0m
+  [1m[36mTRANSACTION (0.3ms)[0m  [1m[35mBEGIN[0m
+----------------------------------------------------------------
+AuditLogTest: test_logs_a_NACK_even_when_the_payload_has_no_idpk
+----------------------------------------------------------------
+  [1m[36mTRANSACTION (0.4ms)[0m  [1m[35mSAVEPOINT active_record_1[0m
+  [1m[36mAuditLog Create (2.4ms)[0m  [1m[32mINSERT INTO "audit_logs" ("idpk", "event_type", "reason", "raw_payload", "created_at") VALUES ($1, $2, $3, $4, $5) RETURNING "id"[0m  [["idpk", nil], ["event_type", "NACK"], ["reason", "IDENTITY MISMATCH"], ["raw_payload", "{\"type\":\"transfer\"}"], ["created_at", "2026-10-06 03:20:13.129974"]]
+  [1m[36mTRANSACTION (0.4ms)[0m  [1m[35mRELEASE SAVEPOINT active_record_1[0m
+  [1m[36mTRANSACTION (0.5ms)[0m  [1m[31mROLLBACK[0m
+  [1m[36mTRANSACTION (0.5ms)[0m  [1m[35mBEGIN[0m
+-------------------------------------------------------------------------
+AuditLogTest: test_logs_a_NACK_with_the_payload_idpk_and_original_payload
+-------------------------------------------------------------------------
+  [1m[36mTRANSACTION (0.4ms)[0m  [1m[35mSAVEPOINT active_record_1[0m
+  [1m[36mAuditLog Create (1.4ms)[0m  [1m[32mINSERT INTO "audit_logs" ("idpk", "event_type", "reason", "raw_payload", "created_at") VALUES ($1, $2, $3, $4, $5) RETURNING "id"[0m  [["idpk", "message-1"], ["event_type", "NACK"], ["reason", "MALFORMED MESSAGE"], ["raw_payload", "{\"idpk\":\"message-1\",\"type\":\"transfer\"}"], ["created_at", "2026-10-06 03:20:13.145773"]]
+  [1m[36mTRANSACTION (0.6ms)[0m  [1m[35mRELEASE SAVEPOINT active_record_1[0m
+  [1m[36mTRANSACTION (0.6ms)[0m  [1m[31mROLLBACK[0m
+  [1m[36mTRANSACTION (0.3ms)[0m  [1m[35mBEGIN[0m
+---------------------------------------------------------------------------
+AuditLogTest: test_logs_errors_and_returns_nil_when_audit_persistence_fails
+---------------------------------------------------------------------------
+  [1m[36mTRANSACTION (0.4ms)[0m  [1m[31mROLLBACK[0m
+  [1m[36mTRANSACTION (0.5ms)[0m  [1m[35mBEGIN[0m
+--------------------------------------------------------------
+AuditLogTest: test_logs_a_discarded_raw_string_without_an_idpk
+--------------------------------------------------------------
+  [1m[36mTRANSACTION (0.4ms)[0m  [1m[35mSAVEPOINT active_record_1[0m
+  [1m[36mAuditLog Create (1.7ms)[0m  [1m[32mINSERT INTO "audit_logs" ("idpk", "event_type", "reason", "raw_payload", "created_at") VALUES ($1, $2, $3, $4, $5) RETURNING "id"[0m  [["idpk", nil], ["event_type", "DISCARDED"], ["reason", "UNPARSEABLE MESSAGE"], ["raw_payload", "{\"raw_string\":\"{invalid json\"}"], ["created_at", "2026-10-06 03:20:13.165259"]]
+  [1m[36mTRANSACTION (0.4ms)[0m  [1m[35mRELEASE SAVEPOINT active_record_1[0m
+  [1m[36mTRANSACTION (0.5ms)[0m  [1m[31mROLLBACK[0m
+Using vips to process variants requires the libvips library. Please install libvips using the instructions on the libvips website.
+  [1m[36mActiveRecord::InternalMetadata Load (2.0ms)[0m  [1m[34mSELECT * FROM "ar_internal_metadata" WHERE "ar_internal_metadata"."key" = $1 ORDER BY "ar_internal_metadata"."key" ASC LIMIT 1[0m  [[nil, "schema_sha1"]]
+  [1m[36mActiveRecord::SchemaMigration Load (0.9ms)[0m  [1m[34mSELECT "schema_migrations"."version" FROM "schema_migrations" ORDER BY "schema_migrations"."version" ASC[0m
+  [1m[36mTRANSACTION (0.2ms)[0m  [1m[35mBEGIN[0m
+-------------------------------------------------------------------------
+AuditLogTest: test_logs_a_NACK_with_the_payload_idpk_and_original_payload
+-------------------------------------------------------------------------
+  [1m[36mTRANSACTION (0.4ms)[0m  [1m[35mSAVEPOINT active_record_1[0m
+  [1m[36mAuditLog Create (1.9ms)[0m  [1m[32mINSERT INTO "audit_logs" ("idpk", "event_type", "reason", "raw_payload", "created_at") VALUES ($1, $2, $3, $4, $5) RETURNING "id"[0m  [["idpk", "message-1"], ["event_type", "NACK"], ["reason", "MALFORMED MESSAGE"], ["raw_payload", "{\"idpk\":\"message-1\",\"type\":\"transfer\"}"], ["created_at", "2026-10-06 03:20:29.143969"]]
+  [1m[36mTRANSACTION (0.4ms)[0m  [1m[35mRELEASE SAVEPOINT active_record_1[0m
+  [1m[36mTRANSACTION (0.5ms)[0m  [1m[31mROLLBACK[0m
+  [1m[36mTRANSACTION (0.3ms)[0m  [1m[35mBEGIN[0m
+----------------------------------------------------------------
+AuditLogTest: test_logs_a_NACK_even_when_the_payload_has_no_idpk
+----------------------------------------------------------------
+  [1m[36mTRANSACTION (0.6ms)[0m  [1m[35mSAVEPOINT active_record_1[0m
+  [1m[36mAuditLog Create (2.2ms)[0m  [1m[32mINSERT INTO "audit_logs" ("idpk", "event_type", "reason", "raw_payload", "created_at") VALUES ($1, $2, $3, $4, $5) RETURNING "id"[0m  [["idpk", nil], ["event_type", "NACK"], ["reason", "IDENTITY MISMATCH"], ["raw_payload", "{\"type\":\"transfer\"}"], ["created_at", "2026-10-06 03:20:29.157265"]]
+  [1m[36mTRANSACTION (0.5ms)[0m  [1m[35mRELEASE SAVEPOINT active_record_1[0m
+  [1m[36mTRANSACTION (0.5ms)[0m  [1m[31mROLLBACK[0m
+  [1m[36mTRANSACTION (0.2ms)[0m  [1m[35mBEGIN[0m
+--------------------------------------------------------------
+AuditLogTest: test_logs_a_discarded_raw_string_without_an_idpk
+--------------------------------------------------------------
+  [1m[36mTRANSACTION (0.4ms)[0m  [1m[35mSAVEPOINT active_record_1[0m
+  [1m[36mAuditLog Create (1.3ms)[0m  [1m[32mINSERT INTO "audit_logs" ("idpk", "event_type", "reason", "raw_payload", "created_at") VALUES ($1, $2, $3, $4, $5) RETURNING "id"[0m  [["idpk", nil], ["event_type", "DISCARDED"], ["reason", "UNPARSEABLE MESSAGE"], ["raw_payload", "{\"raw_string\":\"{invalid json\"}"], ["created_at", "2026-10-06 03:20:29.168980"]]
+  [1m[36mTRANSACTION (0.4ms)[0m  [1m[35mRELEASE SAVEPOINT active_record_1[0m
+  [1m[36mTRANSACTION (0.4ms)[0m  [1m[31mROLLBACK[0m
+  [1m[36mTRANSACTION (0.8ms)[0m  [1m[35mBEGIN[0m
+---------------------------------------------------------------------------
+AuditLogTest: test_logs_errors_and_returns_nil_when_audit_persistence_fails
+---------------------------------------------------------------------------
+  [1m[36mTRANSACTION (0.4ms)[0m  [1m[31mROLLBACK[0m
+Using vips to process variants requires the libvips library. Please install libvips using the instructions on the libvips website.
+  [1m[36mActiveRecord::InternalMetadata Load (1.5ms)[0m  [1m[34mSELECT * FROM "ar_internal_metadata" WHERE "ar_internal_metadata"."key" = $1 ORDER BY "ar_internal_metadata"."key" ASC LIMIT 1[0m  [[nil, "schema_sha1"]]
+  [1m[36mActiveRecord::SchemaMigration Load (1.2ms)[0m  [1m[34mSELECT "schema_migrations"."version" FROM "schema_migrations" ORDER BY "schema_migrations"."version" ASC[0m
+  [1m[36mTRANSACTION (0.2ms)[0m  [1m[35mBEGIN[0m
+----------------------------------------------------------------
+AuditLogTest: test_logs_a_NACK_even_when_the_payload_has_no_idpk
+----------------------------------------------------------------
+  [1m[36mTRANSACTION (0.5ms)[0m  [1m[35mSAVEPOINT active_record_1[0m
+  [1m[36mAuditLog Create (2.8ms)[0m  [1m[32mINSERT INTO "audit_logs" ("idpk", "event_type", "reason", "raw_payload", "created_at") VALUES ($1, $2, $3, $4, $5) RETURNING "id"[0m  [["idpk", nil], ["event_type", "NACK"], ["reason", "IDENTITY MISMATCH"], ["raw_payload", "{\"type\":\"transfer\"}"], ["created_at", "2026-10-06 03:20:49.113514"]]
+  [1m[36mTRANSACTION (0.5ms)[0m  [1m[35mRELEASE SAVEPOINT active_record_1[0m
+  [1m[36mTRANSACTION (0.7ms)[0m  [1m[31mROLLBACK[0m
+  [1m[36mTRANSACTION (0.5ms)[0m  [1m[35mBEGIN[0m
+--------------------------------------------------------------
+AuditLogTest: test_logs_a_discarded_raw_string_without_an_idpk
+--------------------------------------------------------------
+  [1m[36mTRANSACTION (0.5ms)[0m  [1m[35mSAVEPOINT active_record_1[0m
+  [1m[36mAuditLog Create (1.5ms)[0m  [1m[32mINSERT INTO "audit_logs" ("idpk", "event_type", "reason", "raw_payload", "created_at") VALUES ($1, $2, $3, $4, $5) RETURNING "id"[0m  [["idpk", nil], ["event_type", "DISCARDED"], ["reason", "UNPARSEABLE MESSAGE"], ["raw_payload", "{\"raw_string\":\"{invalid json\"}"], ["created_at", "2026-10-06 03:20:49.131801"]]
+  [1m[36mTRANSACTION (0.4ms)[0m  [1m[35mRELEASE SAVEPOINT active_record_1[0m
+  [1m[36mTRANSACTION (0.8ms)[0m  [1m[31mROLLBACK[0m
+  [1m[36mTRANSACTION (0.6ms)[0m  [1m[35mBEGIN[0m
+-------------------------------------------------------------------------
+AuditLogTest: test_logs_a_NACK_with_the_payload_idpk_and_original_payload
+-------------------------------------------------------------------------
+  [1m[36mTRANSACTION (0.6ms)[0m  [1m[35mSAVEPOINT active_record_1[0m
+  [1m[36mAuditLog Create (2.2ms)[0m  [1m[32mINSERT INTO "audit_logs" ("idpk", "event_type", "reason", "raw_payload", "created_at") VALUES ($1, $2, $3, $4, $5) RETURNING "id"[0m  [["idpk", "message-1"], ["event_type", "NACK"], ["reason", "MALFORMED MESSAGE"], ["raw_payload", "{\"idpk\":\"message-1\",\"type\":\"transfer\"}"], ["created_at", "2026-10-06 03:20:49.142487"]]
+  [1m[36mTRANSACTION (0.5ms)[0m  [1m[35mRELEASE SAVEPOINT active_record_1[0m
+  [1m[36mTRANSACTION (0.6ms)[0m  [1m[31mROLLBACK[0m
+  [1m[36mTRANSACTION (0.3ms)[0m  [1m[35mBEGIN[0m
+---------------------------------------------------------------------------
+AuditLogTest: test_logs_errors_and_returns_nil_when_audit_persistence_fails
+---------------------------------------------------------------------------
+  [1m[36mTRANSACTION (0.4ms)[0m  [1m[31mROLLBACK[0m
+Using vips to process variants requires the libvips library. Please install libvips using the instructions on the libvips website.
+  [1m[36mActiveRecord::InternalMetadata Load (2.3ms)[0m  [1m[34mSELECT * FROM "ar_internal_metadata" WHERE "ar_internal_metadata"."key" = $1 ORDER BY "ar_internal_metadata"."key" ASC LIMIT 1[0m  [[nil, "schema_sha1"]]
+  [1m[36mActiveRecord::SchemaMigration Load (1.2ms)[0m  [1m[34mSELECT "schema_migrations"."version" FROM "schema_migrations" ORDER BY "schema_migrations"."version" ASC[0m
+  [1m[36mTRANSACTION (0.3ms)[0m  [1m[35mBEGIN[0m
+---------------------------------------------------------------------------
+AuditLogTest: test_logs_errors_and_returns_nil_when_audit_persistence_fails
+---------------------------------------------------------------------------
+  [1m[36mTRANSACTION (0.3ms)[0m  [1m[31mROLLBACK[0m
+  [1m[36mTRANSACTION (0.3ms)[0m  [1m[35mBEGIN[0m
+----------------------------------------------------------------
+AuditLogTest: test_logs_a_NACK_even_when_the_payload_has_no_idpk
+----------------------------------------------------------------
+  [1m[36mTRANSACTION (0.4ms)[0m  [1m[35mSAVEPOINT active_record_1[0m
+  [1m[36mAuditLog Create (2.1ms)[0m  [1m[32mINSERT INTO "audit_logs" ("idpk", "event_type", "reason", "raw_payload", "created_at") VALUES ($1, $2, $3, $4, $5) RETURNING "id"[0m  [["idpk", nil], ["event_type", "NACK"], ["reason", "IDENTITY MISMATCH"], ["raw_payload", "{\"type\":\"transfer\"}"], ["created_at", "2026-10-06 03:20:57.002406"]]
+  [1m[36mTRANSACTION (0.5ms)[0m  [1m[35mRELEASE SAVEPOINT active_record_1[0m
+  [1m[36mTRANSACTION (0.4ms)[0m  [1m[31mROLLBACK[0m
+  [1m[36mTRANSACTION (0.3ms)[0m  [1m[35mBEGIN[0m
+--------------------------------------------------------------
+AuditLogTest: test_logs_a_discarded_raw_string_without_an_idpk
+--------------------------------------------------------------
+  [1m[36mTRANSACTION (0.4ms)[0m  [1m[35mSAVEPOINT active_record_1[0m
+  [1m[36mAuditLog Create (2.3ms)[0m  [1m[32mINSERT INTO "audit_logs" ("idpk", "event_type", "reason", "raw_payload", "created_at") VALUES ($1, $2, $3, $4, $5) RETURNING "id"[0m  [["idpk", nil], ["event_type", "DISCARDED"], ["reason", "UNPARSEABLE MESSAGE"], ["raw_payload", "{\"raw_string\":\"{invalid json\"}"], ["created_at", "2026-10-06 03:20:57.017094"]]
+  [1m[36mTRANSACTION (0.5ms)[0m  [1m[35mRELEASE SAVEPOINT active_record_1[0m
+  [1m[36mTRANSACTION (0.5ms)[0m  [1m[31mROLLBACK[0m
+  [1m[36mTRANSACTION (0.4ms)[0m  [1m[35mBEGIN[0m
+-------------------------------------------------------------------------
+AuditLogTest: test_logs_a_NACK_with_the_payload_idpk_and_original_payload
+-------------------------------------------------------------------------
+  [1m[36mTRANSACTION (0.3ms)[0m  [1m[35mSAVEPOINT active_record_1[0m
+  [1m[36mAuditLog Create (1.3ms)[0m  [1m[32mINSERT INTO "audit_logs" ("idpk", "event_type", "reason", "raw_payload", "created_at") VALUES ($1, $2, $3, $4, $5) RETURNING "id"[0m  [["idpk", "message-1"], ["event_type", "NACK"], ["reason", "MALFORMED MESSAGE"], ["raw_payload", "{\"idpk\":\"message-1\",\"type\":\"transfer\"}"], ["created_at", "2026-10-06 03:20:57.029913"]]
+  [1m[36mTRANSACTION (0.4ms)[0m  [1m[35mRELEASE SAVEPOINT active_record_1[0m
+  [1m[36mTRANSACTION (0.3ms)[0m  [1m[31mROLLBACK[0m
+Using vips to process variants requires the libvips library. Please install libvips using the instructions on the libvips website.
+  [1m[36mActiveRecord::InternalMetadata Load (2.0ms)[0m  [1m[34mSELECT * FROM "ar_internal_metadata" WHERE "ar_internal_metadata"."key" = $1 ORDER BY "ar_internal_metadata"."key" ASC LIMIT 1[0m  [[nil, "schema_sha1"]]
+  [1m[36mActiveRecord::SchemaMigration Load (1.2ms)[0m  [1m[34mSELECT "schema_migrations"."version" FROM "schema_migrations" ORDER BY "schema_migrations"."version" ASC[0m
+  [1m[36mTRANSACTION (0.6ms)[0m  [1m[35mBEGIN[0m
+-------------------------------------------------------------------------
+AuditLogTest: test_logs_a_NACK_with_the_payload_idpk_and_original_payload
+-------------------------------------------------------------------------
+  [1m[36mTRANSACTION (0.4ms)[0m  [1m[35mSAVEPOINT active_record_1[0m
+  [1m[36mAuditLog Create (1.6ms)[0m  [1m[32mINSERT INTO "audit_logs" ("idpk", "event_type", "reason", "raw_payload", "created_at") VALUES ($1, $2, $3, $4, $5) RETURNING "id"[0m  [["idpk", "message-1"], ["event_type", "NACK"], ["reason", "MALFORMED MESSAGE"], ["raw_payload", "{\"idpk\":\"message-1\",\"type\":\"transfer\"}"], ["created_at", "2026-10-06 03:21:16.893720"]]
+  [1m[36mTRANSACTION (0.3ms)[0m  [1m[35mRELEASE SAVEPOINT active_record_1[0m
+  [1m[36mTRANSACTION (0.3ms)[0m  [1m[31mROLLBACK[0m
+  [1m[36mTRANSACTION (0.3ms)[0m  [1m[35mBEGIN[0m
+-----------------------------------------------------------
+AuditLogTest: test_returns_nil_when_audit_persistence_fails
+-----------------------------------------------------------
+  [1m[36mTRANSACTION (0.3ms)[0m  [1m[31mROLLBACK[0m
+  [1m[36mTRANSACTION (0.3ms)[0m  [1m[35mBEGIN[0m
+----------------------------------------------------------------
+AuditLogTest: test_logs_a_NACK_even_when_the_payload_has_no_idpk
+----------------------------------------------------------------
+  [1m[36mTRANSACTION (0.6ms)[0m  [1m[35mSAVEPOINT active_record_1[0m
+  [1m[36mAuditLog Create (2.1ms)[0m  [1m[32mINSERT INTO "audit_logs" ("idpk", "event_type", "reason", "raw_payload", "created_at") VALUES ($1, $2, $3, $4, $5) RETURNING "id"[0m  [["idpk", nil], ["event_type", "NACK"], ["reason", "IDENTITY MISMATCH"], ["raw_payload", "{\"type\":\"transfer\"}"], ["created_at", "2026-10-06 03:21:16.909472"]]
+  [1m[36mTRANSACTION (0.4ms)[0m  [1m[35mRELEASE SAVEPOINT active_record_1[0m
+  [1m[36mTRANSACTION (0.5ms)[0m  [1m[31mROLLBACK[0m
+  [1m[36mTRANSACTION (0.3ms)[0m  [1m[35mBEGIN[0m
+--------------------------------------------------------------
+AuditLogTest: test_logs_a_discarded_raw_string_without_an_idpk
+--------------------------------------------------------------
+  [1m[36mTRANSACTION (0.4ms)[0m  [1m[35mSAVEPOINT active_record_1[0m
+  [1m[36mAuditLog Create (1.4ms)[0m  [1m[32mINSERT INTO "audit_logs" ("idpk", "event_type", "reason", "raw_payload", "created_at") VALUES ($1, $2, $3, $4, $5) RETURNING "id"[0m  [["idpk", nil], ["event_type", "DISCARDED"], ["reason", "UNPARSEABLE MESSAGE"], ["raw_payload", "{\"raw_string\":\"{invalid json\"}"], ["created_at", "2026-10-06 03:21:16.921509"]]
+  [1m[36mTRANSACTION (0.4ms)[0m  [1m[35mRELEASE SAVEPOINT active_record_1[0m
+  [1m[36mTRANSACTION (0.3ms)[0m  [1m[31mROLLBACK[0m
+Using vips to process variants requires the libvips library. Please install libvips using the instructions on the libvips website.
+  [1m[36mActiveRecord::InternalMetadata Load (2.9ms)[0m  [1m[34mSELECT * FROM "ar_internal_metadata" WHERE "ar_internal_metadata"."key" = $1 ORDER BY "ar_internal_metadata"."key" ASC LIMIT 1[0m  [[nil, "schema_sha1"]]
+  [1m[36mActiveRecord::SchemaMigration Load (1.0ms)[0m  [1m[34mSELECT "schema_migrations"."version" FROM "schema_migrations" ORDER BY "schema_migrations"."version" ASC[0m
+  [1m[36mTRANSACTION (0.2ms)[0m  [1m[35mBEGIN[0m
+-----------------------------------------------------------
+AuditLogTest: test_returns_nil_when_audit_persistence_fails
+-----------------------------------------------------------
+  [1m[36mTRANSACTION (0.5ms)[0m  [1m[31mROLLBACK[0m
+  [1m[36mTRANSACTION (0.2ms)[0m  [1m[35mBEGIN[0m
+----------------------------------------------------------------
+AuditLogTest: test_logs_a_NACK_even_when_the_payload_has_no_idpk
+----------------------------------------------------------------
+  [1m[36mTRANSACTION (0.6ms)[0m  [1m[35mSAVEPOINT active_record_1[0m
+  [1m[36mAuditLog Create (3.0ms)[0m  [1m[32mINSERT INTO "audit_logs" ("idpk", "event_type", "reason", "raw_payload", "created_at") VALUES ($1, $2, $3, $4, $5) RETURNING "id"[0m  [["idpk", nil], ["event_type", "NACK"], ["reason", "IDENTITY MISMATCH"], ["raw_payload", "{\"type\":\"transfer\"}"], ["created_at", "2026-10-06 03:21:24.442340"]]
+  [1m[36mTRANSACTION (0.6ms)[0m  [1m[35mRELEASE SAVEPOINT active_record_1[0m
+  [1m[36mTRANSACTION (0.5ms)[0m  [1m[31mROLLBACK[0m
+  [1m[36mTRANSACTION (0.3ms)[0m  [1m[35mBEGIN[0m
+-------------------------------------------------------------------------
+AuditLogTest: test_logs_a_NACK_with_the_payload_idpk_and_original_payload
+-------------------------------------------------------------------------
+  [1m[36mTRANSACTION (0.4ms)[0m  [1m[35mSAVEPOINT active_record_1[0m
+  [1m[36mAuditLog Create (1.7ms)[0m  [1m[32mINSERT INTO "audit_logs" ("idpk", "event_type", "reason", "raw_payload", "created_at") VALUES ($1, $2, $3, $4, $5) RETURNING "id"[0m  [["idpk", "message-1"], ["event_type", "NACK"], ["reason", "MALFORMED MESSAGE"], ["raw_payload", "{\"idpk\":\"message-1\",\"type\":\"transfer\"}"], ["created_at", "2026-10-06 03:21:24.454609"]]
+  [1m[36mTRANSACTION (0.4ms)[0m  [1m[35mRELEASE SAVEPOINT active_record_1[0m
+  [1m[36mTRANSACTION (0.3ms)[0m  [1m[31mROLLBACK[0m
+  [1m[36mTRANSACTION (0.3ms)[0m  [1m[35mBEGIN[0m
+--------------------------------------------------------------
+AuditLogTest: test_logs_a_discarded_raw_string_without_an_idpk
+--------------------------------------------------------------
+  [1m[36mTRANSACTION (0.5ms)[0m  [1m[35mSAVEPOINT active_record_1[0m
+  [1m[36mAuditLog Create (1.5ms)[0m  [1m[32mINSERT INTO "audit_logs" ("idpk", "event_type", "reason", "raw_payload", "created_at") VALUES ($1, $2, $3, $4, $5) RETURNING "id"[0m  [["idpk", nil], ["event_type", "DISCARDED"], ["reason", "UNPARSEABLE MESSAGE"], ["raw_payload", "{\"raw_string\":\"{invalid json\"}"], ["created_at", "2026-10-06 03:21:24.462751"]]
+  [1m[36mTRANSACTION (0.5ms)[0m  [1m[35mRELEASE SAVEPOINT active_record_1[0m
+  [1m[36mTRANSACTION (0.5ms)[0m  [1m[31mROLLBACK[0m
+Using vips to process variants requires the libvips library. Please install libvips using the instructions on the libvips website.
+  [1m[36mActiveRecord::InternalMetadata Load (2.3ms)[0m  [1m[34mSELECT * FROM "ar_internal_metadata" WHERE "ar_internal_metadata"."key" = $1 ORDER BY "ar_internal_metadata"."key" ASC LIMIT 1[0m  [[nil, "schema_sha1"]]
+  [1m[36mActiveRecord::SchemaMigration Load (1.2ms)[0m  [1m[34mSELECT "schema_migrations"."version" FROM "schema_migrations" ORDER BY "schema_migrations"."version" ASC[0m
+Using vips to process variants requires the libvips library. Please install libvips using the instructions on the libvips website.
+  [1m[36mActiveRecord::InternalMetadata Load (2.7ms)[0m  [1m[34mSELECT * FROM "ar_internal_metadata" WHERE "ar_internal_metadata"."key" = $1 ORDER BY "ar_internal_metadata"."key" ASC LIMIT 1[0m  [[nil, "schema_sha1"]]
+  [1m[36mActiveRecord::SchemaMigration Load (1.4ms)[0m  [1m[34mSELECT "schema_migrations"."version" FROM "schema_migrations" ORDER BY "schema_migrations"."version" ASC[0m
+  [1m[36mTRANSACTION (0.3ms)[0m  [1m[35mBEGIN[0m
+----------------------------------------------------------------
+AuditLogTest: test_returns_nil_when_NACK_audit_persistence_fails
+----------------------------------------------------------------
+  [1m[36mTRANSACTION (0.3ms)[0m  [1m[35mSAVEPOINT active_record_1[0m
+  [1m[36mAuditLog Create (1.8ms)[0m  [1m[32mINSERT INTO "audit_logs" ("idpk", "event_type", "reason", "raw_payload", "created_at") VALUES ($1, $2, $3, $4, $5) RETURNING "id"[0m  [["idpk", nil], ["event_type", "NACK"], ["reason", "MALFORMED MESSAGE"], ["raw_payload", nil], ["created_at", "2026-10-06 03:22:32.870112"]]
+  [1m[36mTRANSACTION (0.4ms)[0m  [1m[31mROLLBACK TO SAVEPOINT active_record_1[0m
+AuditLog.log_nack failed: ActiveRecord::NotNullViolation: PG::NotNullViolation: ERROR:  null value in column "raw_payload" of relation "audit_logs" violates not-null constraint
+DETAIL:  Failing row contains (19, null, NACK, MALFORMED MESSAGE, null, 2026-10-06 03:22:32.870112).
+
+  [1m[36mTRANSACTION (0.6ms)[0m  [1m[31mROLLBACK[0m
+  [1m[36mTRANSACTION (0.2ms)[0m  [1m[35mBEGIN[0m
+----------------------------------------------------------------
+AuditLogTest: test_logs_a_NACK_even_when_the_payload_has_no_idpk
+----------------------------------------------------------------
+  [1m[36mTRANSACTION (0.3ms)[0m  [1m[35mSAVEPOINT active_record_1[0m
+  [1m[36mAuditLog Create (1.5ms)[0m  [1m[32mINSERT INTO "audit_logs" ("idpk", "event_type", "reason", "raw_payload", "created_at") VALUES ($1, $2, $3, $4, $5) RETURNING "id"[0m  [["idpk", nil], ["event_type", "NACK"], ["reason", "IDENTITY MISMATCH"], ["raw_payload", "{\"type\":\"transfer\"}"], ["created_at", "2026-10-06 03:22:32.883674"]]
+  [1m[36mTRANSACTION (0.5ms)[0m  [1m[35mRELEASE SAVEPOINT active_record_1[0m
+  [1m[36mTRANSACTION (0.6ms)[0m  [1m[31mROLLBACK[0m
+  [1m[36mTRANSACTION (0.3ms)[0m  [1m[35mBEGIN[0m
+---------------------------------------------------------------------
+AuditLogTest: test_returns_nil_when_discarded_audit_persistence_fails
+---------------------------------------------------------------------
+  [1m[36mTRANSACTION (0.8ms)[0m  [1m[35mSAVEPOINT active_record_1[0m
+  [1m[36mAuditLog Create (2.4ms)[0m  [1m[32mINSERT INTO "audit_logs" ("idpk", "event_type", "reason", "raw_payload", "created_at") VALUES ($1, $2, $3, $4, $5) RETURNING "id"[0m  [["idpk", nil], ["event_type", "DISCARDED"], ["reason", nil], ["raw_payload", "{\"raw_string\":\"raw\"}"], ["created_at", "2026-10-06 03:22:32.897377"]]
+  [1m[36mTRANSACTION (0.3ms)[0m  [1m[31mROLLBACK TO SAVEPOINT active_record_1[0m
+AuditLog.log_discard failed: ActiveRecord::NotNullViolation: PG::NotNullViolation: ERROR:  null value in column "reason" of relation "audit_logs" violates not-null constraint
+DETAIL:  Failing row contains (21, null, DISCARDED, null, {"raw_string": "raw"}, 2026-10-06 03:22:32.897377).
+
+  [1m[36mTRANSACTION (0.4ms)[0m  [1m[31mROLLBACK[0m
+  [1m[36mTRANSACTION (0.3ms)[0m  [1m[35mBEGIN[0m
+--------------------------------------------------------------
+AuditLogTest: test_logs_a_discarded_raw_string_without_an_idpk
+--------------------------------------------------------------
+  [1m[36mTRANSACTION (0.5ms)[0m  [1m[35mSAVEPOINT active_record_1[0m
+  [1m[36mAuditLog Create (3.4ms)[0m  [1m[32mINSERT INTO "audit_logs" ("idpk", "event_type", "reason", "raw_payload", "created_at") VALUES ($1, $2, $3, $4, $5) RETURNING "id"[0m  [["idpk", nil], ["event_type", "DISCARDED"], ["reason", "UNPARSEABLE MESSAGE"], ["raw_payload", "{\"raw_string\":\"{invalid json\"}"], ["created_at", "2026-10-06 03:22:32.908777"]]
+  [1m[36mTRANSACTION (0.9ms)[0m  [1m[35mRELEASE SAVEPOINT active_record_1[0m
+  [1m[36mTRANSACTION (0.6ms)[0m  [1m[31mROLLBACK[0m
+  [1m[36mTRANSACTION (0.4ms)[0m  [1m[35mBEGIN[0m
+-------------------------------------------------------------------------
+AuditLogTest: test_logs_a_NACK_with_the_payload_idpk_and_original_payload
+-------------------------------------------------------------------------
+  [1m[36mTRANSACTION (0.3ms)[0m  [1m[35mSAVEPOINT active_record_1[0m
+  [1m[36mAuditLog Create (1.4ms)[0m  [1m[32mINSERT INTO "audit_logs" ("idpk", "event_type", "reason", "raw_payload", "created_at") VALUES ($1, $2, $3, $4, $5) RETURNING "id"[0m  [["idpk", "message-1"], ["event_type", "NACK"], ["reason", "MALFORMED MESSAGE"], ["raw_payload", "{\"idpk\":\"message-1\",\"type\":\"transfer\"}"], ["created_at", "2026-10-06 03:22:32.923895"]]
+  [1m[36mTRANSACTION (0.5ms)[0m  [1m[35mRELEASE SAVEPOINT active_record_1[0m
+  [1m[36mTRANSACTION (0.6ms)[0m  [1m[31mROLLBACK[0m

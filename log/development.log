@@ -1,0 +1,87 @@
+Using vips to process variants requires the libvips library. Please install libvips using the instructions on the libvips website.
+  [1m[35mSQL (0.7ms)[0m  [1m[35mSET search_path TO public /*application='E0'*/[0m
+  [1m[35m (430.3ms)[0m  [1m[35mCREATE DATABASE "e0_development" ENCODING = 'unicode' /*application='E0'*/[0m
+  [1m[35mSQL (1.3ms)[0m  [1m[35mCREATE EXTENSION IF NOT EXISTS "plpgsql" SCHEMA pg_catalog /*application='E0'*/[0m
+  [1m[35m (1.0ms)[0m  [1m[35mDROP TABLE IF EXISTS "demand_events" CASCADE /*application='E0'*/[0m
+  [1m[35m (25.9ms)[0m  [1m[35mCREATE TABLE "demand_events" ("id" bigserial primary key, "created_at" timestamp(6) NOT NULL, "event_type" character varying NOT NULL, "idpk" character varying NOT NULL, "package_body" jsonb DEFAULT '{}' NOT NULL, "received_at" timestamp(6) NOT NULL, "updated_at" timestamp(6) NOT NULL) /*application='E0'*/[0m
+  [1m[35m (7.7ms)[0m  [1m[35mCREATE UNIQUE INDEX "index_demand_events_on_idpk" ON "demand_events" ("idpk") /*application='E0'*/[0m
+  [1m[35m (6.4ms)[0m  [1m[35mCREATE INDEX "index_demand_events_on_received_at" ON "demand_events" ("received_at") /*application='E0'*/[0m
+  [1m[35m (12.2ms)[0m  [1m[35mCREATE TABLE "schema_migrations" ("version" character varying NOT NULL PRIMARY KEY) /*application='E0'*/[0m
+  [1m[36mActiveRecord::SchemaMigration Load (1.1ms)[0m  [1m[34mSELECT "schema_migrations"."version" FROM "schema_migrations" ORDER BY "schema_migrations"."version" ASC /*application='E0'*/[0m
+  [1m[35m (2.5ms)[0m  [1m[32mINSERT INTO "schema_migrations" (version) VALUES (20260827031333) /*application='E0'*/[0m
+  [1m[35m (15.0ms)[0m  [1m[35mCREATE TABLE "ar_internal_metadata" ("key" character varying NOT NULL PRIMARY KEY, "value" character varying, "created_at" timestamp(6) NOT NULL, "updated_at" timestamp(6) NOT NULL) /*application='E0'*/[0m
+  [1m[36mActiveRecord::InternalMetadata Load (1.3ms)[0m  [1m[34mSELECT * FROM "ar_internal_metadata" WHERE "ar_internal_metadata"."key" = 'environment' ORDER BY "ar_internal_metadata"."key" ASC LIMIT 1 /*application='E0'*/[0m
+  [1m[36mActiveRecord::InternalMetadata Create (2.6ms)[0m  [1m[32mINSERT INTO "ar_internal_metadata" ("key", "value", "created_at", "updated_at") VALUES ('environment', 'development', '2026-10-06 03:07:12.842942', '2026-10-06 03:07:12.842948') RETURNING "key" /*application='E0'*/[0m
+  [1m[36mActiveRecord::InternalMetadata Load (1.1ms)[0m  [1m[34mSELECT * FROM "ar_internal_metadata" WHERE "ar_internal_metadata"."key" = 'environment' ORDER BY "ar_internal_metadata"."key" ASC LIMIT 1 /*application='E0'*/[0m
+  [1m[36mActiveRecord::InternalMetadata Load (1.2ms)[0m  [1m[34mSELECT * FROM "ar_internal_metadata" WHERE "ar_internal_metadata"."key" = 'schema_sha1' ORDER BY "ar_internal_metadata"."key" ASC LIMIT 1 /*application='E0'*/[0m
+  [1m[36mActiveRecord::InternalMetadata Create (1.6ms)[0m  [1m[32mINSERT INTO "ar_internal_metadata" ("key", "value", "created_at", "updated_at") VALUES ('schema_sha1', 'e3606ec4fc6297504e6dbb8ff1a4eab6653a0bc0', '2026-10-06 03:07:12.854843', '2026-10-06 03:07:12.854848') RETURNING "key" /*application='E0'*/[0m
+  [1m[35m (0.9ms)[0m  [1m[34mSELECT pg_try_advisory_lock(2032918012893123195) /*application='E0'*/[0m
+  [1m[36mActiveRecord::SchemaMigration Load (0.8ms)[0m  [1m[34mSELECT "schema_migrations"."version" FROM "schema_migrations" ORDER BY "schema_migrations"."version" ASC /*application='E0'*/[0m
+  [1m[36mActiveRecord::InternalMetadata Load (0.7ms)[0m  [1m[34mSELECT * FROM "ar_internal_metadata" WHERE "ar_internal_metadata"."key" = 'environment' ORDER BY "ar_internal_metadata"."key" ASC LIMIT 1 /*application='E0'*/[0m
+Migrating to CreateTransactions (20261005000001)
+  [1m[36mTRANSACTION (0.4ms)[0m  [1m[35mBEGIN /*application='E0'*/[0m
+  [1m[35m (9.8ms)[0m  [1m[35mCREATE TABLE "transactions" ("id" bigserial primary key, "idpk" character varying NOT NULL, "cycle_id" character varying NOT NULL, "operation_type" character varying NOT NULL, "energy_change" decimal NOT NULL, "budget_change" decimal NOT NULL, "raw_data" jsonb DEFAULT '{}' NOT NULL, "created_at" timestamp(6) NOT NULL) /*application='E0'*/[0m
+  [1m[35m (3.7ms)[0m  [1m[35mCREATE UNIQUE INDEX "index_transactions_on_idpk" ON "transactions" ("idpk") /*application='E0'*/[0m
+  [1m[35m (4.4ms)[0m  [1m[35mCREATE INDEX "index_transactions_on_cycle_id" ON "transactions" ("cycle_id") /*application='E0'*/[0m
+  [1m[36mActiveRecord::SchemaMigration Create (0.7ms)[0m  [1m[32mINSERT INTO "schema_migrations" ("version") VALUES ('20261005000001') RETURNING "version" /*application='E0'*/[0m
+  [1m[36mTRANSACTION (2.1ms)[0m  [1m[35mCOMMIT /*application='E0'*/[0m
+Migrating to CreateDistanceTables (20261005000002)
+  [1m[36mTRANSACTION (0.3ms)[0m  [1m[35mBEGIN /*application='E0'*/[0m
+  [1m[35m (13.3ms)[0m  [1m[35mCREATE TABLE "distance_tables" ("id" bigserial primary key, "destination_code" character varying NOT NULL, "distance" integer NOT NULL, "transport_cost" decimal NOT NULL, "enabled" boolean NOT NULL) /*application='E0'*/[0m
+  [1m[36mActiveRecord::SchemaMigration Create (0.4ms)[0m  [1m[32mINSERT INTO "schema_migrations" ("version") VALUES ('20261005000002') RETURNING "version" /*application='E0'*/[0m
+  [1m[36mTRANSACTION (1.6ms)[0m  [1m[35mCOMMIT /*application='E0'*/[0m
+Migrating to CreateAuditLogs (20261005000003)
+  [1m[36mTRANSACTION (0.4ms)[0m  [1m[35mBEGIN /*application='E0'*/[0m
+  [1m[35m (10.1ms)[0m  [1m[35mCREATE TABLE "audit_logs" ("id" bigserial primary key, "idpk" character varying NOT NULL, "event_type" character varying NOT NULL, "reason" character varying NOT NULL, "raw_payload" jsonb DEFAULT '{}' NOT NULL, "created_at" timestamp(6) NOT NULL) /*application='E0'*/[0m
+  [1m[36mActiveRecord::SchemaMigration Create (0.5ms)[0m  [1m[32mINSERT INTO "schema_migrations" ("version") VALUES ('20261005000003') RETURNING "version" /*application='E0'*/[0m
+  [1m[36mTRANSACTION (2.1ms)[0m  [1m[35mCOMMIT /*application='E0'*/[0m
+Migrating to AddUniqueIndexToDistanceTablesOnDestinationCode (20261005000004)
+  [1m[36mTRANSACTION (0.3ms)[0m  [1m[35mBEGIN /*application='E0'*/[0m
+  [1m[35m (5.7ms)[0m  [1m[35mCREATE UNIQUE INDEX "index_distance_tables_on_destination_code" ON "distance_tables" ("destination_code") /*application='E0'*/[0m
+  [1m[36mActiveRecord::SchemaMigration Create (0.5ms)[0m  [1m[32mINSERT INTO "schema_migrations" ("version") VALUES ('20261005000004') RETURNING "version" /*application='E0'*/[0m
+  [1m[36mTRANSACTION (1.7ms)[0m  [1m[35mCOMMIT /*application='E0'*/[0m
+Migrating to AllowNullIdpkOnAuditLogs (20261006000001)
+  [1m[36mTRANSACTION (0.4ms)[0m  [1m[35mBEGIN /*application='E0'*/[0m
+  [1m[35m (2.7ms)[0m  [1m[35mALTER TABLE "audit_logs" ALTER COLUMN "idpk" DROP NOT NULL /*application='E0'*/[0m
+  [1m[36mActiveRecord::SchemaMigration Create (0.5ms)[0m  [1m[32mINSERT INTO "schema_migrations" ("version") VALUES ('20261006000001') RETURNING "version" /*application='E0'*/[0m
+  [1m[36mTRANSACTION (1.2ms)[0m  [1m[35mCOMMIT /*application='E0'*/[0m
+  [1m[35m (0.4ms)[0m  [1m[34mSELECT pg_advisory_unlock(2032918012893123195) /*application='E0'*/[0m
+  [1m[36mActiveRecord::SchemaMigration Load (0.5ms)[0m  [1m[34mSELECT "schema_migrations"."version" FROM "schema_migrations" ORDER BY "schema_migrations"."version" ASC /*application='E0'*/[0m
+  [1m[35mSQL (0.4ms)[0m  [1m[35mSET search_path TO public /*application='E0'*/[0m
+  [1m[35mSQL (0.3ms)[0m  [1m[35mSET search_path TO "$user", public /*application='E0'*/[0m
+  [1m[35mSQL (0.3ms)[0m  [1m[35mSET search_path TO public /*application='E0'*/[0m
+  [1m[35mSQL (0.2ms)[0m  [1m[35mSET search_path TO "$user", public /*application='E0'*/[0m
+Using vips to process variants requires the libvips library. Please install libvips using the instructions on the libvips website.
+  [1m[36mTRANSACTION (0.4ms)[0m  [1m[35mBEGIN /*application='E0'*/[0m
+  [1m[36mTransaction Exists? (1.7ms)[0m  [1m[34mSELECT 1 AS one FROM "transactions" WHERE "transactions"."idpk" = 'uuid-123' LIMIT 1 /*application='E0'*/[0m
+  [1m[36mTransaction Create (2.1ms)[0m  [1m[32mINSERT INTO "transactions" ("idpk", "cycle_id", "operation_type", "energy_change", "budget_change", "raw_data", "created_at") VALUES ('uuid-123', 'cycle-1', 'transfer', 0.0, 500.0, '{"type":"transfer","idpk":"uuid-123","cycleId":"cycle-1","data":{"quantity":500}}', '2026-10-06 03:07:40.931256') RETURNING "id" /*application='E0'*/[0m
+  [1m[36mTRANSACTION (2.7ms)[0m  [1m[35mCOMMIT /*application='E0'*/[0m
+  [1m[36mTRANSACTION (0.4ms)[0m  [1m[35mBEGIN /*application='E0'*/[0m
+  [1m[36mTransaction Exists? (1.9ms)[0m  [1m[34mSELECT 1 AS one FROM "transactions" WHERE "transactions"."idpk" = 'uuid-123' LIMIT 1 /*application='E0'*/[0m
+  [1m[36mTRANSACTION (0.4ms)[0m  [1m[31mROLLBACK /*application='E0'*/[0m
+  [1m[36mTRANSACTION (0.4ms)[0m  [1m[35mBEGIN /*application='E0'*/[0m
+  [1m[36mAuditLog Create (2.4ms)[0m  [1m[32mINSERT INTO "audit_logs" ("idpk", "event_type", "reason", "raw_payload", "created_at") VALUES ('uuid-123', 'DUPLICATE', 'Message rejected due to retry', '{"type":"transfer","idpk":"uuid-123","cycleId":"cycle-1","data":{"quantity":500}}', '2026-10-06 03:07:40.987155') RETURNING "id" /*application='E0'*/[0m
+  [1m[36mTRANSACTION (1.3ms)[0m  [1m[35mCOMMIT /*application='E0'*/[0m
+  [1m[36mTransaction Pluck (1.5ms)[0m  [1m[34mSELECT COALESCE(SUM(energy_change), 0), COALESCE(SUM(budget_change), 0) FROM "transactions" WHERE "transactions"."cycle_id" = 'cycle-1' LIMIT 1 /*application='E0'*/[0m
+  [1m[36mAuditLog Load (1.2ms)[0m  [1m[34mSELECT "audit_logs".* FROM "audit_logs" ORDER BY "audit_logs"."id" DESC LIMIT 1 /*application='E0'*/[0m
+Using vips to process variants requires the libvips library. Please install libvips using the instructions on the libvips website.
+Using vips to process variants requires the libvips library. Please install libvips using the instructions on the libvips website.
+Using vips to process variants requires the libvips library. Please install libvips using the instructions on the libvips website.
+  [1m[35m (0.5ms)[0m  [1m[34mSELECT pg_try_advisory_lock(2032918012893123195) /*application='E0'*/[0m
+  [1m[36mActiveRecord::SchemaMigration Load (2.7ms)[0m  [1m[34mSELECT "schema_migrations"."version" FROM "schema_migrations" ORDER BY "schema_migrations"."version" ASC /*application='E0'*/[0m
+  [1m[36mActiveRecord::InternalMetadata Load (4.6ms)[0m  [1m[34mSELECT * FROM "ar_internal_metadata" WHERE "ar_internal_metadata"."key" = 'environment' ORDER BY "ar_internal_metadata"."key" ASC LIMIT 1 /*application='E0'*/[0m
+Migrating to AddIndexToTransactionsCycleId (20261006221244)
+  [1m[36mTRANSACTION (0.5ms)[0m  [1m[35mBEGIN /*application='E0'*/[0m
+  [1m[35m (4.4ms)[0m  [1m[35mCREATE INDEX "index_transactions_on_cycle_id" ON "transactions" ("cycle_id") /*application='E0'*/[0m
+  [1m[36mTRANSACTION (0.4ms)[0m  [1m[31mROLLBACK /*application='E0'*/[0m
+  [1m[35m (0.4ms)[0m  [1m[34mSELECT pg_advisory_unlock(2032918012893123195) /*application='E0'*/[0m
+Using vips to process variants requires the libvips library. Please install libvips using the instructions on the libvips website.
+  [1m[35m (0.3ms)[0m  [1m[34mSELECT pg_try_advisory_lock(2032918012893123195) /*application='E0'*/[0m
+  [1m[36mActiveRecord::SchemaMigration Load (1.1ms)[0m  [1m[34mSELECT "schema_migrations"."version" FROM "schema_migrations" ORDER BY "schema_migrations"."version" ASC /*application='E0'*/[0m
+  [1m[36mActiveRecord::InternalMetadata Load (1.4ms)[0m  [1m[34mSELECT * FROM "ar_internal_metadata" WHERE "ar_internal_metadata"."key" = 'environment' ORDER BY "ar_internal_metadata"."key" ASC LIMIT 1 /*application='E0'*/[0m
+  [1m[35m (0.5ms)[0m  [1m[34mSELECT pg_advisory_unlock(2032918012893123195) /*application='E0'*/[0m
+  [1m[36mActiveRecord::SchemaMigration Load (0.4ms)[0m  [1m[34mSELECT "schema_migrations"."version" FROM "schema_migrations" ORDER BY "schema_migrations"."version" ASC /*application='E0'*/[0m
+  [1m[35mSQL (0.2ms)[0m  [1m[35mSET search_path TO public /*application='E0'*/[0m
+  [1m[35mSQL (0.3ms)[0m  [1m[35mSET search_path TO "$user", public /*application='E0'*/[0m
+  [1m[35mSQL (0.3ms)[0m  [1m[35mSET search_path TO public /*application='E0'*/[0m
+  [1m[35mSQL (0.3ms)[0m  [1m[35mSET search_path TO "$user", public /*application='E0'*/[0m

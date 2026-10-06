@@ -1,0 +1,2 @@
+class DistanceTable < ApplicationRecord
+end
