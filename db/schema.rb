@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_10_06_224947) do
+ActiveRecord::Schema[8.1].define(version: 2026_10_06_230000) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
 
@@ -23,13 +23,13 @@ ActiveRecord::Schema[8.1].define(version: 2026_10_06_224947) do
   end
 
   create_table "cycles", force: :cascade do |t|
-    t.string "cycle_id"
+    t.string "cycle_id", null: false
     t.decimal "generation_capacity"
     t.decimal "consumption"
     t.decimal "generation_cost"
     t.decimal "reported_budget"
     t.decimal "reported_energy"
-    t.boolean "report_sent"
+    t.boolean "report_sent", default: false
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
     t.index ["cycle_id"], name: "index_cycles_on_cycle_id", unique: true
@@ -52,6 +52,20 @@ ActiveRecord::Schema[8.1].define(version: 2026_10_06_224947) do
     t.decimal "transport_cost", null: false
     t.boolean "enabled", null: false
     t.index ["destination_code"], name: "index_distance_tables_on_destination_code", unique: true
+  end
+
+  create_table "proposals", force: :cascade do |t|
+    t.string "idpk", null: false
+    t.string "cycle_id", null: false
+    t.string "direction", null: false
+    t.decimal "quantity", precision: 15, scale: 2, null: false
+    t.decimal "price_per_energy", precision: 15, scale: 2
+    t.decimal "generation_cost", precision: 15, scale: 2, null: false
+    t.string "status", default: "PENDING", null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["cycle_id"], name: "index_proposals_on_cycle_id"
+    t.index ["idpk"], name: "index_proposals_on_idpk", unique: true
   end
 
   create_table "transactions", force: :cascade do |t|

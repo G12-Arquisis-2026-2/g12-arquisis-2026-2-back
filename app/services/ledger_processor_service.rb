@@ -10,13 +10,17 @@ class LedgerProcessorService
   def call
     type = @payload.fetch("type")
     data = @payload.fetch("data")
-    quantity = decimal(data.fetch("quantity"))
 
     energy_change, budget_change = case type
     when "transfer"
+      quantity = decimal(data.fetch("quantity"))
       [0, quantity]
     when "demand-statement"
-      value_per_kwh = decimal(data.fetch("valuePerKwh"))
+      balance = data["balance"]
+      quantity_value = data["quantity"] || (balance.is_a?(Hash) ? balance["quantity"] : balance)
+      value_per_kwh_value = data["valuePerKwh"] || (balance["valuePerKwh"] if balance.is_a?(Hash))
+      quantity = decimal(quantity_value)
+      value_per_kwh = decimal(value_per_kwh_value)
       [quantity, -quantity * value_per_kwh]
     else
       raise ArgumentError, "Unsupported ledger operation type: #{type.inspect}"
