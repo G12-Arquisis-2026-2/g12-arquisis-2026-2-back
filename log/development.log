@@ -65,3 +65,23 @@ Using vips to process variants requires the libvips library. Please install libv
   [1m[36mTransaction Pluck (1.5ms)[0m  [1m[34mSELECT COALESCE(SUM(energy_change), 0), COALESCE(SUM(budget_change), 0) FROM "transactions" WHERE "transactions"."cycle_id" = 'cycle-1' LIMIT 1 /*application='E0'*/[0m
   [1m[36mAuditLog Load (1.2ms)[0m  [1m[34mSELECT "audit_logs".* FROM "audit_logs" ORDER BY "audit_logs"."id" DESC LIMIT 1 /*application='E0'*/[0m
 Using vips to process variants requires the libvips library. Please install libvips using the instructions on the libvips website.
+Using vips to process variants requires the libvips library. Please install libvips using the instructions on the libvips website.
+Using vips to process variants requires the libvips library. Please install libvips using the instructions on the libvips website.
+  [1m[35m (0.5ms)[0m  [1m[34mSELECT pg_try_advisory_lock(2032918012893123195) /*application='E0'*/[0m
+  [1m[36mActiveRecord::SchemaMigration Load (2.7ms)[0m  [1m[34mSELECT "schema_migrations"."version" FROM "schema_migrations" ORDER BY "schema_migrations"."version" ASC /*application='E0'*/[0m
+  [1m[36mActiveRecord::InternalMetadata Load (4.6ms)[0m  [1m[34mSELECT * FROM "ar_internal_metadata" WHERE "ar_internal_metadata"."key" = 'environment' ORDER BY "ar_internal_metadata"."key" ASC LIMIT 1 /*application='E0'*/[0m
+Migrating to AddIndexToTransactionsCycleId (20261006221244)
+  [1m[36mTRANSACTION (0.5ms)[0m  [1m[35mBEGIN /*application='E0'*/[0m
+  [1m[35m (4.4ms)[0m  [1m[35mCREATE INDEX "index_transactions_on_cycle_id" ON "transactions" ("cycle_id") /*application='E0'*/[0m
+  [1m[36mTRANSACTION (0.4ms)[0m  [1m[31mROLLBACK /*application='E0'*/[0m
+  [1m[35m (0.4ms)[0m  [1m[34mSELECT pg_advisory_unlock(2032918012893123195) /*application='E0'*/[0m
+Using vips to process variants requires the libvips library. Please install libvips using the instructions on the libvips website.
+  [1m[35m (0.3ms)[0m  [1m[34mSELECT pg_try_advisory_lock(2032918012893123195) /*application='E0'*/[0m
+  [1m[36mActiveRecord::SchemaMigration Load (1.1ms)[0m  [1m[34mSELECT "schema_migrations"."version" FROM "schema_migrations" ORDER BY "schema_migrations"."version" ASC /*application='E0'*/[0m
+  [1m[36mActiveRecord::InternalMetadata Load (1.4ms)[0m  [1m[34mSELECT * FROM "ar_internal_metadata" WHERE "ar_internal_metadata"."key" = 'environment' ORDER BY "ar_internal_metadata"."key" ASC LIMIT 1 /*application='E0'*/[0m
+  [1m[35m (0.5ms)[0m  [1m[34mSELECT pg_advisory_unlock(2032918012893123195) /*application='E0'*/[0m
+  [1m[36mActiveRecord::SchemaMigration Load (0.4ms)[0m  [1m[34mSELECT "schema_migrations"."version" FROM "schema_migrations" ORDER BY "schema_migrations"."version" ASC /*application='E0'*/[0m
+  [1m[35mSQL (0.2ms)[0m  [1m[35mSET search_path TO public /*application='E0'*/[0m
+  [1m[35mSQL (0.3ms)[0m  [1m[35mSET search_path TO "$user", public /*application='E0'*/[0m
+  [1m[35mSQL (0.3ms)[0m  [1m[35mSET search_path TO public /*application='E0'*/[0m
+  [1m[35mSQL (0.3ms)[0m  [1m[35mSET search_path TO "$user", public /*application='E0'*/[0m

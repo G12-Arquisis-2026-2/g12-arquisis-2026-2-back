@@ -14,6 +14,7 @@ Rails.application.routes.draw do
 
   # Recepción desde el connector
   post '/events', to: 'events#create'
+  post '/events/rejected', to: 'events#rejected'
 
   # Endpoints requeridos (RF1, RF2, RF3, RF4)
   get '/history', to: 'history#index'
