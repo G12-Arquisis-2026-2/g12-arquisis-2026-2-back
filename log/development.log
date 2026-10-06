@@ -85,3 +85,22 @@ Using vips to process variants requires the libvips library. Please install libv
   [1m[35mSQL (0.3ms)[0m  [1m[35mSET search_path TO "$user", public /*application='E0'*/[0m
   [1m[35mSQL (0.3ms)[0m  [1m[35mSET search_path TO public /*application='E0'*/[0m
   [1m[35mSQL (0.3ms)[0m  [1m[35mSET search_path TO "$user", public /*application='E0'*/[0m
+Using vips to process variants requires the libvips library. Please install libvips using the instructions on the libvips website.
+Using vips to process variants requires the libvips library. Please install libvips using the instructions on the libvips website.
+Using vips to process variants requires the libvips library. Please install libvips using the instructions on the libvips website.
+Using vips to process variants requires the libvips library. Please install libvips using the instructions on the libvips website.
+  [1m[35m (0.4ms)[0m  [1m[34mSELECT pg_try_advisory_lock(2032918012893123195) /*application='E0'*/[0m
+  [1m[36mActiveRecord::SchemaMigration Load (2.5ms)[0m  [1m[34mSELECT "schema_migrations"."version" FROM "schema_migrations" ORDER BY "schema_migrations"."version" ASC /*application='E0'*/[0m
+  [1m[36mActiveRecord::InternalMetadata Load (3.5ms)[0m  [1m[34mSELECT * FROM "ar_internal_metadata" WHERE "ar_internal_metadata"."key" = 'environment' ORDER BY "ar_internal_metadata"."key" ASC LIMIT 1 /*application='E0'*/[0m
+Migrating to CreateCycles (20261006224947)
+  [1m[36mTRANSACTION (0.6ms)[0m  [1m[35mBEGIN /*application='E0'*/[0m
+  [1m[35m (33.2ms)[0m  [1m[35mCREATE TABLE "cycles" ("id" bigserial primary key, "cycle_id" character varying, "generation_capacity" decimal, "consumption" decimal, "generation_cost" decimal, "reported_budget" decimal, "reported_energy" decimal, "report_sent" boolean, "created_at" timestamp(6) NOT NULL, "updated_at" timestamp(6) NOT NULL) /*application='E0'*/[0m
+  [1m[35m (4.3ms)[0m  [1m[35mCREATE UNIQUE INDEX "index_cycles_on_cycle_id" ON "cycles" ("cycle_id") /*application='E0'*/[0m
+  [1m[36mActiveRecord::SchemaMigration Create (1.1ms)[0m  [1m[32mINSERT INTO "schema_migrations" ("version") VALUES ('20261006224947') RETURNING "version" /*application='E0'*/[0m
+  [1m[36mTRANSACTION (3.0ms)[0m  [1m[35mCOMMIT /*application='E0'*/[0m
+  [1m[35m (0.4ms)[0m  [1m[34mSELECT pg_advisory_unlock(2032918012893123195) /*application='E0'*/[0m
+  [1m[36mActiveRecord::SchemaMigration Load (0.5ms)[0m  [1m[34mSELECT "schema_migrations"."version" FROM "schema_migrations" ORDER BY "schema_migrations"."version" ASC /*application='E0'*/[0m
+  [1m[35mSQL (0.3ms)[0m  [1m[35mSET search_path TO public /*application='E0'*/[0m
+  [1m[35mSQL (0.4ms)[0m  [1m[35mSET search_path TO "$user", public /*application='E0'*/[0m
+  [1m[35mSQL (0.3ms)[0m  [1m[35mSET search_path TO public /*application='E0'*/[0m
+  [1m[35mSQL (0.3ms)[0m  [1m[35mSET search_path TO "$user", public /*application='E0'*/[0m

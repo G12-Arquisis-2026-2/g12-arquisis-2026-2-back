@@ -1,0 +1,19 @@
+# Read about fixtures at https://api.rubyonrails.org/classes/ActiveRecord/FixtureSet.html
+
+one:
+  cycle_id: MyString
+  generation_capacity: 9.99
+  consumption: 9.99
+  generation_cost: 9.99
+  reported_budget: 9.99
+  reported_energy: 9.99
+  report_sent: false
+
+two:
+  cycle_id: MyString
+  generation_capacity: 9.99
+  consumption: 9.99
+  generation_cost: 9.99
+  reported_budget: 9.99
+  reported_energy: 9.99
+  report_sent: false

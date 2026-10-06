@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_10_06_000001) do
+ActiveRecord::Schema[8.1].define(version: 2026_10_06_224947) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
 
@@ -20,6 +20,19 @@ ActiveRecord::Schema[8.1].define(version: 2026_10_06_000001) do
     t.string "reason", null: false
     t.jsonb "raw_payload", default: {}, null: false
     t.datetime "created_at", null: false
+  end
+
+  create_table "cycles", force: :cascade do |t|
+    t.string "cycle_id"
+    t.decimal "generation_capacity"
+    t.decimal "consumption"
+    t.decimal "generation_cost"
+    t.decimal "reported_budget"
+    t.decimal "reported_energy"
+    t.boolean "report_sent"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["cycle_id"], name: "index_cycles_on_cycle_id", unique: true
   end
 
   create_table "demand_events", force: :cascade do |t|

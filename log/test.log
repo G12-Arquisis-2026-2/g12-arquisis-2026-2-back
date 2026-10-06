@@ -322,3 +322,113 @@ AuditLogTest: test_logs_a_NACK_with_the_payload_idpk_and_original_payload
   [1m[36mAuditLog Create (1.4ms)[0m  [1m[32mINSERT INTO "audit_logs" ("idpk", "event_type", "reason", "raw_payload", "created_at") VALUES ($1, $2, $3, $4, $5) RETURNING "id"[0m  [["idpk", "message-1"], ["event_type", "NACK"], ["reason", "MALFORMED MESSAGE"], ["raw_payload", "{\"idpk\":\"message-1\",\"type\":\"transfer\"}"], ["created_at", "2026-10-06 03:22:32.923895"]]
   [1m[36mTRANSACTION (0.5ms)[0m  [1m[35mRELEASE SAVEPOINT active_record_1[0m
   [1m[36mTRANSACTION (0.6ms)[0m  [1m[31mROLLBACK[0m
+Using vips to process variants requires the libvips library. Please install libvips using the instructions on the libvips website.
+  [1m[35m (0.8ms)[0m  [1m[34mSELECT pg_try_advisory_lock(133534148676810735)[0m
+  [1m[36mActiveRecord::SchemaMigration Load (4.7ms)[0m  [1m[34mSELECT "schema_migrations"."version" FROM "schema_migrations" ORDER BY "schema_migrations"."version" ASC[0m
+  [1m[36mActiveRecord::InternalMetadata Load (6.3ms)[0m  [1m[34mSELECT * FROM "ar_internal_metadata" WHERE "ar_internal_metadata"."key" = $1 ORDER BY "ar_internal_metadata"."key" ASC LIMIT 1[0m  [[nil, "environment"]]
+Migrating to CreateCycles (20261006000002)
+  [1m[36mTRANSACTION (0.5ms)[0m  [1m[35mBEGIN[0m
+  [1m[35m (57.5ms)[0m  [1m[35mCREATE TABLE "cycles" ("id" bigserial primary key, "cycle_id" character varying NOT NULL, "generation_capacity" decimal, "consumption" decimal, "generation_cost" decimal, "reported_budget" decimal, "reported_energy" decimal, "report_sent" boolean DEFAULT FALSE NOT NULL, "created_at" timestamp(6) NOT NULL, "updated_at" timestamp(6) NOT NULL)[0m
+  [1m[35m (4.2ms)[0m  [1m[35mCREATE UNIQUE INDEX "index_cycles_on_cycle_id" ON "cycles" ("cycle_id")[0m
+  [1m[36mActiveRecord::SchemaMigration Create (1.6ms)[0m  [1m[32mINSERT INTO "schema_migrations" ("version") VALUES ('20261006000002') RETURNING "version"[0m
+  [1m[36mTRANSACTION (4.1ms)[0m  [1m[35mCOMMIT[0m
+  [1m[35m (0.8ms)[0m  [1m[34mSELECT pg_advisory_unlock(133534148676810735)[0m
+  [1m[36mActiveRecord::SchemaMigration Load (0.6ms)[0m  [1m[34mSELECT "schema_migrations"."version" FROM "schema_migrations" ORDER BY "schema_migrations"."version" ASC[0m
+  [1m[35mSQL (0.2ms)[0m  [1m[35mSET search_path TO public[0m
+  [1m[35mSQL (0.3ms)[0m  [1m[35mSET search_path TO "$user", public[0m
+  [1m[35mSQL (0.4ms)[0m  [1m[35mSET search_path TO public[0m
+  [1m[35mSQL (0.4ms)[0m  [1m[35mSET search_path TO "$user", public[0m
+Using vips to process variants requires the libvips library. Please install libvips using the instructions on the libvips website.
+  [1m[36mActiveRecord::InternalMetadata Load (1.8ms)[0m  [1m[34mSELECT * FROM "ar_internal_metadata" WHERE "ar_internal_metadata"."key" = $1 ORDER BY "ar_internal_metadata"."key" ASC LIMIT 1[0m  [[nil, "schema_sha1"]]
+Using vips to process variants requires the libvips library. Please install libvips using the instructions on the libvips website.
+  [1m[36mActiveRecord::SchemaMigration Load (1.3ms)[0m  [1m[34mSELECT "schema_migrations"."version" FROM "schema_migrations" ORDER BY "schema_migrations"."version" ASC[0m
+  [1m[36mActiveRecord::InternalMetadata Load (1.9ms)[0m  [1m[34mSELECT * FROM "ar_internal_metadata" WHERE "ar_internal_metadata"."key" = $1 ORDER BY "ar_internal_metadata"."key" ASC LIMIT 1[0m  [[nil, "environment"]]
+  [1m[36mActiveRecord::SchemaMigration Load (0.4ms)[0m  [1m[34mSELECT "schema_migrations"."version" FROM "schema_migrations" ORDER BY "schema_migrations"."version" ASC[0m
+  [1m[36mActiveRecord::InternalMetadata Load (0.5ms)[0m  [1m[34mSELECT * FROM "ar_internal_metadata" WHERE "ar_internal_metadata"."key" = $1 ORDER BY "ar_internal_metadata"."key" ASC LIMIT 1[0m  [[nil, "environment"]]
+  [1m[36mActiveRecord::SchemaMigration Load (0.2ms)[0m  [1m[34mSELECT "schema_migrations"."version" FROM "schema_migrations" ORDER BY "schema_migrations"."version" ASC[0m
+  [1m[36mActiveRecord::InternalMetadata Load (0.5ms)[0m  [1m[34mSELECT * FROM "ar_internal_metadata" WHERE "ar_internal_metadata"."key" = $1 ORDER BY "ar_internal_metadata"."key" ASC LIMIT 1[0m  [[nil, "environment"]]
+  [1m[35mSQL (0.2ms)[0m  [1m[35mSET search_path TO public[0m
+  [1m[35m (127.9ms)[0m  [1m[35mDROP DATABASE IF EXISTS "e0_test"[0m
+  [1m[35m (360.4ms)[0m  [1m[35mCREATE DATABASE "e0_test" ENCODING = 'unicode'[0m
+  [1m[35mSQL (22.3ms)[0m  [1m[35mCREATE EXTENSION IF NOT EXISTS "plpgsql" SCHEMA pg_catalog[0m
+  [1m[35m (0.6ms)[0m  [1m[35mDROP TABLE IF EXISTS "audit_logs" CASCADE[0m
+  [1m[35m (13.6ms)[0m  [1m[35mCREATE TABLE "audit_logs" ("id" bigserial primary key, "idpk" character varying, "event_type" character varying NOT NULL, "reason" character varying NOT NULL, "raw_payload" jsonb DEFAULT '{}' NOT NULL, "created_at" timestamp(6) NOT NULL)[0m
+  [1m[35m (0.4ms)[0m  [1m[35mDROP TABLE IF EXISTS "cycles" CASCADE[0m
+  [1m[35m (13.5ms)[0m  [1m[35mCREATE TABLE "cycles" ("id" bigserial primary key, "cycle_id" character varying NOT NULL, "generation_capacity" decimal, "consumption" decimal, "generation_cost" decimal, "reported_budget" decimal, "reported_energy" decimal, "report_sent" boolean DEFAULT FALSE NOT NULL, "created_at" timestamp(6) NOT NULL, "updated_at" timestamp(6) NOT NULL)[0m
+  [1m[35m (6.6ms)[0m  [1m[35mCREATE UNIQUE INDEX "index_cycles_on_cycle_id" ON "cycles" ("cycle_id")[0m
+  [1m[35m (0.5ms)[0m  [1m[35mDROP TABLE IF EXISTS "demand_events" CASCADE[0m
+  [1m[35m (10.1ms)[0m  [1m[35mCREATE TABLE "demand_events" ("id" bigserial primary key, "created_at" timestamp(6) NOT NULL, "event_type" character varying NOT NULL, "idpk" character varying NOT NULL, "package_body" jsonb DEFAULT '{}' NOT NULL, "received_at" timestamp(6) NOT NULL, "updated_at" timestamp(6) NOT NULL)[0m
+  [1m[35m (5.0ms)[0m  [1m[35mCREATE UNIQUE INDEX "index_demand_events_on_idpk" ON "demand_events" ("idpk")[0m
+  [1m[35m (6.6ms)[0m  [1m[35mCREATE INDEX "index_demand_events_on_received_at" ON "demand_events" ("received_at")[0m
+  [1m[35m (0.6ms)[0m  [1m[35mDROP TABLE IF EXISTS "distance_tables" CASCADE[0m
+  [1m[35m (9.6ms)[0m  [1m[35mCREATE TABLE "distance_tables" ("id" bigserial primary key, "destination_code" character varying NOT NULL, "distance" integer NOT NULL, "transport_cost" decimal NOT NULL, "enabled" boolean NOT NULL)[0m
+  [1m[35m (4.1ms)[0m  [1m[35mCREATE UNIQUE INDEX "index_distance_tables_on_destination_code" ON "distance_tables" ("destination_code")[0m
+  [1m[35m (0.6ms)[0m  [1m[35mDROP TABLE IF EXISTS "transactions" CASCADE[0m
+  [1m[35m (9.1ms)[0m  [1m[35mCREATE TABLE "transactions" ("id" bigserial primary key, "idpk" character varying NOT NULL, "cycle_id" character varying NOT NULL, "operation_type" character varying NOT NULL, "energy_change" decimal NOT NULL, "budget_change" decimal NOT NULL, "raw_data" jsonb DEFAULT '{}' NOT NULL, "created_at" timestamp(6) NOT NULL)[0m
+  [1m[35m (7.0ms)[0m  [1m[35mCREATE INDEX "index_transactions_on_cycle_id" ON "transactions" ("cycle_id")[0m
+  [1m[35m (6.7ms)[0m  [1m[35mCREATE UNIQUE INDEX "index_transactions_on_idpk" ON "transactions" ("idpk")[0m
+  [1m[35m (11.3ms)[0m  [1m[35mCREATE TABLE "schema_migrations" ("version" character varying NOT NULL PRIMARY KEY)[0m
+  [1m[36mActiveRecord::SchemaMigration Load (0.9ms)[0m  [1m[34mSELECT "schema_migrations"."version" FROM "schema_migrations" ORDER BY "schema_migrations"."version" ASC[0m
+  [1m[35m (1.5ms)[0m  [1m[32mINSERT INTO "schema_migrations" (version) VALUES (20261006000002)[0m
+  [1m[35m (1.4ms)[0m  [1m[32mINSERT INTO "schema_migrations" (version) VALUES
+(20261006000001),
+(20261005000004),
+(20261005000003),
+(20261005000002),
+(20261005000001),
+(20260827031333);[0m
+  [1m[35m (11.6ms)[0m  [1m[35mCREATE TABLE "ar_internal_metadata" ("key" character varying NOT NULL PRIMARY KEY, "value" character varying, "created_at" timestamp(6) NOT NULL, "updated_at" timestamp(6) NOT NULL)[0m
+  [1m[36mActiveRecord::InternalMetadata Load (1.1ms)[0m  [1m[34mSELECT * FROM "ar_internal_metadata" WHERE "ar_internal_metadata"."key" = $1 ORDER BY "ar_internal_metadata"."key" ASC LIMIT 1[0m  [[nil, "environment"]]
+  [1m[36mActiveRecord::InternalMetadata Create (2.0ms)[0m  [1m[32mINSERT INTO "ar_internal_metadata" ("key", "value", "created_at", "updated_at") VALUES ('environment', 'test', '2026-10-06 22:47:04.949000', '2026-10-06 22:47:04.949005') RETURNING "key"[0m
+  [1m[36mActiveRecord::InternalMetadata Load (0.7ms)[0m  [1m[34mSELECT * FROM "ar_internal_metadata" WHERE "ar_internal_metadata"."key" = $1 ORDER BY "ar_internal_metadata"."key" ASC LIMIT 1[0m  [[nil, "environment"]]
+  [1m[36mActiveRecord::InternalMetadata Load (0.9ms)[0m  [1m[34mSELECT * FROM "ar_internal_metadata" WHERE "ar_internal_metadata"."key" = $1 ORDER BY "ar_internal_metadata"."key" ASC LIMIT 1[0m  [[nil, "schema_sha1"]]
+  [1m[36mActiveRecord::InternalMetadata Create (1.5ms)[0m  [1m[32mINSERT INTO "ar_internal_metadata" ("key", "value", "created_at", "updated_at") VALUES ('schema_sha1', '5c316a8f8fc83a2eb1d62206090aba456fee2cb1', '2026-10-06 22:47:04.956925', '2026-10-06 22:47:04.956931') RETURNING "key"[0m
+  [1m[36mActiveRecord::SchemaMigration Load (0.9ms)[0m  [1m[34mSELECT "schema_migrations"."version" FROM "schema_migrations" ORDER BY "schema_migrations"."version" ASC[0m
+  [1m[36mTRANSACTION (0.5ms)[0m  [1m[35mBEGIN[0m
+----------------------------------------------------------------------
+CycleTest: test_allows_a_transaction_whose_cycle_has_not_been_recorded
+----------------------------------------------------------------------
+  [1m[36mTRANSACTION (0.5ms)[0m  [1m[35mSAVEPOINT active_record_1[0m
+  [1m[36mTransaction Exists? (2.5ms)[0m  [1m[34mSELECT 1 AS one FROM "transactions" WHERE "transactions"."idpk" = $1 LIMIT $2[0m  [["idpk", "transaction-without-cycle"], ["LIMIT", 1]]
+  [1m[36mTRANSACTION (0.7ms)[0m  [1m[31mROLLBACK TO SAVEPOINT active_record_1[0m
+  [1m[36mTRANSACTION (0.5ms)[0m  [1m[31mROLLBACK[0m
+  [1m[36mTRANSACTION (0.5ms)[0m  [1m[35mBEGIN[0m
+--------------------------------------------------------------
+CycleTest: test_associates_transactions_by_the_opaque_cycle_id
+--------------------------------------------------------------
+  [1m[36mTRANSACTION (0.3ms)[0m  [1m[35mSAVEPOINT active_record_1[0m
+  [1m[36mCycle Exists? (1.5ms)[0m  [1m[34mSELECT 1 AS one FROM "cycles" WHERE "cycles"."cycle_id" = $1 LIMIT $2[0m  [["cycle_id", "cycle-opaque-1"], ["LIMIT", 1]]
+  [1m[36mCycle Create (1.2ms)[0m  [1m[32mINSERT INTO "cycles" ("cycle_id", "generation_capacity", "consumption", "generation_cost", "reported_budget", "reported_energy", "report_sent", "created_at", "updated_at") VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) RETURNING "id"[0m  [["cycle_id", "cycle-opaque-1"], ["generation_capacity", nil], ["consumption", nil], ["generation_cost", nil], ["reported_budget", nil], ["reported_energy", nil], ["report_sent", false], ["created_at", "2026-10-06 22:47:05.351304"], ["updated_at", "2026-10-06 22:47:05.351304"]]
+  [1m[36mTRANSACTION (0.4ms)[0m  [1m[35mRELEASE SAVEPOINT active_record_1[0m
+  [1m[36mTRANSACTION (0.3ms)[0m  [1m[35mSAVEPOINT active_record_1[0m
+  [1m[36mTransaction Exists? (1.2ms)[0m  [1m[34mSELECT 1 AS one FROM "transactions" WHERE "transactions"."idpk" = $1 LIMIT $2[0m  [["idpk", "transaction-1"], ["LIMIT", 1]]
+  [1m[36mTRANSACTION (0.3ms)[0m  [1m[31mROLLBACK TO SAVEPOINT active_record_1[0m
+  [1m[36mTRANSACTION (0.5ms)[0m  [1m[31mROLLBACK[0m
+Using vips to process variants requires the libvips library. Please install libvips using the instructions on the libvips website.
+  [1m[36mActiveRecord::InternalMetadata Load (2.6ms)[0m  [1m[34mSELECT * FROM "ar_internal_metadata" WHERE "ar_internal_metadata"."key" = $1 ORDER BY "ar_internal_metadata"."key" ASC LIMIT 1[0m  [[nil, "schema_sha1"]]
+  [1m[36mActiveRecord::SchemaMigration Load (2.1ms)[0m  [1m[34mSELECT "schema_migrations"."version" FROM "schema_migrations" ORDER BY "schema_migrations"."version" ASC[0m
+  [1m[36mTRANSACTION (0.5ms)[0m  [1m[35mBEGIN[0m
+----------------------------------------------------------------------
+CycleTest: test_allows_a_transaction_whose_cycle_has_not_been_recorded
+----------------------------------------------------------------------
+  [1m[36mTRANSACTION (0.4ms)[0m  [1m[35mSAVEPOINT active_record_1[0m
+  [1m[36mTransaction Exists? (2.1ms)[0m  [1m[34mSELECT 1 AS one FROM "transactions" WHERE "transactions"."idpk" = $1 LIMIT $2[0m  [["idpk", "transaction-without-cycle"], ["LIMIT", 1]]
+  [1m[36mTransaction Create (3.0ms)[0m  [1m[32mINSERT INTO "transactions" ("idpk", "cycle_id", "operation_type", "energy_change", "budget_change", "raw_data", "created_at") VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING "id"[0m  [["idpk", "transaction-without-cycle"], ["cycle_id", "cycle-not-yet-created"], ["operation_type", "transfer"], ["energy_change", "0.0"], ["budget_change", "10.0"], ["raw_data", "{\"source\":\"test\"}"], ["created_at", "2026-10-06 22:47:26.533714"]]
+  [1m[36mTRANSACTION (0.5ms)[0m  [1m[35mRELEASE SAVEPOINT active_record_1[0m
+  [1m[36mCycle Load (1.6ms)[0m  [1m[34mSELECT "cycles".* FROM "cycles" WHERE "cycles"."cycle_id" = $1 LIMIT $2[0m  [["cycle_id", "cycle-not-yet-created"], ["LIMIT", 1]]
+  [1m[36mTRANSACTION (0.5ms)[0m  [1m[31mROLLBACK[0m
+  [1m[36mTRANSACTION (0.4ms)[0m  [1m[35mBEGIN[0m
+--------------------------------------------------------------
+CycleTest: test_associates_transactions_by_the_opaque_cycle_id
+--------------------------------------------------------------
+  [1m[36mTRANSACTION (0.4ms)[0m  [1m[35mSAVEPOINT active_record_1[0m
+  [1m[36mCycle Exists? (3.5ms)[0m  [1m[34mSELECT 1 AS one FROM "cycles" WHERE "cycles"."cycle_id" = $1 LIMIT $2[0m  [["cycle_id", "cycle-opaque-1"], ["LIMIT", 1]]
+  [1m[36mCycle Create (1.2ms)[0m  [1m[32mINSERT INTO "cycles" ("cycle_id", "generation_capacity", "consumption", "generation_cost", "reported_budget", "reported_energy", "report_sent", "created_at", "updated_at") VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) RETURNING "id"[0m  [["cycle_id", "cycle-opaque-1"], ["generation_capacity", nil], ["consumption", nil], ["generation_cost", nil], ["reported_budget", nil], ["reported_energy", nil], ["report_sent", false], ["created_at", "2026-10-06 22:47:26.652576"], ["updated_at", "2026-10-06 22:47:26.652576"]]
+  [1m[36mTRANSACTION (0.5ms)[0m  [1m[35mRELEASE SAVEPOINT active_record_1[0m
+  [1m[36mTRANSACTION (0.5ms)[0m  [1m[35mSAVEPOINT active_record_1[0m
+  [1m[36mTransaction Exists? (1.6ms)[0m  [1m[34mSELECT 1 AS one FROM "transactions" WHERE "transactions"."idpk" = $1 LIMIT $2[0m  [["idpk", "transaction-1"], ["LIMIT", 1]]
+  [1m[36mTransaction Create (0.8ms)[0m  [1m[32mINSERT INTO "transactions" ("idpk", "cycle_id", "operation_type", "energy_change", "budget_change", "raw_data", "created_at") VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING "id"[0m  [["idpk", "transaction-1"], ["cycle_id", "cycle-opaque-1"], ["operation_type", "transfer"], ["energy_change", "0.0"], ["budget_change", "10.0"], ["raw_data", "{\"source\":\"test\"}"], ["created_at", "2026-10-06 22:47:26.664785"]]
+  [1m[36mTRANSACTION (0.4ms)[0m  [1m[35mRELEASE SAVEPOINT active_record_1[0m
+  [1m[36mTransaction Load (1.8ms)[0m  [1m[34mSELECT "transactions".* FROM "transactions" WHERE "transactions"."cycle_id" = $1[0m  [["cycle_id", "cycle-opaque-1"]]
+  [1m[36mCycle Load (0.5ms)[0m  [1m[34mSELECT "cycles".* FROM "cycles" WHERE "cycles"."cycle_id" = $1 LIMIT $2[0m  [["cycle_id", "cycle-opaque-1"], ["LIMIT", 1]]
+  [1m[36mTRANSACTION (0.3ms)[0m  [1m[31mROLLBACK[0m

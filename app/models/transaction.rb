@@ -1,4 +1,6 @@
 class Transaction < ApplicationRecord
+  belongs_to :cycle, primary_key: :cycle_id, foreign_key: :cycle_id, optional: true
+
   validates :idpk, presence: true, uniqueness: true
   validates :cycle_id, :operation_type, :energy_change, :budget_change, :raw_data, presence: true
 
