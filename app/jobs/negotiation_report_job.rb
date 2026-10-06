@@ -4,8 +4,11 @@ class NegotiationReportJob < ApplicationJob
   def perform(cycle_id)
     # Consultar balances desde el Ledger (Falta hacer Ledger)
     # Se obtienen las métricas acumuladas reales del ciclo
-    budget_balance = Ledger.current_budget_balance(cycle_id) rescue 0
-    energy_balance = Ledger.current_energy_balance(cycle_id) rescue 0
+    
+    balances = Transaction.current_balance_for(cycle_id)
+
+    energy_balance = balances[:energy]
+    budget_balance = balances[:budget]
 
     report_payload = CycleService.build_negotiation_report(
       cycle_id: cycle_id,
