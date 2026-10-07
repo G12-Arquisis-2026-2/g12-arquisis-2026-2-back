@@ -200,4 +200,38 @@ class MessageProcessorTest < Minitest::Test
     assert_equal :done, processor.process("nul\x00byte")
     assert_equal 'nul?byte', @master.rejected.first[:raw]
   end
+
+  def test_nack_from_central_is_logged_with_reason_code_and_target
+    processor = build
+    nack = valid_message('type' => 'nack', 'reason' => 'MALFORMED_MESSAGE', 'code' => 422,
+                         'data' => { 'target' => 'msg-rechazado', 'message' => 'x' })
+
+    assert_equal :done, processor.process(JSON.generate(nack))
+    assert_equal %i[deliver], @calls
+    line = @logs.find { |text| text.include?('La central rechazó') }
+    assert_includes line, 'MALFORMED_MESSAGE'
+    assert_includes line, '422'
+    assert_includes line, 'msg-rechazado'
+    refute_includes line, 'RABBITMQ_USER'
+  end
+
+  def test_identity_mismatch_says_what_to_check
+    processor = build
+    nack = valid_message('type' => 'nack', 'reason' => 'IDENTITY_MISMATCH', 'code' => 403,
+                         'data' => { 'target' => 'msg-rechazado' })
+
+    assert_equal :done, processor.process(JSON.generate(nack))
+    assert_equal %i[deliver], @calls
+    assert(@logs.any? { |text| text.include?('Revisar RABBITMQ_USER y CITY_ID') })
+  end
+
+  def test_error_from_central_is_logged_and_nothing_is_published
+    processor = build
+    error = valid_message('type' => 'error', 'reason' => 'CYCLE_EXPIRED', 'code' => 410,
+                          'data' => { 'target' => 'msg-rechazado', 'message' => 'x' })
+
+    assert_equal :done, processor.process(JSON.generate(error))
+    assert_empty @publisher.acks + @publisher.nacks
+    assert(@logs.any? { |text| text.include?('CYCLE_EXPIRED') && text.include?('410') })
+  end
 end

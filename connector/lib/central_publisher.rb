@@ -22,6 +22,12 @@ class CentralPublisher
     publish(envelope('nack').merge('reason' => reason, 'code' => code, 'data' => data))
   end
 
+  # para los mensajes del outbox: se publica tal cual y se espera a que el broker confirme que lo recibio
+  def publish_confirmed(message)
+    publish(message)
+    @channel.wait_for_confirms
+  end
+
   private
 
   # msgId e idpk siempre nuevos, nunca se reusan los del mensaje que estamos respondiendo

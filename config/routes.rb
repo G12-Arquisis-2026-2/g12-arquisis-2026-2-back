@@ -16,6 +16,10 @@ Rails.application.routes.draw do
   post '/events', to: 'events#create'
   post '/events/rejected', to: 'events#rejected'
 
+  # Mensajes por enviar a la central (los pide y los marca el connector)
+  get  '/events/outbox',     to: 'outbox#pending'
+  post '/events/outbox/:id', to: 'outbox#result'
+
   # Endpoints requeridos (RF1, RF2, RF3, RF4)
   get '/history', to: 'history#index'
   get '/history/:id', to: 'history#show'

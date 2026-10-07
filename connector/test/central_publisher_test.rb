@@ -17,6 +17,10 @@ class CentralPublisherTest < Minitest::Test
     def basic_publish(payload, exchange, routing_key, options = {})
       @published << { payload: payload, exchange: exchange, routing_key: routing_key, options: options }
     end
+
+    def wait_for_confirms
+      true
+    end
   end
 
   ORIGINAL = {
@@ -91,5 +95,14 @@ class CentralPublisherTest < Minitest::Test
 
     refute_equal first['msgId'], second['msgId']
     refute_equal first['idpk'], second['idpk']
+  end
+
+  def test_publish_confirmed_sends_the_message_as_is_and_returns_the_broker_answer
+    message = { 'msgId' => 'a', 'idpk' => 'b', 'type' => 'negotiation-report', 'cityId' => '12' }
+
+    assert_equal true, @publisher.publish_confirmed(message)
+    assert_equal message, last_message
+    assert_equal 'city.12', @channel.published.last[:options][:user_id]
+    assert_equal 'central', @channel.published.last[:routing_key]
   end
 end
