@@ -7,12 +7,10 @@ class CycleOrchestratorJob < ApplicationJob
     now = Time.current
 
     # Buscar el status-statement más reciente en la BD
-    latest_status = DemandEvent.where(event_type: 'status-statement')
-                               .order(created_at: :desc)
-                               .first
+    latest_status = Cycle.order(created_at: :desc).first
 
-    valid_until = extract_valid_until(latest_status)
-    cycle_id = extract_cycle_id(latest_status)
+    valid_until = latest_status.valid_until
+    cycle_id = latest_status.cycle_id
 
     # --------------------------------------------------------------------------
     # CASO 0: No hay ningún status-statement registrado (Arranque en frío / inicio)
@@ -66,18 +64,5 @@ class CycleOrchestratorJob < ApplicationJob
   def request_status_from_broker
     request_payload = CycleService.build_direct_request(ask: 'status-statement')
     RabbitMQPublisher.publish(request_payload) if defined?(RabbitMQPublisher)
-  end
-
-  def extract_valid_until(event)
-    return nil unless event
-
-    raw_date = event.package_body.dig('data', 'validUntil') || event.package_body['validUntil']
-    Time.parse(raw_date) rescue nil
-  end
-
-  def extract_cycle_id(event)
-    return nil unless event
-
-    event.package_body['cycleId'] || event.package_body.dig('data', 'cycleId')
   end
 end
