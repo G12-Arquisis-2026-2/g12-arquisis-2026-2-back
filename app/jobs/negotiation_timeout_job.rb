@@ -6,7 +6,8 @@ class NegotiationTimeoutJob < ApplicationJob
     return unless proposal
 
     # 1. Si la propuesta ya fue confirmada o resuelta, detener el bucle
-    unless proposal.status.casecmp?("pending")
+    # (incluye rechazada por un error de la central: no se reintenta)
+    unless proposal.pending?
       Rails.logger.info "[ADR3 Timeout] Propuesta #{proposal_idpk} resuelta previamente con estado: #{proposal.status}"
       return
     end
@@ -14,7 +15,7 @@ class NegotiationTimeoutJob < ApplicationJob
     # 2. Verificar si la ventana de negociación del ciclo ya terminó/expiró
     cycle = Cycle.find_by(cycle_id: proposal.cycle_id)
     if cycle_expired?(cycle)
-      proposal.update!(status: "EXPIRED")
+      proposal.close!(:expired, "Expirada por timeout: sin confirmación antes del cierre de la ventana del ciclo #{proposal.cycle_id}")
       Rails.logger.warn "[ADR3 Timeout] Ventana de negociación para el ciclo #{proposal.cycle_id} finalizada. Deteniendo reintentos de propuesta #{proposal_idpk}."
       return
     end
@@ -35,7 +36,7 @@ class NegotiationTimeoutJob < ApplicationJob
     NegotiationTimeoutJob.set(wait: 30.seconds).perform_later(proposal.idpk)
   rescue ActiveRecord::RecordNotFound, NegotiationService::OverCapacityError, NegotiationService::PriceCapExceededError => e
     Rails.logger.error "[ADR3 Timeout] No se pudo reintentar la propuesta #{proposal_idpk}: #{e.message}"
-    proposal.update!(status: "FAILED")
+    proposal&.close!(:failed, "Reintento fallido (#{e.class.name.demodulize}): #{e.message}")
   end
 
   private
