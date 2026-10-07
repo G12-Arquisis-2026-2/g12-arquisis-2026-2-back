@@ -147,13 +147,34 @@ class MessageValidatorTest < Minitest::Test
   end
 
 
+  def status_data(changes = {})
+    {
+      'validUntil' => '2026-10-07T12:30:00Z',
+      'energy' => { 'generationCapacity' => 900, 'consumption' => 700.5, 'generationCost' => 12 }
+    }.merge(changes)
+  end
+
   def test_status_statement_valido
-    data = { 'energy' => { 'generationCapacity' => 900, 'consumption' => 700.5, 'generationCost' => 12 } }
-    assert_accept_with_ack check(valid_message('type' => 'status-statement', 'data' => data))
+    assert_accept_with_ack check(valid_message('type' => 'status-statement', 'data' => status_data))
+  end
+
+  def test_status_statement_sin_valid_until_es_malformed
+    data = status_data
+    data.delete('validUntil')
+    decision = check(valid_message('type' => 'status-statement', 'data' => data))
+    assert_nack decision, 'MALFORMED_MESSAGE', 422
+    assert_equal 'falta el campo data.validUntil', decision.detail
+  end
+
+  def test_status_statement_con_valid_until_que_no_es_fecha_es_malformed
+    [' ', 'mañana', 1_759_840_000].each do |valid_until|
+      decision = check(valid_message('type' => 'status-statement', 'data' => status_data('validUntil' => valid_until)))
+      assert_nack decision, 'MALFORMED_MESSAGE', 422
+    end
   end
 
   def test_status_statement_sin_consumption_es_malformed
-    data = { 'energy' => { 'generationCapacity' => 900, 'generationCost' => 12 } }
+    data = status_data('energy' => { 'generationCapacity' => 900, 'generationCost' => 12 })
     decision = check(valid_message('type' => 'status-statement', 'data' => data))
     assert_nack decision, 'MALFORMED_MESSAGE', 422
     assert_equal 'data.energy.consumption debe ser un número', decision.detail
@@ -212,6 +233,35 @@ class MessageValidatorTest < Minitest::Test
     end
   end
 
+
+  # los unicos NACK del enunciado (IDENTITY_MISMATCH 403 queda pendiente: falta definir que se compara)
+  ALLOWED_NACKS = {
+    'MALFORMED_MESSAGE' => 422, 'UNKNOWN_TYPE' => 400, 'IDPK_EQUALS_MSGID' => 422, 'IDENTITY_MISMATCH' => 403
+  }.freeze
+
+  def test_cada_problema_usa_el_reason_y_code_del_enunciado
+    same = '11111111-1111-4111-8111-111111111111'
+    casos = {
+      valid_message('idpk' => same) => ['IDPK_EQUALS_MSGID', 422],
+      valid_message('type' => 'tipo-inventado') => ['UNKNOWN_TYPE', 400],
+      valid_message('type' => 'negotiation-report') => ['UNKNOWN_TYPE', 400],
+      without('idpk') => ['MALFORMED_MESSAGE', 422],
+      without('timestamp') => ['MALFORMED_MESSAGE', 422],
+      without('cycleId') => ['MALFORMED_MESSAGE', 422],
+      valid_message('data' => { 'quantity' => 'mucho' }) => ['MALFORMED_MESSAGE', 422],
+      valid_message('type' => 'status-statement', 'data' => status_data.except('validUntil')) =>
+        ['MALFORMED_MESSAGE', 422]
+    }
+    casos.each do |message, (reason, code)|
+      decision = check(message)
+      assert_nack decision, reason, code
+      assert_equal ALLOWED_NACKS.fetch(decision.reason), decision.code
+    end
+  end
+
+  def test_tipo_desconocido_trae_el_tipo_en_el_detalle
+    assert_equal 'tipo desconocido: tipo-inventado', check(valid_message('type' => 'tipo-inventado')).detail
+  end
 
   def test_byte_invalido_dentro_de_un_texto_se_descarta
     body = "{\"msgId\":\"a\xFF\"}"

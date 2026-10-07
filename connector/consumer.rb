@@ -37,13 +37,12 @@ rescue StandardError => e
   retry
 end
 
+# la pausa entre reintentos (5s, 15s, 45s) la hace el processor antes de devolver :retry
 def settle(channel, delivery_tag, outcome)
-  if outcome == :done
-    channel.ack(delivery_tag)
-  else
-    # la pausa es para no quedar en un loop rapido de reintentos mientras la API esta caida
-    sleep RETRY_SECONDS
-    channel.nack(delivery_tag, false, true)
+  case outcome
+  when :done   then channel.ack(delivery_tag)
+  when :reject then channel.nack(delivery_tag, false, false) # sin requeue: se agotaron los reintentos
+  else              channel.nack(delivery_tag, false, true)
   end
 rescue StandardError => e
   # si el canal se cortó el broker reentrega el mensaje por su cuenta.

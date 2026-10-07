@@ -17,12 +17,26 @@ class MasterClient
       status == 422
     end
 
+    # texto para el log y el detalle del nack: /events manda {error: CODIGO, detail: texto}
     def reason
-      parsed = JSON.parse(body.to_s)
-      text = parsed.is_a?(Hash) && (parsed['error'] || parsed['detail'])
+      parsed = parsed_body
+      text = parsed && (parsed['detail'] || parsed['error'])
       text ? text.to_s : body.to_s
+    end
+
+    # el codigo que mando la API (ej: UNKNOWN_TYPE), o nil
+    def error_code
+      parsed = parsed_body
+      parsed && parsed['error']
+    end
+
+    private
+
+    def parsed_body
+      parsed = JSON.parse(body.to_s)
+      parsed.is_a?(Hash) ? parsed : nil
     rescue JSON::ParserError
-      body.to_s
+      nil
     end
   end
 

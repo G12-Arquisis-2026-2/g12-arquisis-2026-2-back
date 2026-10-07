@@ -22,6 +22,15 @@ class LedgerProcessorService
       quantity = decimal(quantity_value)
       value_per_kwh = decimal(value_per_kwh_value)
       [quantity, -quantity * value_per_kwh]
+    when "give"
+      # Entregamos energía. El cobro NO va aquí: la central lo paga con un transfer
+      # (data.becauseOf = msgId de este give), que ya suma al budget.
+      [-decimal(data.fetch("energy")), 0]
+    when "take"
+      # Recibimos energía y pagamos nosotros (§ Pago): ningún transfer entrante lo refleja.
+      # pricePerEnergy ya viene redondeado por la central; el total se redondea a 2 decimales.
+      energy = decimal(data.fetch("energy"))
+      [energy, -(energy * decimal(data.fetch("pricePerEnergy"))).round(2)]
     else
       raise ArgumentError, "Unsupported ledger operation type: #{type.inspect}"
     end

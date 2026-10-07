@@ -20,6 +20,8 @@ services:
     env_file: .env
     environment:
       RAILS_ENV: production
+      # Solid Queue corre dentro de Puma (config/puma.rb): sin esto el orquestador se encola y nunca corre
+      SOLID_QUEUE_IN_PUMA: "true"
     # Thruster escucha en el 80 del contenedor y hace proxy a Puma (3000)
     ports:
       - "127.0.0.1:3000:80"
@@ -38,6 +40,9 @@ services:
       context: ./connector
     restart: unless-stopped
     env_file: .env
+    environment:
+      # Solo "true" publica hacia la central; si falta en el .env queda apagado
+      ENABLE_PUBLISHER: ${ENABLE_PUBLISHER:-false}
     depends_on:
       web:
         condition: service_healthy

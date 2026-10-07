@@ -22,7 +22,7 @@ class TransactionTest < ActiveSupport::TestCase
       operation_type: "test",
       energy_change: energy_change,
       budget_change: budget_change,
-      raw_data: {}
+      raw_data: { "type" => "test" }
     )
   end
 end

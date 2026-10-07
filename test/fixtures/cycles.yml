@@ -1,7 +1,7 @@
 # Read about fixtures at https://api.rubyonrails.org/classes/ActiveRecord/FixtureSet.html
 
 one:
-  cycle_id: MyString
+  cycle_id: cycle-fixture-one
   generation_capacity: 9.99
   consumption: 9.99
   generation_cost: 9.99
@@ -10,7 +10,7 @@ one:
   report_sent: false
 
 two:
-  cycle_id: MyString
+  cycle_id: cycle-fixture-two
   generation_capacity: 9.99
   consumption: 9.99
   generation_cost: 9.99
