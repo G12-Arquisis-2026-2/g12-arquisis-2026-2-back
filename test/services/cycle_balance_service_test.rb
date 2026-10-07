@@ -5,11 +5,15 @@ class CycleBalanceServiceTest < ActiveSupport::TestCase
   self.fixture_table_names = []
 
   setup do
+    @previous_city = ENV["CITY_ID"]
+    ENV["CITY_ID"] = "TK3"
     # ciclo 1: produce 1000, consume 800 (sobran 200), generationCost 210
     @cycle1 = Cycle.create!(cycle_id: "cycle-1", generation_capacity: 1000, consumption: 800, generation_cost: 210)
     # ciclo 2: produce 600, consume 900 (faltan 300), generationCost 200
     @cycle2 = Cycle.create!(cycle_id: "cycle-2", generation_capacity: 600, consumption: 900, generation_cost: 200)
   end
+
+  teardown { ENV["CITY_ID"] = @previous_city }
 
   test "cycle 1: transfer, demand-statement, take and a paid give" do
     ledger("transfer", "cycle-1", "quantity" => 500_000)
@@ -35,6 +39,26 @@ class CycleBalanceServiceTest < ActiveSupport::TestCase
     # energía ciclo 2: (600 - 900) - 40 = -340. Los 50 kWh del take del ciclo 1 no pasan
     assert_balances({ budget: 947_500, energy: -340 }, @cycle2)
     assert_equal 250, CycleBalanceService.call(@cycle1)[:energy]
+  end
+
+  test "what happens in a later cycle does not change the budget of the previous one" do
+    ledger("transfer", "cycle-1", "quantity" => 5000)
+    ledger("demand-statement", "cycle-1", "balance" => { "quantity" => 3, "valuePerKwh" => 225 })
+    ledger("transfer", "cycle-2", "quantity" => 7000)
+
+    # ciclo 1: 5000 - 675 = 4325. El transfer del ciclo 2 solo cuenta desde el ciclo 2
+    assert_equal 4325, CycleBalanceService.call(@cycle1)[:budget]
+    assert_equal 11_325, CycleBalanceService.call(@cycle2)[:budget]
+  end
+
+  test "cycles are ordered by validUntil, not by cycleId or arrival" do
+    @cycle1.update!(valid_until: Time.utc(2026, 10, 7, 16, 20))
+    @cycle2.update!(valid_until: Time.utc(2026, 10, 7, 14, 20))
+    ledger("transfer", "cycle-1", "quantity" => 5000)
+    ledger("transfer", "cycle-2", "quantity" => 7000)
+
+    assert_equal 12_000, CycleBalanceService.call(@cycle1)[:budget]
+    assert_equal 7000, CycleBalanceService.call(@cycle2)[:budget]
   end
 
   test "a give without its payment transfer does not count" do

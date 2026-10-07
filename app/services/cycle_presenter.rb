@@ -16,6 +16,7 @@ class CyclePresenter
       demandStatements: demand_statements,
       voluntaryNegotiations: voluntary_negotiations,
       negotiationReport: negotiation_report_data,
+      reportTracking: report_tracking,
       finalBalances: final_balances,
       lastOperation: last_operation
     }
@@ -37,16 +38,18 @@ class CyclePresenter
     }
   end
 
-  # 2. Transferencias de fondos acreditadas en la tabla de transacciones
+  # 2. Transferencias de fondos acreditadas en la tabla de transacciones.
+  # Un transfer con becauseOf es el pago de un give, no fondos de la central: no se suma aquí.
   def funds_received
-    Transaction.where(cycle_id: @cycle_id, event_type: 'transfer')
+    Transaction.where(cycle_id: @cycle_id, operation_type: 'transfer')
+               .where("COALESCE(raw_data -> 'data' ->> 'becauseOf', '') = ''")
                .sum(:budget_change)
                .to_f
   end
 
   # 3. Demand statements registrados en la tabla de transacciones
   def demand_statements
-    Transaction.where(cycle_id: @cycle_id, event_type: 'demand-statement')
+    Transaction.where(cycle_id: @cycle_id, operation_type: 'demand-statement')
                .order(created_at: :asc)
                .map do |tx|
                  raw = tx.raw_data || {}
@@ -79,7 +82,25 @@ class CyclePresenter
     {
       budgetBalance: @cycle.reported_budget,
       energyBalance: @cycle.reported_energy,
-      sentAt: @cycle.updated_at.iso8601
+      sentAt: report_sent_at&.iso8601
+    }
+  end
+
+  # Hora en que el connector publicó el último reporte encolado (report_msg_id), no cualquier otro
+  # reporte del ciclo. Sin valor mientras está pendiente o si quedó fallido.
+  def report_sent_at
+    return @report_sent_at if defined?(@report_sent_at)
+
+    @report_sent_at = OutboxMessage.find_by(msg_id: @cycle.report_msg_id, status: "sent")&.sent_at
+  end
+
+  # Seguimiento del reporte: si la ventana cerró sin reporte entregado (missedAt) y si la central
+  # lo rechazó con REPORT_TOO_EARLY y falta reenviarlo (se reintenta desde notBefore).
+  def report_tracking
+    {
+      missedAt: @cycle.report_missed_at&.iso8601,
+      tooEarly: @cycle.report_not_before.present?,
+      notBefore: @cycle.report_not_before&.iso8601
     }
   end
 
@@ -96,13 +117,13 @@ class CyclePresenter
   def last_operation
     operations = []
 
-    if @cycle.report_sent?
-      operations << { type: "negotiation-report", time: @cycle.updated_at }
+    if @cycle.report_sent? && report_sent_at
+      operations << { type: "negotiation-report", time: report_sent_at }
     end
 
     last_tx = Transaction.where(cycle_id: @cycle_id).order(created_at: :desc).first
     if last_tx
-      operations << { type: last_tx.event_type, time: last_tx.created_at }
+      operations << { type: last_tx.operation_type, time: last_tx.created_at }
     end
 
     last_prop = Proposal.where(cycle_id: @cycle_id).order(updated_at: :desc).first
