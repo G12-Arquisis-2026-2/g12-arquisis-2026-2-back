@@ -4,11 +4,14 @@ require_relative 'message_validator'
 class OutboxSender
   REQUIRED_FIELDS = %w[msgId idpk type timestamp].freeze
 
-  def initialize(master:, publisher:, city_id:, log:)
+  # enabled: false es el modo de ENABLE_PUBLISHER apagado (ver dry_run)
+  def initialize(master:, publisher:, city_id:, log:, enabled: true)
     @master = master
     @publisher = publisher
     @city_id = city_id
     @log = log
+    @enabled = enabled
+    @dry_run_logged = {}
   end
 
   def run_once
@@ -23,8 +26,21 @@ class OutboxSender
   def handle(id, message)
     problem = problem_in(message)
     return reject(id, message, problem) if problem
+    return dry_run(id, message) unless @enabled
 
     publish(id, message)
+  end
+
+  # con ENABLE_PUBLISHER apagado no se llama al broker ni se marca nada: el mensaje SIGUE PENDIENTE
+  # (no es enviado ni fallido), asi sale cuando se prenda el interruptor y se reinicie el connector.
+  # no es un bucle de reintentos: no se publica nada, y cada pendiente se loguea una sola vez por proceso.
+  def dry_run(id, message)
+    return true if @dry_run_logged[id]
+
+    @dry_run_logged[id] = true
+    @log.call("ENABLE_PUBLISHER apagado, no se publica el pendiente #{id}: " \
+              "type=#{message['type']} msgId=#{message['msgId']} idpk=#{message['idpk']} cityId=#{message['cityId']}")
+    true
   end
 
   # mejor no mandarlo que recibir un nack: queda como fallido y no se intenta de nuevo

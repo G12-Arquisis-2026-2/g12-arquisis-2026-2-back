@@ -19,7 +19,11 @@ class CentralPublisherTest < Minitest::Test
     end
 
     def wait_for_confirms
-      true
+      @confirms_asked = true
+    end
+
+    def confirms_asked?
+      @confirms_asked == true
     end
   end
 
@@ -104,5 +108,38 @@ class CentralPublisherTest < Minitest::Test
     assert_equal message, last_message
     assert_equal 'city.12', @channel.published.last[:options][:user_id]
     assert_equal 'central', @channel.published.last[:routing_key]
+  end
+
+  def disabled_publisher
+    @logs = []
+    CentralPublisher.new(@channel, exchange: 'energy.x', routing_key: 'central', user_id: 'city.12', city_id: '12',
+                                   enabled: false, log: ->(text) { @logs << text })
+  end
+
+  def test_disabled_publish_confirmed_does_not_touch_the_broker_and_logs
+    message = { 'msgId' => 'a', 'idpk' => 'b', 'type' => 'negotiation-report', 'cityId' => '12',
+                'data' => { 'budgetBalance' => 10 } }
+
+    assert_equal false, disabled_publisher.publish_confirmed(message)
+    assert_empty @channel.published
+    refute @channel.confirms_asked?
+    assert_equal ['ENABLE_PUBLISHER apagado, no se publica: type=negotiation-report msgId=a idpk=b cityId=12'], @logs
+  end
+
+  def test_disabled_ack_and_nack_are_only_logged
+    publisher = disabled_publisher
+    publisher.ack(ORIGINAL)
+    publisher.nack(ORIGINAL, 'UNKNOWN_TYPE', 400, 'tipo desconocido: x')
+
+    assert_empty @channel.published
+    assert_equal 2, @logs.size
+    assert_includes @logs.first, 'type=ack'
+    assert_includes @logs.last, 'type=nack'
+  end
+
+  def test_enabled_is_the_default_and_publishes
+    @publisher.ack(ORIGINAL)
+
+    assert_equal 1, @channel.published.size
   end
 end
