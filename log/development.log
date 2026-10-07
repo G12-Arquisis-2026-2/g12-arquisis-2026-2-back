@@ -293,3 +293,48 @@ Completed 200 OK in 28ms (Views: 14.1ms | ActiveRecord: 8.3ms (1 query, 0 cached
 [ActiveJob] [CycleOrchestratorJob] [ace63b1d-f002-4655-be23-feff878609c0] Enqueued CycleOrchestratorJob (Job ID: 70c9a593-258d-46bf-8a2c-a9e1305f9df8) to Async(default) at 2026-10-06 23:31:37 UTC
 [ActiveJob] [CycleOrchestratorJob] [ace63b1d-f002-4655-be23-feff878609c0] ↳ app/jobs/cycle_orchestrator_job.rb:23:in `perform'
 [ActiveJob] [CycleOrchestratorJob] [ace63b1d-f002-4655-be23-feff878609c0] Performed CycleOrchestratorJob (Job ID: ace63b1d-f002-4655-be23-feff878609c0) from Async(default) in 7.02ms
+[Boot] Contenedor iniciado. Encolando el primer CycleOrchestratorJob...
+[ActiveJob] Enqueued CycleOrchestratorJob (Job ID: e443ef4c-6ca6-4a97-9991-8bae2a2811d9) to Async(default)
+[ActiveJob] ↳ config/initializers/start_orchestrator.rb:10:in `block in <main>'
+Using vips to process variants requires the libvips library. Please install libvips using the instructions on the libvips website.
+[ActiveJob] [CycleOrchestratorJob] [e443ef4c-6ca6-4a97-9991-8bae2a2811d9] Performing CycleOrchestratorJob (Job ID: e443ef4c-6ca6-4a97-9991-8bae2a2811d9) from Async(default) enqueued at 2026-10-07T00:07:59.748733933Z
+  [1m[35m (1.2ms)[0m  [1m[34mSELECT pg_try_advisory_lock(2032918012893123195) /*application='E0'*/[0m
+  [1m[36mActiveRecord::SchemaMigration Load (1.5ms)[0m  [1m[34mSELECT "schema_migrations"."version" FROM "schema_migrations" ORDER BY "schema_migrations"."version" ASC /*application='E0'*/[0m
+  [1m[36mActiveRecord::InternalMetadata Load (1.6ms)[0m  [1m[34mSELECT * FROM "ar_internal_metadata" WHERE "ar_internal_metadata"."key" = 'environment' ORDER BY "ar_internal_metadata"."key" ASC LIMIT 1 /*application='E0'*/[0m
+Migrating to AddValidUntilToCycles (20261006231000)
+[ActiveJob] [CycleOrchestratorJob] [e443ef4c-6ca6-4a97-9991-8bae2a2811d9]   [1m[36mDemandEvent Load (4.2ms)[0m  [1m[34mSELECT "demand_events".* FROM "demand_events" WHERE "demand_events"."event_type" = 'status-statement' ORDER BY "demand_events"."created_at" DESC LIMIT 1 /*application='E0',job='CycleOrchestratorJob'*/[0m
+[ActiveJob] [CycleOrchestratorJob] [e443ef4c-6ca6-4a97-9991-8bae2a2811d9]   ↳ app/jobs/cycle_orchestrator_job.rb:12:in `perform'
+[ActiveJob] [CycleOrchestratorJob] [e443ef4c-6ca6-4a97-9991-8bae2a2811d9] [CycleOrchestrator] No existe status-statement en BD. Solicitando a la central...
+  [1m[36mTRANSACTION (0.8ms)[0m  [1m[35mBEGIN /*application='E0'*/[0m
+[ActiveJob] [CycleOrchestratorJob] [e443ef4c-6ca6-4a97-9991-8bae2a2811d9] Enqueued CycleOrchestratorJob (Job ID: 41cba971-8bb6-4bdf-8660-36f3025a3c0f) to Async(default) at 2026-10-07 00:08:30 UTC
+[ActiveJob] [CycleOrchestratorJob] [e443ef4c-6ca6-4a97-9991-8bae2a2811d9] ↳ app/jobs/cycle_orchestrator_job.rb:23:in `perform'
+[ActiveJob] [CycleOrchestratorJob] [e443ef4c-6ca6-4a97-9991-8bae2a2811d9] Performed CycleOrchestratorJob (Job ID: e443ef4c-6ca6-4a97-9991-8bae2a2811d9) from Async(default) in 108.63ms
+  [1m[35m (9.4ms)[0m  [1m[35mALTER TABLE "cycles" ADD "valid_until" timestamp(6) /*application='E0'*/[0m
+  [1m[36mActiveRecord::SchemaMigration Create (0.9ms)[0m  [1m[32mINSERT INTO "schema_migrations" ("version") VALUES ('20261006231000') RETURNING "version" /*application='E0'*/[0m
+  [1m[36mTRANSACTION (2.5ms)[0m  [1m[35mCOMMIT /*application='E0'*/[0m
+  [1m[35m (0.6ms)[0m  [1m[34mSELECT pg_advisory_unlock(2032918012893123195) /*application='E0'*/[0m
+  [1m[36mActiveRecord::SchemaMigration Load (1.4ms)[0m  [1m[34mSELECT "schema_migrations"."version" FROM "schema_migrations" ORDER BY "schema_migrations"."version" ASC /*application='E0'*/[0m
+  [1m[35mSQL (0.7ms)[0m  [1m[35mSET search_path TO public /*application='E0'*/[0m
+  [1m[35mSQL (1.1ms)[0m  [1m[35mSET search_path TO "$user", public /*application='E0'*/[0m
+  [1m[35mSQL (0.7ms)[0m  [1m[35mSET search_path TO public /*application='E0'*/[0m
+  [1m[35mSQL (0.5ms)[0m  [1m[35mSET search_path TO "$user", public /*application='E0'*/[0m
+[Boot] Contenedor iniciado. Encolando el primer CycleOrchestratorJob...
+[ActiveJob] Enqueued CycleOrchestratorJob (Job ID: 35eae4d0-fc1a-49f0-ac54-2db87f0f12d8) to Async(default)
+[ActiveJob] ↳ config/initializers/start_orchestrator.rb:10:in `block in <main>'
+Using vips to process variants requires the libvips library. Please install libvips using the instructions on the libvips website.
+[ActiveJob] [CycleOrchestratorJob] [35eae4d0-fc1a-49f0-ac54-2db87f0f12d8] Performing CycleOrchestratorJob (Job ID: 35eae4d0-fc1a-49f0-ac54-2db87f0f12d8) from Async(default) enqueued at 2026-10-07T00:11:18.821205493Z
+  [1m[35m (0.7ms)[0m  [1m[34mSELECT pg_try_advisory_lock(2032918012893123195) /*application='E0'*/[0m
+  [1m[36mActiveRecord::SchemaMigration Load (2.7ms)[0m  [1m[34mSELECT "schema_migrations"."version" FROM "schema_migrations" ORDER BY "schema_migrations"."version" ASC /*application='E0'*/[0m
+  [1m[36mActiveRecord::InternalMetadata Load (2.4ms)[0m  [1m[34mSELECT * FROM "ar_internal_metadata" WHERE "ar_internal_metadata"."key" = 'environment' ORDER BY "ar_internal_metadata"."key" ASC LIMIT 1 /*application='E0'*/[0m
+  [1m[35m (1.1ms)[0m  [1m[34mSELECT pg_advisory_unlock(2032918012893123195) /*application='E0'*/[0m
+  [1m[36mActiveRecord::SchemaMigration Load (0.6ms)[0m  [1m[34mSELECT "schema_migrations"."version" FROM "schema_migrations" ORDER BY "schema_migrations"."version" ASC /*application='E0'*/[0m
+  [1m[35mSQL (1.7ms)[0m  [1m[35mSET search_path TO public /*application='E0'*/[0m
+[ActiveJob] [CycleOrchestratorJob] [35eae4d0-fc1a-49f0-ac54-2db87f0f12d8]   [1m[36mDemandEvent Load (3.2ms)[0m  [1m[34mSELECT "demand_events".* FROM "demand_events" WHERE "demand_events"."event_type" = 'status-statement' ORDER BY "demand_events"."created_at" DESC LIMIT 1 /*application='E0',job='CycleOrchestratorJob'*/[0m
+[ActiveJob] [CycleOrchestratorJob] [35eae4d0-fc1a-49f0-ac54-2db87f0f12d8]   ↳ app/jobs/cycle_orchestrator_job.rb:12:in `perform'
+[ActiveJob] [CycleOrchestratorJob] [35eae4d0-fc1a-49f0-ac54-2db87f0f12d8] [CycleOrchestrator] No existe status-statement en BD. Solicitando a la central...
+  [1m[35mSQL (1.1ms)[0m  [1m[35mSET search_path TO "$user", public /*application='E0'*/[0m
+[ActiveJob] [CycleOrchestratorJob] [35eae4d0-fc1a-49f0-ac54-2db87f0f12d8] Enqueued CycleOrchestratorJob (Job ID: 12602fec-0233-4408-bc99-f44143abbe0e) to Async(default) at 2026-10-07 00:11:49 UTC
+[ActiveJob] [CycleOrchestratorJob] [35eae4d0-fc1a-49f0-ac54-2db87f0f12d8] ↳ app/jobs/cycle_orchestrator_job.rb:23:in `perform'
+[ActiveJob] [CycleOrchestratorJob] [35eae4d0-fc1a-49f0-ac54-2db87f0f12d8] Performed CycleOrchestratorJob (Job ID: 35eae4d0-fc1a-49f0-ac54-2db87f0f12d8) from Async(default) in 104.6ms
+  [1m[35mSQL (2.4ms)[0m  [1m[35mSET search_path TO public /*application='E0'*/[0m
+  [1m[35mSQL (0.4ms)[0m  [1m[35mSET search_path TO "$user", public /*application='E0'*/[0m

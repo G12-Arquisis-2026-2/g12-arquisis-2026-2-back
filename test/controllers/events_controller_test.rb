@@ -8,6 +8,7 @@ class EventsControllerTest < ActionDispatch::IntegrationTest
       "type" => "status-statement",
       "cycleId" => "cycle-status-1",
       "data" => {
+        "validUntil" => "2026-10-07T12:30:00Z",
         "energy" => {
           "generationCapacity" => 1200,
           "consumption" => 950,
@@ -26,5 +27,6 @@ class EventsControllerTest < ActionDispatch::IntegrationTest
     assert_equal 1200, cycle.generation_capacity
     assert_equal 950, cycle.consumption
     assert_equal BigDecimal("0.42"), cycle.generation_cost
+    assert_equal Time.iso8601("2026-10-07T12:30:00Z"), cycle.valid_until
   end
 end

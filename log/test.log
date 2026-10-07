@@ -756,3 +756,105 @@ LedgerProcessorServiceTest: test_processes_transfers_without_changing_energy
   [1m[36mTransaction Create (0.9ms)[0m  [1m[32mINSERT INTO "transactions" ("idpk", "cycle_id", "operation_type", "energy_change", "budget_change", "raw_data", "created_at") VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING "id"[0m  [["idpk", "transfer-1"], ["cycle_id", "cycle-1"], ["operation_type", "transfer"], ["energy_change", "0.0"], ["budget_change", "125.0"], ["raw_data", "{\"idpk\":\"transfer-1\",\"cycleId\":\"cycle-1\",\"type\":\"transfer\",\"data\":{\"quantity\":125}}"], ["created_at", "2026-10-06 23:12:32.829933"]]
   [1m[36mTRANSACTION (0.6ms)[0m  [1m[35mRELEASE SAVEPOINT active_record_1[0m
   [1m[36mTRANSACTION (0.4ms)[0m  [1m[31mROLLBACK[0m
+[Boot] Contenedor iniciado. Encolando el primer CycleOrchestratorJob...
+[ActiveJob] Enqueued CycleOrchestratorJob (Job ID: 926cff52-a84e-46e4-847a-ddaa28b9c664) to Test(default)
+Using vips to process variants requires the libvips library. Please install libvips using the instructions on the libvips website.
+  [1m[36mActiveRecord::InternalMetadata Load (5.7ms)[0m  [1m[34mSELECT * FROM "ar_internal_metadata" WHERE "ar_internal_metadata"."key" = $1 ORDER BY "ar_internal_metadata"."key" ASC LIMIT 1[0m  [[nil, "schema_sha1"]]
+  [1m[36mActiveRecord::SchemaMigration Load (3.9ms)[0m  [1m[34mSELECT "schema_migrations"."version" FROM "schema_migrations" ORDER BY "schema_migrations"."version" ASC[0m
+[Boot] Contenedor iniciado. Encolando el primer CycleOrchestratorJob...
+[ActiveJob] Enqueued CycleOrchestratorJob (Job ID: bb85c7b0-1bd9-4275-8622-2e2001f53834) to Test(default)
+Using vips to process variants requires the libvips library. Please install libvips using the instructions on the libvips website.
+  [1m[35m (0.7ms)[0m  [1m[34mSELECT pg_try_advisory_lock(133534148676810735)[0m
+  [1m[36mActiveRecord::SchemaMigration Load (2.3ms)[0m  [1m[34mSELECT "schema_migrations"."version" FROM "schema_migrations" ORDER BY "schema_migrations"."version" ASC[0m
+  [1m[36mActiveRecord::InternalMetadata Load (4.5ms)[0m  [1m[34mSELECT * FROM "ar_internal_metadata" WHERE "ar_internal_metadata"."key" = $1 ORDER BY "ar_internal_metadata"."key" ASC LIMIT 1[0m  [[nil, "environment"]]
+Migrating to AddValidUntilToCycles (20261006231000)
+  [1m[36mTRANSACTION (0.7ms)[0m  [1m[35mBEGIN[0m
+  [1m[35m (12.5ms)[0m  [1m[35mALTER TABLE "cycles" ADD "valid_until" timestamp(6)[0m
+  [1m[36mActiveRecord::SchemaMigration Create (1.8ms)[0m  [1m[32mINSERT INTO "schema_migrations" ("version") VALUES ('20261006231000') RETURNING "version"[0m
+  [1m[36mTRANSACTION (3.8ms)[0m  [1m[35mCOMMIT[0m
+  [1m[35m (1.2ms)[0m  [1m[34mSELECT pg_advisory_unlock(133534148676810735)[0m
+  [1m[36mActiveRecord::SchemaMigration Load (1.5ms)[0m  [1m[34mSELECT "schema_migrations"."version" FROM "schema_migrations" ORDER BY "schema_migrations"."version" ASC[0m
+  [1m[35mSQL (0.4ms)[0m  [1m[35mSET search_path TO public[0m
+  [1m[35mSQL (0.5ms)[0m  [1m[35mSET search_path TO "$user", public[0m
+  [1m[35mSQL (0.3ms)[0m  [1m[35mSET search_path TO public[0m
+  [1m[35mSQL (0.2ms)[0m  [1m[35mSET search_path TO "$user", public[0m
+[Boot] Contenedor iniciado. Encolando el primer CycleOrchestratorJob...
+[ActiveJob] Enqueued CycleOrchestratorJob (Job ID: d491bdab-1f10-40a3-8976-db3311090116) to Test(default)
+Using vips to process variants requires the libvips library. Please install libvips using the instructions on the libvips website.
+  [1m[36mActiveRecord::InternalMetadata Load (2.7ms)[0m  [1m[34mSELECT * FROM "ar_internal_metadata" WHERE "ar_internal_metadata"."key" = $1 ORDER BY "ar_internal_metadata"."key" ASC LIMIT 1[0m  [[nil, "schema_sha1"]]
+[Boot] Contenedor iniciado. Encolando el primer CycleOrchestratorJob...
+[ActiveJob] Enqueued CycleOrchestratorJob (Job ID: 3d434e18-5767-464d-8bbb-e4611596b262) to Test(default)
+Using vips to process variants requires the libvips library. Please install libvips using the instructions on the libvips website.
+  [1m[36mActiveRecord::SchemaMigration Load (2.1ms)[0m  [1m[34mSELECT "schema_migrations"."version" FROM "schema_migrations" ORDER BY "schema_migrations"."version" ASC[0m
+  [1m[36mActiveRecord::InternalMetadata Load (2.1ms)[0m  [1m[34mSELECT * FROM "ar_internal_metadata" WHERE "ar_internal_metadata"."key" = $1 ORDER BY "ar_internal_metadata"."key" ASC LIMIT 1[0m  [[nil, "environment"]]
+  [1m[36mActiveRecord::SchemaMigration Load (0.7ms)[0m  [1m[34mSELECT "schema_migrations"."version" FROM "schema_migrations" ORDER BY "schema_migrations"."version" ASC[0m
+  [1m[36mActiveRecord::InternalMetadata Load (0.8ms)[0m  [1m[34mSELECT * FROM "ar_internal_metadata" WHERE "ar_internal_metadata"."key" = $1 ORDER BY "ar_internal_metadata"."key" ASC LIMIT 1[0m  [[nil, "environment"]]
+  [1m[36mActiveRecord::SchemaMigration Load (0.5ms)[0m  [1m[34mSELECT "schema_migrations"."version" FROM "schema_migrations" ORDER BY "schema_migrations"."version" ASC[0m
+  [1m[36mActiveRecord::InternalMetadata Load (0.7ms)[0m  [1m[34mSELECT * FROM "ar_internal_metadata" WHERE "ar_internal_metadata"."key" = $1 ORDER BY "ar_internal_metadata"."key" ASC LIMIT 1[0m  [[nil, "environment"]]
+  [1m[35mSQL (0.2ms)[0m  [1m[35mSET search_path TO public[0m
+  [1m[35m (143.1ms)[0m  [1m[35mDROP DATABASE IF EXISTS "e0_test"[0m
+  [1m[35m (365.4ms)[0m  [1m[35mCREATE DATABASE "e0_test" ENCODING = 'unicode'[0m
+  [1m[35mSQL (53.6ms)[0m  [1m[35mCREATE EXTENSION IF NOT EXISTS "plpgsql" SCHEMA pg_catalog[0m
+  [1m[35m (0.9ms)[0m  [1m[35mDROP TABLE IF EXISTS "audit_logs" CASCADE[0m
+  [1m[35m (18.0ms)[0m  [1m[35mCREATE TABLE "audit_logs" ("id" bigserial primary key, "idpk" character varying, "event_type" character varying NOT NULL, "reason" character varying NOT NULL, "raw_payload" jsonb DEFAULT '{}' NOT NULL, "created_at" timestamp(6) NOT NULL)[0m
+  [1m[35m (0.8ms)[0m  [1m[35mDROP TABLE IF EXISTS "cycles" CASCADE[0m
+  [1m[35m (15.2ms)[0m  [1m[35mCREATE TABLE "cycles" ("id" bigserial primary key, "cycle_id" character varying NOT NULL, "generation_capacity" decimal, "consumption" decimal, "generation_cost" decimal, "reported_budget" decimal, "reported_energy" decimal, "report_sent" boolean DEFAULT FALSE, "created_at" timestamp(6) NOT NULL, "updated_at" timestamp(6) NOT NULL, "valid_until" timestamp(6))[0m
+  [1m[35m (6.4ms)[0m  [1m[35mCREATE UNIQUE INDEX "index_cycles_on_cycle_id" ON "cycles" ("cycle_id")[0m
+  [1m[35m (0.5ms)[0m  [1m[35mDROP TABLE IF EXISTS "demand_events" CASCADE[0m
+  [1m[35m (17.8ms)[0m  [1m[35mCREATE TABLE "demand_events" ("id" bigserial primary key, "created_at" timestamp(6) NOT NULL, "event_type" character varying NOT NULL, "idpk" character varying NOT NULL, "package_body" jsonb DEFAULT '{}' NOT NULL, "received_at" timestamp(6) NOT NULL, "updated_at" timestamp(6) NOT NULL)[0m
+  [1m[35m (4.2ms)[0m  [1m[35mCREATE UNIQUE INDEX "index_demand_events_on_idpk" ON "demand_events" ("idpk")[0m
+  [1m[35m (6.5ms)[0m  [1m[35mCREATE INDEX "index_demand_events_on_received_at" ON "demand_events" ("received_at")[0m
+  [1m[35m (0.4ms)[0m  [1m[35mDROP TABLE IF EXISTS "distance_tables" CASCADE[0m
+  [1m[35m (12.1ms)[0m  [1m[35mCREATE TABLE "distance_tables" ("id" bigserial primary key, "destination_code" character varying NOT NULL, "distance" integer NOT NULL, "transport_cost" decimal NOT NULL, "enabled" boolean NOT NULL)[0m
+  [1m[35m (6.0ms)[0m  [1m[35mCREATE UNIQUE INDEX "index_distance_tables_on_destination_code" ON "distance_tables" ("destination_code")[0m
+  [1m[35m (0.5ms)[0m  [1m[35mDROP TABLE IF EXISTS "proposals" CASCADE[0m
+  [1m[35m (10.5ms)[0m  [1m[35mCREATE TABLE "proposals" ("id" bigserial primary key, "idpk" character varying NOT NULL, "cycle_id" character varying NOT NULL, "direction" character varying NOT NULL, "quantity" decimal(15,2) NOT NULL, "price_per_energy" decimal(15,2), "generation_cost" decimal(15,2) NOT NULL, "status" character varying DEFAULT 'PENDING' NOT NULL, "created_at" timestamp(6) NOT NULL, "updated_at" timestamp(6) NOT NULL)[0m
+  [1m[35m (3.8ms)[0m  [1m[35mCREATE INDEX "index_proposals_on_cycle_id" ON "proposals" ("cycle_id")[0m
+  [1m[35m (7.3ms)[0m  [1m[35mCREATE UNIQUE INDEX "index_proposals_on_idpk" ON "proposals" ("idpk")[0m
+  [1m[35m (0.5ms)[0m  [1m[35mDROP TABLE IF EXISTS "transactions" CASCADE[0m
+  [1m[35m (11.0ms)[0m  [1m[35mCREATE TABLE "transactions" ("id" bigserial primary key, "idpk" character varying NOT NULL, "cycle_id" character varying NOT NULL, "operation_type" character varying NOT NULL, "energy_change" decimal NOT NULL, "budget_change" decimal NOT NULL, "raw_data" jsonb DEFAULT '{}' NOT NULL, "created_at" timestamp(6) NOT NULL)[0m
+  [1m[35m (6.1ms)[0m  [1m[35mCREATE INDEX "index_transactions_on_cycle_id" ON "transactions" ("cycle_id")[0m
+  [1m[35m (3.7ms)[0m  [1m[35mCREATE UNIQUE INDEX "index_transactions_on_idpk" ON "transactions" ("idpk")[0m
+  [1m[35m (12.4ms)[0m  [1m[35mCREATE TABLE "schema_migrations" ("version" character varying NOT NULL PRIMARY KEY)[0m
+  [1m[36mActiveRecord::SchemaMigration Load (1.2ms)[0m  [1m[34mSELECT "schema_migrations"."version" FROM "schema_migrations" ORDER BY "schema_migrations"."version" ASC[0m
+  [1m[35m (1.9ms)[0m  [1m[32mINSERT INTO "schema_migrations" (version) VALUES (20261006231000)[0m
+  [1m[35m (1.9ms)[0m  [1m[32mINSERT INTO "schema_migrations" (version) VALUES
+(20261006230000),
+(20261006224947),
+(20261006000001),
+(20261005000004),
+(20261005000003),
+(20261005000002),
+(20261005000001),
+(20260923000000),
+(20260827031333);[0m
+  [1m[35m (8.4ms)[0m  [1m[35mCREATE TABLE "ar_internal_metadata" ("key" character varying NOT NULL PRIMARY KEY, "value" character varying, "created_at" timestamp(6) NOT NULL, "updated_at" timestamp(6) NOT NULL)[0m
+  [1m[36mActiveRecord::InternalMetadata Load (2.2ms)[0m  [1m[34mSELECT * FROM "ar_internal_metadata" WHERE "ar_internal_metadata"."key" = $1 ORDER BY "ar_internal_metadata"."key" ASC LIMIT 1[0m  [[nil, "environment"]]
+  [1m[36mActiveRecord::InternalMetadata Create (82.9ms)[0m  [1m[32mINSERT INTO "ar_internal_metadata" ("key", "value", "created_at", "updated_at") VALUES ('environment', 'test', '2026-10-07 00:07:16.886566', '2026-10-07 00:07:16.886574') RETURNING "key"[0m
+  [1m[36mActiveRecord::InternalMetadata Load (1.1ms)[0m  [1m[34mSELECT * FROM "ar_internal_metadata" WHERE "ar_internal_metadata"."key" = $1 ORDER BY "ar_internal_metadata"."key" ASC LIMIT 1[0m  [[nil, "environment"]]
+  [1m[36mActiveRecord::InternalMetadata Load (1.0ms)[0m  [1m[34mSELECT * FROM "ar_internal_metadata" WHERE "ar_internal_metadata"."key" = $1 ORDER BY "ar_internal_metadata"."key" ASC LIMIT 1[0m  [[nil, "schema_sha1"]]
+  [1m[36mActiveRecord::InternalMetadata Create (1.6ms)[0m  [1m[32mINSERT INTO "ar_internal_metadata" ("key", "value", "created_at", "updated_at") VALUES ('schema_sha1', 'eec3452ea7cc8feb45a6c78f23199a37e6364a7f', '2026-10-07 00:07:16.977139', '2026-10-07 00:07:16.977146') RETURNING "key"[0m
+  [1m[36mActiveRecord::SchemaMigration Load (1.5ms)[0m  [1m[34mSELECT "schema_migrations"."version" FROM "schema_migrations" ORDER BY "schema_migrations"."version" ASC[0m
+  [1m[36mTRANSACTION (0.5ms)[0m  [1m[35mBEGIN[0m
+----------------------------------------------------------------------------
+EventsControllerTest: test_saves_and_updates_a_cycle_from_a_status_statement
+----------------------------------------------------------------------------
+Started POST "/events" for 127.0.0.1 at 2026-10-06 21:07:17 -0300
+Processing by EventsController#create as HTML
+  Parameters: {"type"=>"status-statement", "cycleId"=>"cycle-status-1", "data"=>{"validUntil"=>"2026-10-07T12:30:00Z", "energy"=>{"generationCapacity"=>1200, "consumption"=>950, "generationCost"=>0.42}}, "event"=>{"type"=>"status-statement", "cycleId"=>"cycle-status-1", "data"=>{"validUntil"=>"2026-10-07T12:30:00Z", "energy"=>{"generationCapacity"=>1200, "consumption"=>950, "generationCost"=>0.42}}}}
+  [1m[36mCycle Load (2.2ms)[0m  [1m[34mSELECT "cycles".* FROM "cycles" WHERE "cycles"."cycle_id" = $1 LIMIT $2[0m  [["cycle_id", "cycle-status-1"], ["LIMIT", 1]]
+  [1m[36mTRANSACTION (0.9ms)[0m  [1m[35mSAVEPOINT active_record_1[0m
+  [1m[36mCycle Exists? (2.6ms)[0m  [1m[34mSELECT 1 AS one FROM "cycles" WHERE "cycles"."cycle_id" = $1 LIMIT $2[0m  [["cycle_id", "cycle-status-1"], ["LIMIT", 1]]
+  [1m[36mCycle Create (2.2ms)[0m  [1m[32mINSERT INTO "cycles" ("cycle_id", "generation_capacity", "consumption", "generation_cost", "reported_budget", "reported_energy", "report_sent", "created_at", "updated_at", "valid_until") VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10) RETURNING "id"[0m  [["cycle_id", "cycle-status-1"], ["generation_capacity", "1200.0"], ["consumption", "950.0"], ["generation_cost", "0.42"], ["reported_budget", nil], ["reported_energy", nil], ["report_sent", false], ["created_at", "2026-10-07 00:07:17.432640"], ["updated_at", "2026-10-07 00:07:17.432640"], ["valid_until", "2026-10-07 12:30:00"]]
+  [1m[36mTRANSACTION (0.7ms)[0m  [1m[35mRELEASE SAVEPOINT active_record_1[0m
+Completed 201 Created in 92ms (Views: 0.7ms | ActiveRecord: 16.0ms (3 queries, 0 cached) | GC: 0.0ms)
+Started POST "/events" for 127.0.0.1 at 2026-10-06 21:07:17 -0300
+Processing by EventsController#create as HTML
+  Parameters: {"type"=>"status-statement", "cycleId"=>"cycle-status-1", "data"=>{"validUntil"=>"2026-10-07T12:30:00Z", "energy"=>{"generationCapacity"=>1200, "consumption"=>950, "generationCost"=>0.42}}, "event"=>{"type"=>"status-statement", "cycleId"=>"cycle-status-1", "data"=>{"validUntil"=>"2026-10-07T12:30:00Z", "energy"=>{"generationCapacity"=>1200, "consumption"=>950, "generationCost"=>0.42}}}}
+  [1m[36mCycle Load (1.3ms)[0m  [1m[34mSELECT "cycles".* FROM "cycles" WHERE "cycles"."cycle_id" = $1 LIMIT $2[0m  [["cycle_id", "cycle-status-1"], ["LIMIT", 1]]
+  [1m[36mTRANSACTION (0.5ms)[0m  [1m[35mSAVEPOINT active_record_1[0m
+  [1m[36mTRANSACTION (0.4ms)[0m  [1m[35mRELEASE SAVEPOINT active_record_1[0m
+Completed 201 Created in 16ms (Views: 0.2ms | ActiveRecord: 8.1ms (1 query, 0 cached) | GC: 0.0ms)
+  [1m[36mCycle Count (2.3ms)[0m  [1m[34mSELECT COUNT(*) FROM "cycles" WHERE "cycles"."cycle_id" = $1[0m  [["cycle_id", "cycle-status-1"]]
+  [1m[36mCACHE Cycle Load (0.0ms)[0m  [1m[34mSELECT "cycles".* FROM "cycles" WHERE "cycles"."cycle_id" = $1 LIMIT $2[0m  [["cycle_id", "cycle-status-1"], ["LIMIT", 1]]
+  [1m[36mTRANSACTION (0.4ms)[0m  [1m[31mROLLBACK[0m
