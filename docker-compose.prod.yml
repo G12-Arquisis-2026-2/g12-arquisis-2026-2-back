@@ -13,9 +13,7 @@ services:
       retries: 5
 
   web:
-    build:
-      context: .
-      dockerfile: Dockerfile
+    image: ${ECR_REGISTRY:-624005845126.dkr.ecr.us-east-2.amazonaws.com}/energyshark-back-web:latest
     restart: unless-stopped
     env_file: .env
     environment:
@@ -36,8 +34,7 @@ services:
       start_period: 30s
 
   connector:
-    build:
-      context: ./connector
+    image: ${ECR_REGISTRY:-624005845126.dkr.ecr.us-east-2.amazonaws.com}/energyshark-back-connector:latest
     restart: unless-stopped
     env_file: .env
     environment:
