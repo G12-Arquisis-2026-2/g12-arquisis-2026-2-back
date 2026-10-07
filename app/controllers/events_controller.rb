@@ -18,12 +18,14 @@ class EventsController < ApplicationController
         render json: { status: 'saved' }, status: :created
 
       when 'status-statement'
-        energy = payload.fetch('data').fetch('energy')
+        data = payload.fetch('data')
+        energy = data.fetch('energy')
         cycle = Cycle.find_or_initialize_by(cycle_id: payload['cycleId'])
         cycle.assign_attributes(
           generation_capacity: energy.fetch('generationCapacity'),
           consumption: energy.fetch('consumption'),
-          generation_cost: energy.fetch('generationCost')
+          generation_cost: energy.fetch('generationCost'),
+          valid_until: data.fetch('validUntil')
         )
         cycle.save!
 
