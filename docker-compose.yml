@@ -57,18 +57,14 @@ services:
     build:
       context: ./connector
     container_name: connector
+    restart: unless-stopped
+    env_file: .env
     depends_on:
       master1:
         condition: service_healthy
     environment:
-      RABBITMQ_URL: "${RABBITMQ_URL:?Define RABBITMQ_URL en .env}"
-      OBSERVER_ID: "22"
+      # pisa el MASTER_URL del .env, en dev la API es master1
       MASTER_URL: "http://master1:3000/events"
-    healthcheck:
-      test: ["CMD-SHELL", "ps aux | grep -v grep | grep consumer.rb || exit 1"]
-      interval: 15s
-      timeout: 5s
-      retries: 3
 
 volumes:
   pgdata:
