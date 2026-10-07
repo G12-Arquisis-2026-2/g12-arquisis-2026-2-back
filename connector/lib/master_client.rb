@@ -29,6 +29,7 @@ class MasterClient
   def initialize(url)
     @events_uri = URI(url)
     @rejected_uri = URI("#{url.chomp('/')}/rejected")
+    @outbox_url = "#{url.chomp('/')}/outbox"
   end
 
   def deliver(message)
@@ -39,13 +40,30 @@ class MasterClient
     post(@rejected_uri, { 'kind' => kind, 'raw' => raw, 'reason' => reason })
   end
 
+  # mensajes que la API quiere mandar a la central. si la API no responde bien, lista vacia y se prueba despues
+  def pending_outbox
+    result = send_request(Net::HTTP::Get.new(URI(@outbox_url)))
+    list = result.saved? ? JSON.parse(result.body.to_s) : []
+    list.is_a?(Array) ? list : []
+  rescue JSON::ParserError
+    []
+  end
+
+  def mark_outbox(id, status, reason = nil)
+    post(URI("#{@outbox_url}/#{id}"), { 'status' => status, 'reason' => reason })
+  end
+
   private
 
-  # nunca tira excepcion, si falla la red devuelve un Result sin status
   def post(uri, payload)
     request = Net::HTTP::Post.new(uri, 'Content-Type' => 'application/json')
     request.body = JSON.generate(payload)
-    response = http_for(uri).request(request)
+    send_request(request)
+  end
+
+  # nunca tira excepcion, si falla la red devuelve un Result sin status
+  def send_request(request)
+    response = http_for(request.uri).request(request)
     Result.new(response.code.to_i, response.body)
   rescue StandardError => e
     Result.new(nil, "#{e.class}: #{e.message}")

@@ -2,6 +2,8 @@ require_relative 'message_validator'
 
 # decide que hacer con cada mensaje. process devuelve :done (listo) o :retry (hay que devolverlo a la cola)
 class MessageProcessor
+  REJECTION_TYPES = %w[nack error].freeze
+
   def initialize(master:, publisher:, log: ->(text) { puts "[Connector] #{text}" })
     @master = master
     @publisher = publisher
@@ -49,6 +51,7 @@ class MessageProcessor
 
   def deliver(decision)
     message = decision.message
+    log_rejection(message) if REJECTION_TYPES.include?(message['type'])
     result = @master.deliver(message)
 
     if result.saved?
@@ -70,6 +73,14 @@ class MessageProcessor
     # los ack/nack/error de la central no se responden nunca
     @publisher.nack(message, 'MALFORMED_MESSAGE', 422, reason) if decision.send_ack
     :done
+  end
+
+  # solo se deja en el log, no se reenvia nada: el mismo mensaje volveria a fallar
+  def log_rejection(message)
+    target = message['data'].is_a?(Hash) ? message['data']['target'] : nil
+    text = "La central rechazó #{target} con #{message['type']}: #{message['reason']} (#{message['code']})."
+    text += ' Revisar RABBITMQ_USER y CITY_ID.' if message['reason'] == 'IDENTITY_MISMATCH'
+    @log.call(text)
   end
 
   # si el aviso falla da lo mismo, se loguea y se sigue
