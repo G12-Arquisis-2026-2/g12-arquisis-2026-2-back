@@ -18,6 +18,26 @@ class LedgerProcessorServiceTest < ActiveSupport::TestCase
     assert_equal "transfer", transaction.raw_data["type"]
   end
 
+  test "a give takes out energy and leaves the budget to its payment transfer" do
+    transaction = LedgerProcessorService.call(
+      "idpk" => "give-1", "cycleId" => "cycle-1", "type" => "give",
+      "data" => { "target" => "p1", "energy" => 2024, "pricePerEnergy" => 220.5 }
+    )
+
+    assert_equal(-2024, transaction.energy_change)
+    assert_equal 0, transaction.budget_change
+  end
+
+  test "a take adds energy and charges energy times pricePerEnergy" do
+    transaction = LedgerProcessorService.call(
+      "idpk" => "take-1", "cycleId" => "cycle-1", "type" => "take",
+      "data" => { "target" => "p1", "energy" => 2024, "pricePerEnergy" => 210 }
+    )
+
+    assert_equal 2024, transaction.energy_change
+    assert_equal(-425_040, transaction.budget_change)
+  end
+
   test "subtracts the demand statement value from the budget for positive quantity" do
     transaction = LedgerProcessorService.call(
       "idpk" => "demand-1",

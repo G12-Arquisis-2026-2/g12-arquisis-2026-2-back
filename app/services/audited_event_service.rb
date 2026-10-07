@@ -1,9 +1,7 @@
 # Mensajes del protocolo que no tienen modelo propio: quedan registrados en AuditLog,
-# una sola vez por idpk.
+# una sola vez por idpk. (give y take van al ledger: LedgerProcessorService)
 class AuditedEventService
   EVENT_TYPES = {
-    "give" => "GIVE",
-    "take" => "TAKE",
     "demand-set" => "DEMAND_SET",
     # prefijo para no confundirlos con los NACK que publicamos nosotros (AuditLog.log_nack)
     "ack" => "CENTRAL_ACK",

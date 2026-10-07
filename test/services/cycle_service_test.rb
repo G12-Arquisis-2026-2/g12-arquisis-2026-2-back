@@ -112,7 +112,7 @@ class CycleServiceTest < ActiveSupport::TestCase
     cycle = create_cycle("cycle-1")
     ledger("cycle-1", energy: 1500, budget: -322_500)
     ledger("cycle-1", energy: 0, budget: 508_145)
-    ledger("other-cycle", energy: 99, budget: 99)
+    ledger("other-cycle", energy: 99, budget: 99) # su budget se arrastra, su energía no
 
     travel_to(VALID_UNTIL - 6.minutes) { assert_equal VALID_UNTIL - 5.minutes, CycleService.tick }
     assert_equal 0, reports.count
@@ -124,7 +124,8 @@ class CycleServiceTest < ActiveSupport::TestCase
     payload = reports.first.payload
     assert_equal "negotiation-report", payload["type"]
     assert_equal "cycle-1", payload["cycleId"]
-    assert_equal({ "budgetBalance" => 185_645.0, "energyBalance" => 1500.0 }, payload["data"])
+    # budget: -322500 + 508145 + 99; energía: (10 - 5) del status-statement + 1500
+    assert_equal({ "budgetBalance" => 185_744.0, "energyBalance" => 1505.0 }, payload["data"])
     assert_equal payload["idpk"], cycle.reload.report_idpk
     assert_equal payload["msgId"], cycle.report_msg_id
   end
@@ -138,7 +139,7 @@ class CycleServiceTest < ActiveSupport::TestCase
     travel_to(VALID_UNTIL - 4.minutes) { CycleService.tick }
 
     first, correction = reports.order(:id).map(&:payload)
-    assert_equal({ "budgetBalance" => 160.0, "energyBalance" => 6.0 }, correction["data"])
+    assert_equal({ "budgetBalance" => 160.0, "energyBalance" => 11.0 }, correction["data"])
     assert_not_equal first["idpk"], correction["idpk"]
     assert_not_equal first["msgId"], correction["msgId"]
   end

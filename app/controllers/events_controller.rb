@@ -14,6 +14,8 @@ class EventsController < ApplicationController
   PROCESSORS = {
     'transfer' => LedgerProcessorService,
     'demand-statement' => LedgerProcessorService,
+    'give' => LedgerProcessorService,
+    'take' => LedgerProcessorService,
     'status-statement' => StatusStatementProcessorService,
     'distance-table' => DistanceTableProcessorService
   }.merge(AuditedEventService::EVENT_TYPES.keys.index_with(AuditedEventService)).freeze

@@ -122,7 +122,7 @@ class CycleService
   end
 
   def self.send_report(cycle)
-    balances = Transaction.current_balance_for(cycle.cycle_id)
+    balances = CycleBalanceService.call(cycle)
     changed = !cycle.report_sent? ||
               balances[:budget] != cycle.reported_budget || balances[:energy] != cycle.reported_energy
     retrying = cycle.report_not_before.present?

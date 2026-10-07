@@ -95,26 +95,27 @@ class EventsControllerTest < ActionDispatch::IntegrationTest
     assert_equal 0, AuditLog.count
   end
 
-  test "give and take are saved in the audit log with their target" do
-    %w[give take].each do |type|
-      post_event give_take_payload(type, "idpk-#{type}")
+  test "give and take are saved in the ledger" do
+    post_event give_take_payload("give", "idpk-give")
+    assert_response :created
+    post_event give_take_payload("take", "idpk-take")
+    assert_response :created
 
-      assert_response :created
-      assert_equal "saved", response.parsed_body["status"]
-      log = AuditLog.find_by!(idpk: "idpk-#{type}")
-      assert_equal type.upcase, log.event_type
-      assert_equal "proposal-msg-1", log.reason
-      assert_equal 300, log.raw_payload.dig("data", "energy")
-    end
+    give = Transaction.find_by!(idpk: "idpk-give")
+    assert_equal [-300, 0], [give.energy_change, give.budget_change] # el cobro llega como transfer
+    take = Transaction.find_by!(idpk: "idpk-take")
+    assert_equal [300, -450], [take.energy_change, take.budget_change] # 300 * 1.5
+    assert_equal "proposal-msg-1", take.raw_data.dig("data", "target")
+    assert_equal 0, AuditLog.where(event_type: %w[GIVE TAKE]).count
   end
 
-  test "a repeated give idpk is a duplicate and is not logged twice" do
+  test "a repeated give idpk is a duplicate and moves the ledger once" do
     post_event give_take_payload("give", "idpk-give")
     post_event give_take_payload("give", "idpk-give")
 
     assert_response :ok
     assert_equal "duplicate", response.parsed_body["status"]
-    assert_equal 1, AuditLog.where(idpk: "idpk-give", event_type: "GIVE").count
+    assert_equal 1, Transaction.where(idpk: "idpk-give").count
     assert_equal 1, AuditLog.where(idpk: "idpk-give", event_type: "DUPLICATE").count
   end
 
