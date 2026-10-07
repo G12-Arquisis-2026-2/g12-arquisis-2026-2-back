@@ -1,44 +1,68 @@
 class ProposalsController < ApplicationController
-    # GET /proposals
-    def index
-      render json: {
-        proposals: [
-          {
-            id: "prop-101",
-            cycleId: "cycle-9431",
-            direction: "take",
-            quantity: 2024,
-            pricePerEnergy: 210,
-            status: "confirmed", # confirmed, paid, timeout
-            createdAt: (Time.current - 10.minutes).iso8601
-          },
-          {
-            id: "prop-102",
-            cycleId: "cycle-9431",
-            direction: "give",
-            quantity: 500,
-            pricePerEnergy: 220.5,
-            status: "timeout",
-            createdAt: (Time.current - 25.minutes).iso8601
-          }
-        ]
-      }, status: :ok
-    end
-  
-    # POST /proposals
-    def create
-      # En desarrollo simulamos la recepción de la propuesta enviada desde el formulario React
-      proposal_params = params.permit(:cycleId, :direction, :quantity, :pricePerEnergy)
-  
-      # Validación básica
-      if proposal_params[:quantity].to_f <= 0 || proposal_params[:pricePerEnergy].to_f <= 0
-        return render json: { error: "Quantity and price must be positive numbers" }, status: :unprocessable_entity
-      end
-  
-      render json: {
-        status: "pending",
-        message: "Propuesta registrada e iniciada en la cola de RabbitMQ",
-        proposal: proposal_params.merge(id: SecureRandom.uuid, createdAt: Time.current.iso8601)
-      }, status: :created
-    end
+  # GET /proposals
+  # Lista el historial de propuestas reales registradas en la base de datos
+  def index
+    proposals = Proposal.order(created_at: :desc)
+    render json: { proposals: proposals }, status: :ok
   end
+
+  # POST /proposals
+  # Crea la propuesta, valida reglas de negocio, persiste en BD, publica a RabbitMQ y programa el timeout
+  def create
+    cycle_id  = params[:cycleId] || params[:cycle_id]
+    direction = params[:direction]
+    energy    = (params[:energy] || params[:quantity]).to_f
+
+    # 1. Validación inicial de parámetros
+    if energy <= 0
+      return render json: { error: "Energy/Quantity must be a positive number" }, status: :unprocessable_entity
+    end
+
+    if cycle_id.blank? || direction.blank?
+      return render json: { error: "cycleId and direction are required" }, status: :unprocessable_entity
+    end
+
+    # 2. Construcción y validación mediante NegotiationService
+    # Genera el payload Envelope v2 y valida topes (PRICE_ABOVE_CAP y OVER_CAPACITY)
+    payload = NegotiationService.build_proposal(
+      cycle_id: cycle_id,
+      direction: direction,
+      energy: energy
+    )
+
+    cycle = Cycle.find_by!(cycle_id: cycle_id)
+
+    # 3. Guardar la propuesta en la base de datos (tabla proposals)
+    proposal = Proposal.create!(
+      idpk: payload[:idpk],
+      cycle_id: payload[:cycleId],
+      direction: payload[:data][:direction],
+      quantity: payload[:data][:quantity],
+      price_per_energy: payload[:data][:pricePerEnergy],
+      generation_cost: cycle.generation_cost,
+      status: "PENDING"
+    )
+
+    # 4. Publicar hacia la central (guarda en outbox_messages para el connector)
+    RabbitMQPublisher.publish(payload)
+
+    # 5. Agendar la verificación de timeout de 30 segundos (ADR3)
+    NegotiationTimeoutJob.set(wait: 30.seconds).perform_later(proposal.idpk)
+
+    # 6. Respuesta exitosa
+    render json: {
+      status: "pending",
+      message: "Propuesta creada, guardada e iniciada en la cola de RabbitMQ",
+      proposal: proposal
+    }, status: :created
+
+  rescue ActiveRecord::RecordNotFound => e
+    render json: { error: e.message }, status: :not_found
+
+  rescue NegotiationService::OverCapacityError, NegotiationService::PriceCapExceededError, ArgumentError => e
+    render json: { error: e.message }, status: :unprocessable_entity
+
+  rescue ActiveRecord::RecordInvalid => e
+    render json: { error: e.record.errors.full_messages }, status: :unprocessable_entity
+  end
+end

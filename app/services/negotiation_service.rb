@@ -30,13 +30,15 @@ class NegotiationService
   end
 
   # 4. Construcción y validación de propuesta de negociación
-  def self.build_proposal(cycle_id:, direction:, energy:, generation_cost:, existing_idpk: nil)
-    price   = calculate_price(direction, generation_cost)
-    max_cap = calculate_price_cap(generation_cost)
-    quantity = calculate_quantity(price, energy)
+  def self.build_proposal(cycle_id:, direction:, energy:, existing_idpk: nil)
+    cycle = Cycle.find_by(cycle_id: cycle_id)
+    raise ActiveRecord::RecordNotFound, "Ciclo no encontrado: #{cycle_id}" unless cycle
 
-    cycle = Cycle.find_by(id: cycle_id)
-    generation_capacity = cycle.generationCapacity
+    generation_cost = cycle.generation_cost
+    max_cap = calculate_price_cap(generation_cost)
+    price = calculate_price(direction, generation_cost)
+    quantity = calculate_quantity(price, energy)
+    generation_capacity = cycle.generation_capacity
     consumption = cycle.consumption
 
     if energy > available_capacity(generation_capacity, consumption)
