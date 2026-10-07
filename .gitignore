@@ -1,2 +1,16 @@
 # Variables de entorno con secretos (usar .env.example como plantilla)
 .env
+
+# Rails: archivos generados
+/tmp/*
+!/tmp/.keep
+/log/*
+!/log/.keep
+/storage/*
+!/storage/.keep
+
+# Secretos
+.env
+.env.*
+!.env.example
+*.pem
