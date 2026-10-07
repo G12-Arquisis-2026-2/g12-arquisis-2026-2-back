@@ -1,11 +1,7 @@
 require 'json'
 require 'time'
  
-# Revisa cada mensaje que llega desde el broker y decide que hacer con el.
-# hay 3 opciones:
-# :discard no se puede leer o no trae msgId, se registra y no se responde.
-# :nack se puede leer pero está mal, se responde con un nack.
-# :accept  está bien. Se entrega a master. Si `send_ack` es true, se repsonde con un ack
+# revisa cada mensaje y decide que hacer: :discard, :nack o :accept
 
 module MessageValidator
   # mensajes q respondemos con un ack.
@@ -48,6 +44,9 @@ module MessageValidator
     return nack(message, 'MALFORMED_MESSAGE', 422, problem) if problem
  
     accept(message, send_ack: true)
+  rescue StandardError => e
+    # pase lo que pase check no tira excepcion, se descarta y listo
+    discard("no se pudo revisar el mensaje (#{e.class})")
   end
  
   # decisiones
@@ -68,7 +67,11 @@ module MessageValidator
  
   # devuelve el mensaje como hash o nil si no es un objeto JSON.
   def self.parse(raw_body)
-    parsed = JSON.parse(raw_body)
+    # si los bytes no son utf-8 valido se descarta altiro, si no despues revienta el strip
+    text = raw_body.to_s.dup.force_encoding('UTF-8')
+    return nil unless text.valid_encoding?
+
+    parsed = JSON.parse(text)
     parsed.is_a?(Hash) ? parsed : nil
   rescue JSON::ParserError, TypeError, EncodingError
     nil
