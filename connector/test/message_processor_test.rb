@@ -87,6 +87,7 @@ class MessageProcessorTest < Minitest::Test
 
     assert_equal :retry, processor.process(JSON.generate(valid_message))
     assert_equal %i[deliver], @calls
+    assert_equal [MessageProcessor::WAIT_DELAY], @sleeps
   end
 
   def test_master_error_500_means_no_reply_and_retry
@@ -325,13 +326,98 @@ class MessageProcessorTest < Minitest::Test
     assert_equal [5, 15, 5], @sleeps
   end
 
-  def test_failure_publishing_the_ack_also_counts_as_a_retry
+  # API caida: sin respuesta o 502, 503, 504. se espera lo que haga falta
+  def test_api_down_many_times_is_never_discarded
+    [nil, 502, 503, 504].each do |status|
+      processor = build(status: status, body: 'Errno::ECONNREFUSED')
+      body = JSON.generate(valid_message)
+
+      50.times { assert_equal :retry, processor.process(body), "status #{status.inspect}" }
+      assert_equal [MessageProcessor::WAIT_DELAY] * 50, @sleeps
+      assert_equal [:deliver] * 50, @calls
+      assert_empty @master.rejected
+      assert_empty @publisher.acks + @publisher.nacks
+
+      @master.status = 201
+      assert_equal :done, processor.process(body)
+      assert_equal 1, @publisher.acks.size
+    end
+  end
+
+  def test_api_down_does_not_count_as_an_attempt
+    processor = build(status: 500)
+    body = JSON.generate(valid_message)
+    2.times { assert_equal :retry, processor.process(body) }
+
+    @master.status = 503
+    20.times { assert_equal :retry, processor.process(body) }
+
+    # la cuenta sigue donde estaba: ni sube ni parte de cero
+    @master.status = 500
+    assert_equal :retry, processor.process(body)
+    assert_equal :reject, processor.process(body)
+    assert_equal [5, 15] + [MessageProcessor::WAIT_DELAY] * 20 + [45], @sleeps
+  end
+
+  def test_failure_publishing_the_ack_many_times_is_never_discarded
     processor = build
+    original = @publisher.method(:ack)
     @publisher.define_singleton_method(:ack) { |_message| raise 'canal cerrado' }
     body = JSON.generate(valid_message)
 
+    50.times { assert_equal :retry, processor.process(body) }
+    assert_equal [MessageProcessor::WAIT_DELAY] * 50, @sleeps
+    assert_empty @master.rejected
+
+    @publisher.define_singleton_method(:ack, original)
+    assert_equal :done, processor.process(body)
+    assert_equal 1, @publisher.acks.size
+  end
+
+  def test_failure_publishing_the_nack_many_times_is_never_discarded
+    message = valid_message
+    message.delete('timestamp')
+    # nack del validador y nack por el 422 de la API
+    { JSON.generate(message) => 201, JSON.generate(valid_message) => 422 }.each do |body, status|
+      processor = build(status: status)
+      original = @publisher.method(:nack)
+      @publisher.define_singleton_method(:nack) { |*_args| raise 'canal cerrado' }
+
+      50.times { assert_equal :retry, processor.process(body) }
+      assert_equal [MessageProcessor::WAIT_DELAY] * 50, @sleeps
+      assert_empty @master.rejected
+
+      @publisher.define_singleton_method(:nack, original)
+      assert_equal :done, processor.process(body)
+      assert_equal 1, @publisher.nacks.size
+    end
+  end
+
+  def test_publish_failure_does_not_count_as_an_attempt
+    processor = build(status: 500)
+    body = JSON.generate(valid_message)
     3.times { assert_equal :retry, processor.process(body) }
+
+    @master.status = 201
+    @publisher.define_singleton_method(:ack) { |_message| raise 'canal cerrado' }
+    20.times { assert_equal :retry, processor.process(body) }
+
+    @master.status = 500
     assert_equal :reject, processor.process(body)
+  end
+
+  # un 5xx que no es 502, 503 ni 504 es la API fallando con ese mensaje: ahi si hay tope
+  def test_other_5xx_repeated_is_discarded_after_the_limit
+    [500, 501, 505].each do |status|
+      processor = build(status: status)
+      body = JSON.generate(valid_message)
+
+      3.times { assert_equal :retry, processor.process(body), "status #{status}" }
+      assert_equal :reject, processor.process(body), "status #{status}"
+      assert_equal [5, 15, 45], @sleeps
+      assert_equal 'MAX_RETRIES_EXCEEDED', @master.rejected.first[:reason]
+      assert_empty @publisher.acks + @publisher.nacks
+    end
   end
 
   def test_reply_from_central_that_keeps_failing_is_rejected_without_answering
