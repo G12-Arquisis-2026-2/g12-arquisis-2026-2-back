@@ -16,13 +16,13 @@ class EventsController < ApplicationController
     'demand-statement' => LedgerProcessorService,
     'status-statement' => StatusStatementProcessorService,
     'distance-table' => DistanceTableProcessorService
-  }.freeze
+  }.merge(AuditedEventService::EVENT_TYPES.keys.index_with(AuditedEventService)).freeze
 
   def create
     payload = params.except(:controller, :action).permit!.to_h
     type = payload['type']
 
-    unless EventPayloadValidator.known_type?(type)
+    unless PROCESSORS.key?(type)
       return render json: { error: 'UNKNOWN_TYPE', detail: "type #{type.inspect} is not supported" },
                     status: :unprocessable_content
     end
@@ -44,8 +44,11 @@ class EventsController < ApplicationController
   end
 
   def rejected
-    if params[:kind] == 'nack'
+    case params[:kind]
+    when 'nack'
       AuditLog.log_nack(params[:raw], params[:reason])
+    when 'central'
+      AuditLog.log_central(params[:raw], params[:reason])
     else
       AuditLog.log_discard(params[:raw], params[:reason])
     end

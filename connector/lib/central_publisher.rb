@@ -20,10 +20,15 @@ class CentralPublisher
   end
 
   def nack(message, reason, code, detail)
-    data = { 'target' => message['msgId'], 'message' => detail.to_s }
-    data['cycleId'] = message['cycleId'] if message['cycleId'].is_a?(String)
+    publish(failure('nack', message, reason, code, detail))
+  end
 
-    publish(envelope('nack').merge('reason' => reason, 'code' => code, 'data' => data))
+  # error = el mensaje llego bien pero fallo al procesarlo. el protocolo pide que vaya despues del ack
+  # del mismo mensaje, por eso el ack va aca adentro y nunca se publica un error solo.
+  # si el ack revienta (canal cerrado) el error no sale
+  def error(message, reason, code, detail)
+    ack(message)
+    publish(failure('error', message, reason, code, detail))
   end
 
   # para los mensajes del outbox: se publica tal cual y se espera a que el broker confirme que lo recibio
@@ -45,6 +50,13 @@ class CentralPublisher
       'timestamp' => Time.now.utc.iso8601,
       'cityId' => @city_id
     }
+  end
+
+  def failure(type, message, reason, code, detail)
+    data = { 'target' => message['msgId'], 'message' => detail.to_s }
+    data['cycleId'] = message['cycleId'] if message['cycleId'].is_a?(String)
+
+    envelope(type).merge('reason' => reason, 'code' => code, 'data' => data)
   end
 
   # se publica con el nombre del exchange porque no podemos declararlo. sin user_id la central lo rechaza

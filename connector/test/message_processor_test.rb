@@ -7,6 +7,7 @@ require_relative '../lib/message_processor'
 class MessageProcessorTest < Minitest::Test
   class FakeMaster
     attr_reader :delivered, :rejected
+    attr_writer :status
 
     def initialize(calls, status: 201, body: '{}', rejected_status: 201)
       @calls = calls
@@ -53,9 +54,11 @@ class MessageProcessorTest < Minitest::Test
   def build(**master_options)
     @calls = []
     @logs = []
+    @sleeps = []
     @master = FakeMaster.new(@calls, **master_options)
     @publisher = FakePublisher.new(@calls)
-    MessageProcessor.new(master: @master, publisher: @publisher, log: ->(text) { @logs << text })
+    MessageProcessor.new(master: @master, publisher: @publisher, log: ->(text) { @logs << text },
+                         sleeper: ->(seconds) { @sleeps << seconds })
   end
 
   def valid_message(changes = {})
@@ -223,6 +226,146 @@ class MessageProcessorTest < Minitest::Test
     assert_equal :done, processor.process(JSON.generate(nack))
     assert_equal %i[deliver], @calls
     assert(@logs.any? { |text| text.include?('Revisar RABBITMQ_USER y CITY_ID') })
+  end
+
+  def test_retries_with_growing_backoff_and_then_rejects
+    processor = build(status: 500)
+    body = JSON.generate(valid_message)
+
+    3.times { assert_equal :retry, processor.process(body) }
+    assert_equal [5, 15, 45], @sleeps
+    assert_empty @publisher.nacks
+
+    assert_equal :reject, processor.process(body)
+    assert_equal [5, 15, 45], @sleeps
+    assert_equal %i[deliver deliver deliver deliver report_rejected], @calls
+    assert_equal({ kind: 'discard', raw: valid_message, reason: 'MAX_RETRIES_EXCEEDED' }, @master.rejected.first)
+    assert_empty @publisher.acks + @publisher.nacks
+  end
+
+  def test_master_422_unknown_type_publishes_nack_with_code_400
+    processor = build(status: 422, body: '{"error":"UNKNOWN_TYPE","detail":"type \"x\" is not supported"}')
+
+    assert_equal :done, processor.process(JSON.generate(valid_message))
+    nack = @publisher.nacks.first
+    assert_equal ['UNKNOWN_TYPE', 400, 'type "x" is not supported'], nack.values_at(:reason, :code, :detail)
+  end
+
+  def test_master_422_malformed_publishes_nack_with_its_detail
+    processor = build(status: 422, body: '{"error":"MALFORMED_MESSAGE","detail":"missing field data.quantity"}')
+
+    assert_equal :done, processor.process(JSON.generate(valid_message))
+    nack = @publisher.nacks.first
+    assert_equal ['MALFORMED_MESSAGE', 422, 'missing field data.quantity'], nack.values_at(:reason, :code, :detail)
+  end
+
+  # el enunciado: no se hacen ACKs de ACKs ni NACKs de NACKs (tampoco de error), pase lo que pase
+  def test_replies_from_central_never_get_an_answer
+    same_ids = '11111111-1111-4111-8111-111111111111'
+    cases = {
+      'valida, API guarda' => [{}, 201],
+      'valida, API 422' => [{}, 422],
+      'sin idpk' => [{ 'idpk' => nil }, 201],
+      'timestamp invalido' => [{ 'timestamp' => 'ayer' }, 201],
+      'idpk igual a msgId' => [{ 'idpk' => same_ids }, 201],
+      'sin data' => [{ 'data' => nil }, 201]
+    }
+    %w[ack nack error].each do |type|
+      cases.each do |name, (changes, status)|
+        processor = build(status: status)
+        message = valid_message({ 'type' => type, 'data' => { 'target' => 'x' } }.merge(changes)).compact
+
+        assert_equal :done, processor.process(JSON.generate(message)), "#{type} #{name}"
+        assert_empty @publisher.acks + @publisher.nacks, "#{type} #{name}"
+      end
+    end
+  end
+
+  def test_invalid_reply_from_central_is_registered_as_central
+    processor = build
+    message = valid_message('type' => 'nack', 'timestamp' => 'ayer')
+
+    assert_equal :done, processor.process(JSON.generate(message))
+    assert_equal %i[report_rejected], @calls
+    rejected = @master.rejected.first
+    assert_equal 'central', rejected[:kind]
+    assert_equal message, rejected[:raw]
+    assert_includes rejected[:reason], 'timestamp'
+  end
+
+  def test_after_rejecting_the_same_msg_id_starts_counting_again
+    processor = build(status: 500)
+    body = JSON.generate(valid_message)
+
+    4.times { processor.process(body) }
+    assert_equal :retry, processor.process(body)
+    assert_equal [5, 15, 45, 5], @sleeps
+  end
+
+  def test_success_after_a_retry_resets_the_counter
+    processor = build(status: 500)
+    body = JSON.generate(valid_message)
+    processor.process(body)
+
+    @master.status = 201
+    assert_equal :done, processor.process(body)
+
+    @master.status = 500
+    assert_equal :retry, processor.process(body)
+    assert_equal [5, 5], @sleeps
+  end
+
+  def test_retries_are_counted_per_msg_id
+    processor = build(status: 500)
+    first = JSON.generate(valid_message)
+    second = JSON.generate(valid_message('msgId' => '33333333-3333-4333-8333-333333333333'))
+
+    2.times { processor.process(first) }
+    assert_equal :retry, processor.process(second)
+    assert_equal [5, 15, 5], @sleeps
+  end
+
+  def test_failure_publishing_the_ack_also_counts_as_a_retry
+    processor = build
+    @publisher.define_singleton_method(:ack) { |_message| raise 'canal cerrado' }
+    body = JSON.generate(valid_message)
+
+    3.times { assert_equal :retry, processor.process(body) }
+    assert_equal :reject, processor.process(body)
+  end
+
+  def test_reply_from_central_that_keeps_failing_is_rejected_without_answering
+    processor = build(status: 500)
+    body = JSON.generate(valid_message('type' => 'ack', 'data' => { 'target' => 'abc' }))
+
+    3.times { processor.process(body) }
+    assert_equal :reject, processor.process(body)
+    assert_empty @publisher.nacks
+    assert_equal 'MAX_RETRIES_EXCEEDED', @master.rejected.first[:reason]
+  end
+
+  def test_give_and_take_are_saved_and_acked
+    %w[give take].each do |type|
+      processor = build
+      message = valid_message('type' => type, 'data' => { 'target' => 'msg-propuesta', 'energy' => 300,
+                                                          'pricePerEnergy' => 1.5 })
+
+      assert_equal :done, processor.process(JSON.generate(message))
+      assert_equal %i[deliver ack], @calls
+      assert_empty @publisher.nacks
+    end
+  end
+
+  def test_status_statement_without_valid_until_is_nacked_and_acked_in_the_queue
+    processor = build
+    data = { 'energy' => { 'generationCapacity' => 900, 'consumption' => 700, 'generationCost' => 12 } }
+    message = valid_message('type' => 'status-statement', 'data' => data)
+
+    assert_equal :done, processor.process(JSON.generate(message))
+    assert_equal %i[nack report_rejected], @calls
+    assert_empty @master.delivered
+    nack = @publisher.nacks.first
+    assert_equal ['MALFORMED_MESSAGE', 422, 'falta el campo data.validUntil'], nack.values_at(:reason, :code, :detail)
   end
 
   def test_error_from_central_is_logged_and_nothing_is_published

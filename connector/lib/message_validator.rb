@@ -97,6 +97,9 @@ module MessageValidator
  
     case type
     when 'status-statement'
+      return 'falta el campo data.validUntil' unless text?(data['validUntil'])
+      return 'data.validUntil debe ser una fecha ISO 8601' unless iso8601?(data['validUntil'])
+
       energy = data['energy']
       return 'data.energy debe ser un objeto' unless energy.is_a?(Hash)
  

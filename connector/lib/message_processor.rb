@@ -1,18 +1,38 @@
 require_relative 'message_validator'
 
-# decide que hacer con cada mensaje. process devuelve :done (listo) o :retry (hay que devolverlo a la cola)
+# decide que hacer con cada mensaje. process devuelve:
+#   :done   listo, ack en la cola
+#   :retry  devolverlo a la cola (la pausa ya se hizo aca)
+#   :reject se agotaron los reintentos, sacarlo de la cola sin requeue
 class MessageProcessor
   REJECTION_TYPES = %w[nack error].freeze
+  # pausa antes de cada reintento. son 3 reintentos: al cuarto fallo se rechaza
+  RETRY_DELAYS = [5, 15, 45].freeze
+  # tope para que el hash no crezca si un mensaje con fallos nunca vuelve (ej: lo borraron de la cola)
+  MAX_TRACKED = 1000
 
-  def initialize(master:, publisher:, log: ->(text) { puts "[Connector] #{text}" })
+  def initialize(master:, publisher:, log: ->(text) { puts "[Connector] #{text}" }, sleeper: ->(s) { sleep s })
     @master = master
     @publisher = publisher
     @log = log
+    @sleeper = sleeper
+    # fallos por msgId. en memoria: con prefetch(1) el requeue vuelve altiro a este mismo consumer
+    @failures = {}
   end
 
   def process(raw_body)
     decision = validate(raw_body)
+    key = retry_key(decision, raw_body)
+    outcome = handle(decision, raw_body)
+    return retry_or_give_up(decision, key) if outcome == :retry
 
+    @failures.delete(key)
+    outcome
+  end
+
+  private
+
+  def handle(decision, raw_body)
     case decision.action
     when :discard then discard(decision, raw_body)
     when :nack    then reject(decision)
@@ -24,7 +44,34 @@ class MessageProcessor
     :retry
   end
 
-  private
+  def retry_key(decision, raw_body)
+    message = decision.message
+    message.is_a?(Hash) && message['msgId'].is_a?(String) ? message['msgId'] : raw_body.to_s
+  end
+
+  def retry_or_give_up(decision, key)
+    failures = (@failures.delete(key) || 0) + 1
+    return give_up(decision, failures) if failures > RETRY_DELAYS.size
+
+    @failures[key] = failures
+    @failures.shift while @failures.size > MAX_TRACKED
+    delay = RETRY_DELAYS[failures - 1]
+    @log.call("Reintento #{failures}/#{RETRY_DELAYS.size} de #{key} en #{delay}s.")
+    @sleeper.call(delay)
+    :retry
+  end
+
+  # mensaje venenoso o API caida mucho rato: se saca de la cola para no trabarla (prefetch 1)
+  # y queda registrado en la API. a la central no se le publica nada: el enunciado no tiene un
+  # NACK para esto (solo MALFORMED_MESSAGE, UNKNOWN_TYPE, IDPK_EQUALS_MSGID e IDENTITY_MISMATCH)
+  def give_up(decision, failures)
+    message = decision.message
+    @log.call("Se rechaza #{message.is_a?(Hash) ? message['msgId'] : 'mensaje'}: " \
+              "no se pudo procesar tras #{failures} intentos.")
+    # discard y no nack: en la API un NACK significa que se lo mandamos a la central
+    report('discard', message, 'MAX_RETRIES_EXCEEDED')
+    :reject
+  end
 
   # si el validador se cae se descarta. reintentarlo seria fallar igual para siempre y trabar la cola
   def validate(raw_body)
@@ -35,9 +82,18 @@ class MessageProcessor
 
   def discard(decision, raw_body)
     @log.call("Descartado: #{decision.detail}")
-    # va como texto porque la API lo guarda tal cual llego
-    report('discard', readable(raw_body), decision.detail)
+    # una respuesta de la central invalida igual se registra como CENTRAL_<tipo>, nunca se responde
+    if reply?(decision.message)
+      report('central', decision.message, decision.detail)
+    else
+      # va como texto porque la API lo guarda tal cual llego
+      report('discard', readable(raw_body), decision.detail)
+    end
     :done
+  end
+
+  def reply?(message)
+    message.is_a?(Hash) && MessageValidator::REPLY_TYPES.include?(message['type'])
   end
 
   # nack y listo, no se reintenta porque va a seguir igual de malo
@@ -60,18 +116,20 @@ class MessageProcessor
       @log.call("Mensaje #{message['msgId']} (#{message['type']}) guardado.")
       :done
     elsif result.invalid?
-      reject_by_master(decision, result.reason)
+      reject_by_master(decision, result)
     else
       @log.call("La API no guardó #{message['msgId']} (#{result.status || 'sin respuesta'}).")
       :retry
     end
   end
 
-  def reject_by_master(decision, reason)
+  # la API responde 422 con error MALFORMED_MESSAGE o UNKNOWN_TYPE; el NACK usa el code del enunciado
+  def reject_by_master(decision, result)
     message = decision.message
-    @log.call("La API rechazó #{message['msgId']}: #{reason}")
+    @log.call("La API rechazó #{message['msgId']}: #{result.reason}")
+    reason, code = result.error_code == 'UNKNOWN_TYPE' ? ['UNKNOWN_TYPE', 400] : ['MALFORMED_MESSAGE', 422]
     # los ack/nack/error de la central no se responden nunca
-    @publisher.nack(message, 'MALFORMED_MESSAGE', 422, reason) if decision.send_ack
+    @publisher.nack(message, reason, code, result.reason) if decision.send_ack
     :done
   end
 

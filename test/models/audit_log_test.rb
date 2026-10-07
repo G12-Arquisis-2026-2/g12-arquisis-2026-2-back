@@ -32,6 +32,22 @@ class AuditLogTest < ActiveSupport::TestCase
     assert_equal({ "raw_string" => raw_string }, audit_log.raw_payload)
   end
 
+  test "logs replies from the central with their own event type" do
+    { "ack" => "CENTRAL_ACK", "nack" => "CENTRAL_NACK", "error" => "CENTRAL_ERROR" }.each do |type, event_type|
+      audit_log = AuditLog.log_central({ "idpk" => "idpk-#{type}", "type" => type }, "falta el campo timestamp")
+
+      assert_equal event_type, audit_log.event_type
+      assert_equal "idpk-#{type}", audit_log.idpk
+    end
+  end
+
+  test "logs a central reply without idpk" do
+    audit_log = AuditLog.log_central({ "type" => "ack" }, "falta el campo idpk")
+
+    assert_nil audit_log.idpk
+    assert_equal "CENTRAL_ACK", audit_log.event_type
+  end
+
   test "returns nil when NACK audit persistence fails" do
     assert_nil AuditLog.log_nack(nil, "MALFORMED MESSAGE")
   end

@@ -85,14 +85,81 @@ class EventsControllerTest < ActionDispatch::IntegrationTest
     assert_equal 0, Transaction.count
   end
 
-  test "unknown types respond 422 without saving" do
-    %w[give take something-else].each do |type|
+  test "types outside the protocol respond 422 unknown type without saving" do
+    ["something-else", "negotiation-proposal", nil].each do |type|
       post_event({ "type" => type, "idpk" => "idpk-#{type}", "cycleId" => "c1", "data" => {} })
 
       assert_response :unprocessable_content
       assert_equal "UNKNOWN_TYPE", response.parsed_body["error"]
     end
     assert_equal 0, AuditLog.count
+  end
+
+  test "give and take are saved in the audit log with their target" do
+    %w[give take].each do |type|
+      post_event give_take_payload(type, "idpk-#{type}")
+
+      assert_response :created
+      assert_equal "saved", response.parsed_body["status"]
+      log = AuditLog.find_by!(idpk: "idpk-#{type}")
+      assert_equal type.upcase, log.event_type
+      assert_equal "proposal-msg-1", log.reason
+      assert_equal 300, log.raw_payload.dig("data", "energy")
+    end
+  end
+
+  test "a repeated give idpk is a duplicate and is not logged twice" do
+    post_event give_take_payload("give", "idpk-give")
+    post_event give_take_payload("give", "idpk-give")
+
+    assert_response :ok
+    assert_equal "duplicate", response.parsed_body["status"]
+    assert_equal 1, AuditLog.where(idpk: "idpk-give", event_type: "GIVE").count
+    assert_equal 1, AuditLog.where(idpk: "idpk-give", event_type: "DUPLICATE").count
+  end
+
+  test "give without data.target responds 422" do
+    payload = give_take_payload("give", "idpk-give")
+    payload["data"].delete("target")
+
+    post_event payload
+
+    assert_response :unprocessable_content
+    assert_equal({ "error" => "MALFORMED_MESSAGE", "detail" => "missing field data.target" }, response.parsed_body)
+    assert_equal 0, AuditLog.count
+  end
+
+  test "replies from the central are logged without requiring data" do
+    post_event({ "type" => "nack", "idpk" => "idpk-nack", "reason" => "MALFORMED_MESSAGE", "code" => 422 })
+
+    assert_response :created
+    log = AuditLog.find_by!(idpk: "idpk-nack")
+    assert_equal "CENTRAL_NACK", log.event_type
+    assert_equal "MALFORMED_MESSAGE", log.reason
+  end
+
+  test "an invalid reply from the central reported as central is logged as CENTRAL_<type>" do
+    raw = { "msgId" => "m1", "idpk" => "idpk-bad-nack", "type" => "nack", "timestamp" => "ayer" }
+
+    post "/events/rejected", params: { kind: "central", raw: raw, reason: "timestamp debe ser una fecha ISO 8601" }.to_json,
+                             headers: json_headers
+
+    assert_response :created
+    log = AuditLog.find_by!(idpk: "idpk-bad-nack")
+    assert_equal "CENTRAL_NACK", log.event_type
+    assert_equal "timestamp debe ser una fecha ISO 8601", log.reason
+    assert_equal raw, log.raw_payload
+  end
+
+  test "max retries exceeded is logged as discarded, not as a NACK sent" do
+    raw = { "msgId" => "m1", "idpk" => "idpk-poison", "type" => "transfer" }
+
+    post "/events/rejected", params: { kind: "discard", raw: raw, reason: "MAX_RETRIES_EXCEEDED" }.to_json,
+                             headers: json_headers
+
+    assert_response :created
+    assert_equal 1, AuditLog.where(event_type: "DISCARDED", reason: "MAX_RETRIES_EXCEEDED").count
+    assert_equal 0, AuditLog.where(event_type: "NACK").count
   end
 
   test "transfer happy path still saves" do
@@ -145,6 +212,15 @@ class EventsControllerTest < ActionDispatch::IntegrationTest
 
   def distance_payload(idpk, route)
     { "type" => "distance-table", "idpk" => idpk, "data" => { "distances" => { "HGW" => route } } }
+  end
+
+  def give_take_payload(type, idpk)
+    {
+      "type" => type,
+      "idpk" => idpk,
+      "cycleId" => "c1",
+      "data" => { "target" => "proposal-msg-1", "energy" => 300, "pricePerEnergy" => 1.5 }
+    }
   end
 
   def transfer_payload(idpk, quantity)

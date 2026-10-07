@@ -2,23 +2,24 @@
 class EventPayloadValidator
   class MalformedMessage < ArgumentError; end
 
-  KNOWN_TYPES = %w[transfer demand-statement status-statement distance-table].freeze
-  TYPES_WITH_CYCLE = %w[transfer demand-statement status-statement].freeze
-
-  def self.known_type?(type)
-    KNOWN_TYPES.include?(type)
-  end
+  TYPES_WITH_CYCLE = %w[transfer demand-statement status-statement give take].freeze
+  # Respuestas de la central: data es opcional.
+  REPLY_TYPES = %w[ack nack error].freeze
 
   def self.validate!(payload)
     type = payload["type"]
 
     require_value!(payload, "idpk", "")
     require_value!(payload, "cycleId", "") if TYPES_WITH_CYCLE.include?(type)
+    return if REPLY_TYPES.include?(type)
+
     data = require_hash!(payload, "data", "")
 
     case type
     when "transfer"
       require_value!(data, "quantity", "data.")
+    when "give", "take"
+      %w[target energy pricePerEnergy].each { |key| require_value!(data, key, "data.") }
     when "status-statement"
       require_value!(data, "validUntil", "data.")
       energy = require_hash!(data, "energy", "data.")
