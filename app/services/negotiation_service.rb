@@ -27,9 +27,16 @@ class NegotiationService
   end
 
   # Energía ya vendida en el ciclo: los give que la central nos confirmó (quedan en el ledger con
-  # energy_change negativo)
-  def self.sold_energy(cycle_id)
-    -Transaction.where(cycle_id: cycle_id, operation_type: "give").sum(:energy_change).to_f
+  # energy_change negativo). Con excluding_idpk no cuenta las confirmaciones de esa misma operación:
+  # si se reintenta un give porque nunca llegó su transfer, esa venta no fue real (Enunciado § Pago)
+  # y el reintento no debe chocar contra su propia energía.
+  def self.sold_energy(cycle_id, excluding_idpk: nil)
+    gives = Transaction.where(cycle_id: cycle_id, operation_type: "give")
+    if excluding_idpk.present?
+      own_msg_ids = OutboxMessage.where(idpk: excluding_idpk).pluck(:msg_id) + [excluding_idpk]
+      gives = gives.where("COALESCE(raw_data->'data'->>'target', '') NOT IN (?)", own_msg_ids)
+    end
+    -gives.sum(:energy_change).to_f
   end
 
   # 4. Construcción y validación de propuesta de negociación
@@ -44,7 +51,8 @@ class NegotiationService
 
     # OVER_CAPACITY solo aplica a give: comprar (take) no usa capacidad propia
     if direction.to_s == 'give'
-      spare = available_capacity(cycle.generation_capacity, cycle.consumption, sold_energy(cycle_id))
+      sold = sold_energy(cycle_id, excluding_idpk: existing_idpk)
+      spare = available_capacity(cycle.generation_capacity, cycle.consumption, sold)
       if energy > spare
         raise OverCapacityError, "La energía (#{energy}) supera la capacidad vendible restante (#{spare}) para el ciclo #{cycle_id}"
       end

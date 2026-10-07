@@ -62,7 +62,10 @@ class NegotiationTimeoutJobTest < ActiveJob::TestCase
       end
       assert_equal status.to_s, @proposal.reload.status
     end
-    assert_no_enqueued_jobs only: NegotiationTimeoutJob
+    # el bucle de propuesta pendiente no se reagenda (pasar el give a confirmed sí agenda, aparte,
+    # la espera del transfer: ver GiveTransferWaitTest)
+    pending_loop = enqueued_jobs.select { |job| job["job_class"] == "NegotiationTimeoutJob" && job["arguments"] == [@proposal.idpk] }
+    assert_empty pending_loop
   end
 
   test "a pending proposal in an open window is retried with the same idpk" do
