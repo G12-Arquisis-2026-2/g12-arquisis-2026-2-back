@@ -29,6 +29,7 @@ Rails.application.routes.draw do
 
   # RF01: Historial de ciclos
   get '/cycles',     to: 'cycles#index'
+  get '/cycles/current', to: 'cycles#current'
   get '/cycles/:id', to: 'cycles#show'
 
   # RF02: Tabla de conectividad vigente
