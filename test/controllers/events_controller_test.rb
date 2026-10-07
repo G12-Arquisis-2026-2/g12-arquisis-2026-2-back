@@ -88,8 +88,55 @@ class EventsControllerTest < ActionDispatch::IntegrationTest
     post_event transfer_payload("idpk-transfer-1", "abc")
 
     assert_response :unprocessable_content
-    assert_equal "MALFORMED_MESSAGE", response.parsed_body["error"]
+    assert_equal({ "error" => "MALFORMED_MESSAGE", "detail" => "data.quantity must be a number" }, response.parsed_body)
     assert_equal 0, Transaction.count
+  end
+
+  test "numeric quantities as integer, decimal or numeric string are saved" do
+    [[100, "100"], [100.5, "100.5"], ["100.5", "100.5"]].each_with_index do |(quantity, expected), i|
+      post_event transfer_payload("idpk-transfer-ok-#{i}", quantity)
+
+      assert_response :created
+      assert_equal BigDecimal(expected), Transaction.find_by!(idpk: "idpk-transfer-ok-#{i}").budget_change
+    end
+  end
+
+  test "invalid quantities respond 422 and save nothing" do
+    ["abc", "", nil, true, [1], { "n" => 1 }, "1,5", " 10"].each_with_index do |quantity, i|
+      post_event transfer_payload("idpk-transfer-bad-#{i}", quantity)
+
+      assert_response :unprocessable_content, "quantity=#{quantity.inspect}"
+      assert_equal "MALFORMED_MESSAGE", response.parsed_body["error"]
+    end
+    assert_equal 0, Transaction.count
+  end
+
+  test "give with a non numeric pricePerEnergy responds 422" do
+    payload = give_take_payload("give", "idpk-give")
+    payload["data"]["pricePerEnergy"] = "barato"
+
+    post_event payload
+
+    assert_response :unprocessable_content
+    assert_equal "data.pricePerEnergy must be a number", response.parsed_body["detail"]
+    assert_equal 0, Transaction.count
+  end
+
+  test "demand statement with a non numeric balance responds 422" do
+    post_event({ "type" => "demand-statement", "idpk" => "idpk-demand-1", "cycleId" => "c1",
+                 "data" => { "balance" => { "quantity" => "mucho", "valuePerKwh" => 215 } } })
+
+    assert_response :unprocessable_content
+    assert_equal "data.balance.quantity must be a number", response.parsed_body["detail"]
+    assert_equal 0, Transaction.count
+  end
+
+  test "demand statement with a numeric balance is saved" do
+    post_event({ "type" => "demand-statement", "idpk" => "idpk-demand-1", "cycleId" => "c1",
+                 "data" => { "balance" => { "quantity" => 100, "valuePerKwh" => "215.5" } } })
+
+    assert_response :created
+    assert_equal BigDecimal("100"), Transaction.find_by!(idpk: "idpk-demand-1").energy_change
   end
 
   test "types outside the protocol respond 422 unknown type without saving" do
@@ -181,20 +228,64 @@ class EventsControllerTest < ActionDispatch::IntegrationTest
   end
 
   test "unexpected errors respond 500" do
-    original = StatusStatementProcessorService.method(:call)
-    StatusStatementProcessorService.define_singleton_method(:call) do |_payload|
-      raise ActiveRecord::ConnectionNotEstablished, "db down"
+    with_failing_processor(ActiveRecord::ConnectionNotEstablished, "db down") do
+      post_event status_payload("idpk-status-1", "cycle-status-1")
     end
 
-    post_event status_payload("idpk-status-1", "cycle-status-1")
+    assert_response :internal_server_error
+    assert_equal({ "error" => "internal_error" }, response.parsed_body)
+  end
+
+  [KeyError, NoMethodError, ArgumentError].each do |error_class|
+    test "a #{error_class} in a processor responds 500 without internal details" do
+      with_failing_processor(error_class, "secreto interno") do
+        post_event status_payload("idpk-status-1", "cycle-status-1")
+      end
+
+      assert_response :internal_server_error
+      assert_equal({ "error" => "internal_error" }, response.parsed_body)
+      assert_not_includes response.body, "secreto interno"
+      assert_equal 0, AuditLog.where(event_type: "NACK").count
+    end
+  end
+
+  test "an internal error logs the class, message and backtrace" do
+    logged = StringIO.new
+    original_logger = Rails.logger
+    Rails.logger = ActiveSupport::Logger.new(logged)
+
+    with_failing_processor(KeyError, "key not found: \"x\"") do
+      post_event status_payload("idpk-status-1", "cycle-status-1")
+    end
 
     assert_response :internal_server_error
-    assert_equal({ "error" => "Internal Server Error" }, response.parsed_body)
+    assert_includes logged.string, "KeyError"
+    assert_includes logged.string, "key not found"
+    assert_includes logged.string, "events_controller_test.rb"
   ensure
-    StatusStatementProcessorService.define_singleton_method(:call, original)
+    Rails.logger = original_logger
+  end
+
+  test "a race on the idpk (RecordNotUnique) responds 200 duplicate" do
+    with_failing_processor(ActiveRecord::RecordNotUnique, "duplicate key value violates unique constraint") do
+      post_event status_payload("idpk-status-1", "cycle-status-1")
+    end
+
+    assert_response :ok
+    assert_equal "duplicate", response.parsed_body["status"]
+    assert_nil response.parsed_body["error"]
   end
 
   private
+
+  # Reemplaza StatusStatementProcessorService.call por uno que lanza error_class mientras corre el bloque
+  def with_failing_processor(error_class, message)
+    original = StatusStatementProcessorService.method(:call)
+    StatusStatementProcessorService.define_singleton_method(:call) { |_payload| raise error_class, message }
+    yield
+  ensure
+    StatusStatementProcessorService.define_singleton_method(:call, original)
+  end
 
   def json_headers
     { "CONTENT_TYPE" => "application/json" }

@@ -1,14 +1,12 @@
 class EventsController < ApplicationController
   skip_before_action :verify_authenticity_token, raise: false
 
-  # Errores causados por el contenido del mensaje: no sirve reintentarlos.
+  # Solo estos errores significan que el mensaje viene mal (422 -> NACK MALFORMED_MESSAGE).
+  # Una falla de nuestro código (KeyError, NoMethodError, ...) no es culpa del mensaje: va como 500.
   MALFORMED_ERRORS = [
-    KeyError,
-    ArgumentError,
-    NoMethodError,
+    EventPayloadValidator::MalformedMessage,
     JSON::ParserError,
-    ActionDispatch::Http::Parameters::ParseError,
-    ActiveRecord::RecordInvalid
+    ActionDispatch::Http::Parameters::ParseError
   ].freeze
 
   PROCESSORS = {
@@ -41,9 +39,12 @@ class EventsController < ApplicationController
     Rails.logger.warn "Mensaje malformado (#{e.class}): #{e.message}"
     render json: { error: 'MALFORMED_MESSAGE', detail: e.message.to_s.truncate(200) },
            status: :unprocessable_content
+  rescue ActiveRecord::RecordNotUnique
+    # Carrera: otro request guardó el mismo idpk entre medio
+    render json: { status: 'duplicate', detail: 'IDPK already exists' }, status: :ok
   rescue StandardError => e
-    Rails.logger.error "Error interno (#{e.class}): #{e.message}"
-    render json: { error: 'Internal Server Error' }, status: :internal_server_error
+    Rails.logger.error "Error interno (#{e.class}): #{e.message}\n#{Array(e.backtrace).join("\n")}"
+    render json: { error: 'internal_error' }, status: :internal_server_error
   end
 
   def rejected
