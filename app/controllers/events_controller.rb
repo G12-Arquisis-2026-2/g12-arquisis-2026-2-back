@@ -19,7 +19,7 @@ class EventsController < ApplicationController
     'status-statement' => StatusStatementProcessorService,
     'distance-table' => DistanceTableProcessorService,
     'error' => ErrorProcessorService
-  }.merge(AuditedEventService::EVENT_TYPES.keys.index_with(AuditedEventService)).freeze
+  }.reverse_merge(AuditedEventService::EVENT_TYPES.keys.index_with(AuditedEventService)).freeze
 
   def create
     payload = params.except(:controller, :action).permit!.to_h
