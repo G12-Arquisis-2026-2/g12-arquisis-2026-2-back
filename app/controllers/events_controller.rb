@@ -17,7 +17,8 @@ class EventsController < ApplicationController
     'give' => LedgerProcessorService,
     'take' => LedgerProcessorService,
     'status-statement' => StatusStatementProcessorService,
-    'distance-table' => DistanceTableProcessorService
+    'distance-table' => DistanceTableProcessorService,
+    'error' => ErrorProcessorService
   }.merge(AuditedEventService::EVENT_TYPES.keys.index_with(AuditedEventService)).freeze
 
   def create
