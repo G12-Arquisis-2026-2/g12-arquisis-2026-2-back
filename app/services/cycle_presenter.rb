@@ -23,52 +23,43 @@ class CyclePresenter
 
   private
 
-  # 1. Status Statement
+  # 1. Obtenido directamente del modelo Cycle
   def status_statement_data
-    # Buscar en la bitácora o eventos la recepción del status-statement
-    audit = AuditLog.where(event_type: "status-statement")
-                    .where("raw_payload ->> 'cycleId' = ?", @cycle_id)
-                    .order(created_at: :desc).first
-    return nil unless audit
-
-    data = audit.raw_payload["data"] || {}
-    energy = data["energy"] || {}
+    return nil unless @cycle.valid_until.present?
 
     {
       energy: {
-        generationCapacity: energy["generationCapacity"]&.to_i || 0,
-        consumption: energy["consumption"]&.to_i || 0,
-        generationCost: energy["generationCost"]&.to_f || 0.0
+        generationCapacity: @cycle.generation_capacity || 0,
+        consumption: @cycle.consumption || 0,
+        generationCost: @cycle.generation_cost || 0.0
       },
-      validUntil: data["validUntil"] || @cycle.valid_until&.iso8601
+      validUntil: @cycle.valid_until.iso8601
     }
   end
 
-  # 2. Transferencias de fondos recibidas
+  # 2. Transferencias de fondos acreditadas en la tabla de transacciones
   def funds_received
-    AuditLog.where(event_type: "transfer")
-            .where("raw_payload ->> 'cycleId' = ?", @cycle_id)
-            .sum("CAST(raw_payload -> 'data' ->> 'quantity' AS NUMERIC)")
-            .to_f
+    Transaction.where(cycle_id: @cycle_id, event_type: 'transfer')
+               .sum(:budget_change)
+               .to_f
   end
 
-  # 3. Demand statements aplicados en el ledger
+  # 3. Demand statements registrados en la tabla de transacciones
   def demand_statements
-    AuditLog.where(event_type: "demand-statement")
-            .where("raw_payload ->> 'cycleId' = ?", @cycle_id)
-            .order(created_at: :asc)
-            .map do |log|
-              data = log.raw_payload["data"] || {}
-              balance = data["balance"] || {}
-              {
-                quantity: balance["quantity"]&.to_i || 0,
-                valuePerKwh: balance["valuePerKwh"]&.to_f || 0.0,
-                appliedAt: log.created_at.iso8601
-              }
-            end
+    Transaction.where(cycle_id: @cycle_id, event_type: 'demand-statement')
+               .order(created_at: :asc)
+               .map do |tx|
+                 raw = tx.raw_data || {}
+                 balance = raw.dig('data', 'balance') || {}
+                 {
+                   quantity: balance['quantity']&.to_i || tx.energy_change.abs,
+                   valuePerKwh: balance['valuePerKwh']&.to_f || 0.0,
+                   appliedAt: tx.created_at.iso8601
+                 }
+               end
   end
 
-  # 4. Propuestas voluntarias realizadas
+  # 4. Propuestas de negociación en la tabla proposals
   def voluntary_negotiations
     Proposal.where(cycle_id: @cycle_id).order(created_at: :asc).map do |prop|
       {
@@ -81,7 +72,7 @@ class CyclePresenter
     end
   end
 
-  # 5. Reporte de cierre (negotiation-report)
+  # 5. Estado del reporte de negociación en el modelo Cycle
   def negotiation_report_data
     return nil unless @cycle.report_sent?
 
@@ -92,7 +83,7 @@ class CyclePresenter
     }
   end
 
-  # 6. Balances finales del ciclo
+  # 6. Saldos consolidados desde CycleBalanceService
   def final_balances
     balances = CycleBalanceService.call(@cycle)
     {
@@ -101,7 +92,7 @@ class CyclePresenter
     }
   end
 
-  # 7. Identificar la última operación aplicada en el ciclo (RF01)
+  # 7. Identifica el tipo de la última operación de dominio efectuada en el ciclo
   def last_operation
     operations = []
 
@@ -109,15 +100,18 @@ class CyclePresenter
       operations << { type: "negotiation-report", time: @cycle.updated_at }
     end
 
-    last_audit = AuditLog.where("raw_payload ->> 'cycleId' = ?", @cycle_id)
-                         .order(created_at: :desc).first
-    if last_audit
-      operations << { type: last_audit.event_type, time: last_audit.created_at }
+    last_tx = Transaction.where(cycle_id: @cycle_id).order(created_at: :desc).first
+    if last_tx
+      operations << { type: last_tx.event_type, time: last_tx.created_at }
     end
 
     last_prop = Proposal.where(cycle_id: @cycle_id).order(updated_at: :desc).first
     if last_prop
       operations << { type: "negotiation-proposal", time: last_prop.updated_at }
+    end
+
+    if @cycle.valid_until.present?
+      operations << { type: "status-statement", time: @cycle.created_at }
     end
 
     latest = operations.max_by { |op| op[:time] }
