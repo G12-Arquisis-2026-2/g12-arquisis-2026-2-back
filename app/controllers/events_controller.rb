@@ -1,43 +1,46 @@
 class EventsController < ApplicationController
   skip_before_action :verify_authenticity_token, raise: false
 
+  # Errores causados por el contenido del mensaje: no sirve reintentarlos.
+  MALFORMED_ERRORS = [
+    KeyError,
+    ArgumentError,
+    NoMethodError,
+    JSON::ParserError,
+    ActionDispatch::Http::Parameters::ParseError,
+    ActiveRecord::RecordInvalid
+  ].freeze
+
+  PROCESSORS = {
+    'transfer' => LedgerProcessorService,
+    'demand-statement' => LedgerProcessorService,
+    'status-statement' => StatusStatementProcessorService,
+    'distance-table' => DistanceTableProcessorService
+  }.freeze
+
   def create
     payload = params.except(:controller, :action).permit!.to_h
+    type = payload['type']
 
-    begin
-      case payload['type']
-      when 'transfer', 'demand-statement'
-        if LedgerProcessorService.call(payload)
-          render json: { status: 'saved' }, status: :created
-        else
-          render json: { status: 'duplicate', detail: 'IDPK already exists' }, status: :ok
-        end
-
-      when 'distance-table'
-        DistanceTableProcessorService.call(payload)
-        render json: { status: 'saved' }, status: :created
-
-      when 'status-statement'
-        data = payload.fetch('data')
-        energy = data.fetch('energy')
-        cycle = Cycle.find_or_initialize_by(cycle_id: payload['cycleId'])
-        cycle.assign_attributes(
-          generation_capacity: energy.fetch('generationCapacity'),
-          consumption: energy.fetch('consumption'),
-          generation_cost: energy.fetch('generationCost'),
-          valid_until: data.fetch('validUntil')
-        )
-        cycle.save!
-
-        render json: { status: 'saved' }, status: :created
-
-      else
-        render json: { status: 'forwarded' }, status: :created
-      end
-    rescue => e
-      Rails.logger.error "Error interno: #{e.message}"
-      render json: { error: 'Internal Server Error' }, status: :internal_server_error
+    unless EventPayloadValidator.known_type?(type)
+      return render json: { error: 'UNKNOWN_TYPE', detail: "type #{type.inspect} is not supported" },
+                    status: :unprocessable_content
     end
+
+    EventPayloadValidator.validate!(payload)
+
+    if PROCESSORS.fetch(type).call(payload)
+      render json: { status: 'saved' }, status: :created
+    else
+      render json: { status: 'duplicate', detail: 'IDPK already exists' }, status: :ok
+    end
+  rescue *MALFORMED_ERRORS => e
+    Rails.logger.warn "Mensaje malformado (#{e.class}): #{e.message}"
+    render json: { error: 'MALFORMED_MESSAGE', detail: e.message.to_s.truncate(200) },
+           status: :unprocessable_content
+  rescue StandardError => e
+    Rails.logger.error "Error interno (#{e.class}): #{e.message}"
+    render json: { error: 'Internal Server Error' }, status: :internal_server_error
   end
 
   def rejected

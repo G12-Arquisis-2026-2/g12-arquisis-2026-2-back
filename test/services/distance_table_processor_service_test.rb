@@ -33,9 +33,20 @@ class DistanceTableProcessorServiceTest < ActiveSupport::TestCase
     assert_equal 0, DistanceTableProcessorService.call(payload({}))
   end
 
+  test "ignores a repeated idpk and logs it as duplicate" do
+    route = { "distance" => 100, "transportCost" => 2.5, "enabled" => true }
+    assert_equal 1, DistanceTableProcessorService.call(payload({ "HGW" => route }, "same-idpk"))
+
+    changed = route.merge("distance" => 999)
+    assert_equal false, DistanceTableProcessorService.call(payload({ "HGW" => changed }, "same-idpk"))
+
+    assert_equal 100, DistanceTable.find_by!(destination_code: "HGW").distance
+    assert_equal 1, AuditLog.where(idpk: "same-idpk", event_type: "DUPLICATE").count
+  end
+
   private
 
-  def payload(distances)
-    { "type" => "distance-table", "data" => { "distances" => distances } }
+  def payload(distances, idpk = SecureRandom.uuid)
+    { "type" => "distance-table", "idpk" => idpk, "data" => { "distances" => distances } }
   end
 end

@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_10_06_231000) do
+ActiveRecord::Schema[8.1].define(version: 2026_10_07_120000) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
 
@@ -53,6 +53,28 @@ ActiveRecord::Schema[8.1].define(version: 2026_10_06_231000) do
     t.decimal "transport_cost", null: false
     t.boolean "enabled", null: false
     t.index ["destination_code"], name: "index_distance_tables_on_destination_code", unique: true
+  end
+
+  create_table "outbox_messages", force: :cascade do |t|
+    t.string "msg_id", null: false
+    t.string "idpk", null: false
+    t.string "message_type", null: false
+    t.jsonb "payload", default: {}, null: false
+    t.string "status", default: "pending", null: false
+    t.integer "attempts", default: 0, null: false
+    t.string "error"
+    t.datetime "sent_at"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["msg_id"], name: "index_outbox_messages_on_msg_id", unique: true
+    t.index ["status"], name: "index_outbox_messages_on_status"
+  end
+
+  create_table "processed_messages", force: :cascade do |t|
+    t.string "idpk", null: false
+    t.string "message_type", null: false
+    t.datetime "created_at", null: false
+    t.index ["idpk"], name: "index_processed_messages_on_idpk", unique: true
   end
 
   create_table "proposals", force: :cascade do |t|
