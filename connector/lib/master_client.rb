@@ -17,6 +17,11 @@ class MasterClient
       status == 422
     end
 
+    # la API esta caida: no respondio, o respondio el proxy por ella
+    def down?
+      status.nil? || [502, 503, 504].include?(status)
+    end
+
     # texto para el log y el detalle del nack: /events manda {error: CODIGO, detail: texto}
     def reason
       parsed = parsed_body
