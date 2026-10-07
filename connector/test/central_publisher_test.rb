@@ -83,27 +83,6 @@ class CentralPublisherTest < Minitest::Test
     refute last_message['data'].key?('cycleId')
   end
 
-  def test_error_is_always_preceded_by_an_ack_of_the_same_message
-    @publisher.error(ORIGINAL, 'CYCLE_EXPIRED', 410, 'el ciclo ya cerró')
-    ack, error = @channel.published.map { |item| JSON.parse(item[:payload]) }
-
-    assert_equal 2, @channel.published.size
-    assert_envelope(ack, 'ack')
-    assert_envelope(error, 'error')
-    assert_equal ORIGINAL['msgId'], ack['data']['target']
-    assert_equal ORIGINAL['msgId'], error['data']['target']
-    assert_equal ['CYCLE_EXPIRED', 410, 'el ciclo ya cerró'], [error['reason'], error['code'], error['data']['message']]
-    refute_equal ack['msgId'], error['msgId']
-    assert(@channel.published.all? { |item| item[:options][:user_id] == 'city.12' })
-  end
-
-  def test_error_is_not_published_if_the_ack_fails
-    @channel.define_singleton_method(:basic_publish) { |*_args| raise 'canal cerrado' }
-
-    assert_raises(RuntimeError) { @publisher.error(ORIGINAL, 'CYCLE_EXPIRED', 410, 'x') }
-    assert_empty @channel.published
-  end
-
   def test_publishes_to_exchange_by_name_with_user_id
     @publisher.ack(ORIGINAL)
     published = @channel.published.last

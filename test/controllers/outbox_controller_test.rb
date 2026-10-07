@@ -32,6 +32,17 @@ class OutboxControllerTest < ActionDispatch::IntegrationTest
     assert_equal first.payload, response.parsed_body.first["payload"]
   end
 
+  test "does not hand out a report whose cycle window already closed" do
+    Cycle.create!(cycle_id: "cycle-7", valid_until: Time.utc(2026, 10, 7, 14, 20))
+    report = travel_to(Time.utc(2026, 10, 7, 14, 16)) { publish("negotiation-report") }
+    request = publish("request")
+
+    travel_to(Time.utc(2026, 10, 7, 14, 20)) { get "/events/outbox" }
+
+    assert_equal [request.id], response.parsed_body.map { |item| item["id"] }
+    assert_equal "failed", report.reload.status
+  end
+
   test "marks a message as sent" do
     record = publish("negotiation-report")
 

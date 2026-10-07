@@ -5,6 +5,7 @@ class OutboxController < ApplicationController
 
   # GET /events/outbox
   def pending
+    OutboxMessage.expire_late_reports!
     messages = OutboxMessage.pending.limit(BATCH_SIZE)
     render json: messages.map { |message| { id: message.id, payload: message.payload } }
   end

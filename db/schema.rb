@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_10_07_120000) do
+ActiveRecord::Schema[8.1].define(version: 2026_10_08_000001) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
 
@@ -33,7 +33,12 @@ ActiveRecord::Schema[8.1].define(version: 2026_10_07_120000) do
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
     t.datetime "valid_until"
+    t.string "report_idpk"
+    t.string "report_msg_id"
+    t.datetime "report_not_before"
+    t.datetime "report_missed_at"
     t.index ["cycle_id"], name: "index_cycles_on_cycle_id", unique: true
+    t.index ["report_msg_id"], name: "index_cycles_on_report_msg_id"
   end
 
   create_table "demand_events", force: :cascade do |t|

@@ -10,6 +10,18 @@ class OutboxMessage < ApplicationRecord
   # Del más antiguo al más nuevo, para que salgan en el orden en que se crearon.
   scope :pending, -> { where(status: "pending").order(:id) }
 
+  # Un negotiation-report que no alcanzó a salir antes del cierre de su ventana no se publica:
+  # la central lo rechazaría con CYCLE_EXPIRED. Queda fallido (y el ciclo se registra como sin reporte).
+  # Si no conocemos el ciclo no sabemos cuándo cierra, y se deja pasar.
+  def self.expire_late_reports!(now = Time.current)
+    where(status: "pending", message_type: "negotiation-report").find_each do |message|
+      cycle = Cycle.find_by(cycle_id: message.payload["cycleId"])
+      next unless cycle&.valid_until && now >= cycle.valid_until - CycleService::PUBLISH_MARGIN
+
+      message.mark_failed!("CYCLE_WINDOW_CLOSED: la ventana de negociación cerró antes de publicarlo")
+    end
+  end
+
   def mark_sent!
     update!(status: "sent", sent_at: Time.current, error: nil, attempts: attempts + 1)
   end

@@ -22,6 +22,10 @@ class AuditedEventService
         reason: reason_for(type, payload, data),
         raw_payload: payload
       )
+      # el reporte llegó antes del periodo de cierre: se reenvía desde data.opensAt
+      if type == "error" && payload["reason"] == "REPORT_TOO_EARLY"
+        CycleService.report_too_early!(data["target"], data["opensAt"])
+      end
     end
   end
 
