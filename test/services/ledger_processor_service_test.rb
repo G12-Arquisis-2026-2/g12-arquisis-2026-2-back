@@ -3,6 +3,13 @@ require "test_helper"
 class LedgerProcessorServiceTest < ActiveSupport::TestCase
   self.fixture_table_names = []
 
+  setup do
+    @previous_city = ENV["CITY_ID"]
+    ENV["CITY_ID"] = "TK3"
+  end
+
+  teardown { ENV["CITY_ID"] = @previous_city }
+
   test "processes transfers without changing energy" do
     transaction = LedgerProcessorService.call(
       "idpk" => "transfer-1",
@@ -30,12 +37,29 @@ class LedgerProcessorServiceTest < ActiveSupport::TestCase
 
   test "a take adds energy and charges energy times pricePerEnergy" do
     transaction = LedgerProcessorService.call(
-      "idpk" => "take-1", "cycleId" => "cycle-1", "type" => "take",
+      "idpk" => "take-1", "msgId" => "take-msg-1", "cycleId" => "cycle-1", "type" => "take",
       "data" => { "target" => "p1", "energy" => 2024, "pricePerEnergy" => 210 }
     )
 
     assert_equal 2024, transaction.energy_change
     assert_equal(-425_040, transaction.budget_change)
+
+    # un solo transfer de pago, con becauseOf = msgId del take
+    payment = OutboxMessage.where(message_type: "transfer").sole.payload
+    assert_equal "take-msg-1", payment.dig("data", "becauseOf")
+    assert_equal 425_040, payment.dig("data", "quantity")
+  end
+
+  test "a new message is not logged as a duplicate" do
+    %w[transfer demand-statement give take].each do |type|
+      LedgerProcessorService.call(
+        "idpk" => "new-#{type}", "msgId" => "msg-#{type}", "cycleId" => "cycle-1", "type" => type,
+        "data" => { "target" => "p1", "quantity" => 10, "valuePerKwh" => 2.5, "energy" => 10, "pricePerEnergy" => 2 }
+      )
+    end
+
+    assert_equal 4, Transaction.count
+    assert_equal 0, AuditLog.where(event_type: "DUPLICATE").count
   end
 
   test "subtracts the demand statement value from the budget for positive quantity" do

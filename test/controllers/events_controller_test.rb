@@ -3,6 +3,13 @@ require "test_helper"
 class EventsControllerTest < ActionDispatch::IntegrationTest
   self.fixture_table_names = []
 
+  setup do
+    @previous_city = ENV["CITY_ID"]
+    ENV["CITY_ID"] = "TK3"
+  end
+
+  teardown { ENV["CITY_ID"] = @previous_city }
+
   test "saves a cycle from a status statement" do
     post_event status_payload("idpk-status-1", "cycle-status-1")
 
@@ -106,7 +113,8 @@ class EventsControllerTest < ActionDispatch::IntegrationTest
     take = Transaction.find_by!(idpk: "idpk-take")
     assert_equal [300, -450], [take.energy_change, take.budget_change] # 300 * 1.5
     assert_equal "proposal-msg-1", take.raw_data.dig("data", "target")
-    assert_equal 0, AuditLog.where(event_type: %w[GIVE TAKE]).count
+    assert_equal 0, AuditLog.where(event_type: %w[GIVE TAKE DUPLICATE]).count
+    assert_equal 1, OutboxMessage.where(message_type: "transfer").count # solo el pago del take
   end
 
   test "a repeated give idpk is a duplicate and moves the ledger once" do
@@ -169,6 +177,7 @@ class EventsControllerTest < ActionDispatch::IntegrationTest
     assert_response :created
     assert_equal "saved", response.parsed_body["status"]
     assert_equal BigDecimal("10"), Transaction.find_by!(idpk: "idpk-transfer-1").budget_change
+    assert_equal 0, AuditLog.where(event_type: "DUPLICATE").count
   end
 
   test "unexpected errors respond 500" do
@@ -219,6 +228,7 @@ class EventsControllerTest < ActionDispatch::IntegrationTest
     {
       "type" => type,
       "idpk" => idpk,
+      "msgId" => "msg-#{idpk}",
       "cycleId" => "c1",
       "data" => { "target" => "proposal-msg-1", "energy" => 300, "pricePerEnergy" => 1.5 }
     }

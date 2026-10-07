@@ -37,7 +37,7 @@ class LedgerProcessorService
     begin
       Transaction.transaction(requires_new: true) do
         # 1. Registrar la transacción en el ledger local
-        Transaction.create!(
+        transaction = Transaction.create!(
           idpk: @payload.fetch("idpk"),
           cycle_id: @payload.fetch("cycleId"),
           operation_type: type,
@@ -59,6 +59,9 @@ class LedgerProcessorService
             handle_transfer_payment(data["becauseOf"], @payload.fetch("cycleId"))
           end
         end
+
+        # El controller distingue guardado de duplicado por este valor, no por el del case
+        transaction
       end
     rescue ActiveRecord::RecordNotUnique
       log_duplicate
