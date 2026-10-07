@@ -9,6 +9,18 @@ class EventsController < ApplicationController
     ActionDispatch::Http::Parameters::ParseError
   ].freeze
 
+  # Sin conexión a la base el mensaje no tiene la culpa: 503 para que el connector espere sin tope.
+  # ConnectionNotEstablished incluye ConnectionTimeoutError, ExclusiveConnectionTimeoutError y
+  # DatabaseConnectionError. ConnectionFailed es la conexión que se cae a mitad de una query.
+  # Los PG::* van por si alguno llega sin que ActiveRecord lo traduzca.
+  # Ojo: no se usa StatementInvalid entero, ahí también caen errores de código (RecordNotUnique, NotNullViolation...).
+  DB_UNAVAILABLE_ERRORS = [
+    ActiveRecord::ConnectionNotEstablished,
+    ActiveRecord::ConnectionFailed,
+    PG::ConnectionBad,
+    PG::UnableToSend
+  ].freeze
+
   PROCESSORS = {
     'transfer' => LedgerProcessorService,
     'demand-statement' => LedgerProcessorService,
@@ -42,6 +54,9 @@ class EventsController < ApplicationController
   rescue ActiveRecord::RecordNotUnique
     # Carrera: otro request guardó el mismo idpk entre medio
     render json: { status: 'duplicate', detail: 'IDPK already exists' }, status: :ok
+  rescue *DB_UNAVAILABLE_ERRORS => e
+    Rails.logger.error "Base de datos no disponible (#{e.class}): #{e.message}"
+    render json: { error: 'service_unavailable' }, status: :service_unavailable
   rescue StandardError => e
     Rails.logger.error "Error interno (#{e.class}): #{e.message}\n#{Array(e.backtrace).join("\n")}"
     render json: { error: 'internal_error' }, status: :internal_server_error

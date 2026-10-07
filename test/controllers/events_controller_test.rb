@@ -227,13 +227,53 @@ class EventsControllerTest < ActionDispatch::IntegrationTest
     assert_equal 0, AuditLog.where(event_type: "DUPLICATE").count
   end
 
-  test "unexpected errors respond 500" do
-    with_failing_processor(ActiveRecord::ConnectionNotEstablished, "db down") do
+  [
+    ActiveRecord::ConnectionNotEstablished,
+    ActiveRecord::ConnectionTimeoutError,
+    ActiveRecord::ExclusiveConnectionTimeoutError,
+    ActiveRecord::DatabaseConnectionError,
+    ActiveRecord::ConnectionFailed,
+    PG::ConnectionBad,
+    PG::UnableToSend
+  ].each do |error_class|
+    test "a #{error_class} responds 503 service unavailable" do
+      with_failing_processor(error_class, "db down") do
+        post_event status_payload("idpk-status-1", "cycle-status-1")
+      end
+
+      assert_response :service_unavailable
+      assert_equal({ "error" => "service_unavailable" }, response.parsed_body)
+      assert_equal 0, AuditLog.where(event_type: "NACK").count
+    end
+  end
+
+  test "a database connection error logs class and message without backtrace" do
+    logged = StringIO.new
+    original_logger = Rails.logger
+    Rails.logger = ActiveSupport::Logger.new(logged)
+
+    with_failing_processor(PG::ConnectionBad, "could not connect to server") do
       post_event status_payload("idpk-status-1", "cycle-status-1")
     end
 
-    assert_response :internal_server_error
-    assert_equal({ "error" => "internal_error" }, response.parsed_body)
+    assert_response :service_unavailable
+    assert_includes logged.string, "PG::ConnectionBad"
+    assert_includes logged.string, "could not connect to server"
+    assert_not_includes logged.string, "events_controller_test.rb"
+  ensure
+    Rails.logger = original_logger
+  end
+
+  # Errores de SQL que no son de conexión siguen siendo 500: el connector los reintenta con tope
+  [ActiveRecord::StatementInvalid, ActiveRecord::NotNullViolation, ActiveRecord::StatementTimeout].each do |error_class|
+    test "a #{error_class} responds 500, not 503" do
+      with_failing_processor(error_class, "bad sql") do
+        post_event status_payload("idpk-status-1", "cycle-status-1")
+      end
+
+      assert_response :internal_server_error
+      assert_equal({ "error" => "internal_error" }, response.parsed_body)
+    end
   end
 
   [KeyError, NoMethodError, ArgumentError].each do |error_class|
