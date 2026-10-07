@@ -26,8 +26,8 @@ class NegotiationTimeoutJob < ApplicationJob
     payload = NegotiationService.build_proposal(
       cycle_id: proposal.cycle_id,
       direction: proposal.direction,
-      energy: proposal.quantity,
-      existing_idpk: proposal.idpk # Reutiliza idpk según ADR3
+      energy: proposal.quantity, # quantity guarda la energía: el reintento pide la misma
+      existing_idpk: proposal.idpk # Reutiliza idpk según ADR3 (msgId nuevo)
     )
 
     RabbitMQPublisher.publish(payload) if defined?(RabbitMQPublisher)

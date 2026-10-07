@@ -75,6 +75,35 @@ class NegotiationTimeoutJobTest < ActiveJob::TestCase
     assert_enqueued_with(job: NegotiationTimeoutJob, args: [@proposal.idpk])
   end
 
+  test "the retry publishes the same idpk and the same energy with a new msgId" do
+    first = NegotiationService.build_proposal(cycle_id: CYCLE_ID, direction: "give", energy: 100,
+                                              existing_idpk: @proposal.idpk)
+    first_msg_id = RabbitMQPublisher.publish(first)
+
+    assert_difference -> { OutboxMessage.where(message_type: "negotiation-proposal").count }, 1 do
+      NegotiationTimeoutJob.perform_now(@proposal.idpk)
+    end
+
+    original, retried = OutboxMessage.where(message_type: "negotiation-proposal").order(:id).to_a
+    assert_equal first_msg_id, original.msg_id
+    assert_equal original.idpk, retried.idpk
+    assert_equal @proposal.idpk, retried.idpk
+    assert_not_equal original.msg_id, retried.msg_id
+    assert_equal 100.0, retried.payload.dig("data", "quantity")
+    assert_equal original.payload["data"], retried.payload["data"]
+    assert_equal 100, @proposal.reload.quantity
+  end
+
+  test "a take is retried even above own capacity" do
+    @proposal.update!(direction: "take", quantity: 5000, price_per_energy: 10)
+
+    NegotiationTimeoutJob.perform_now(@proposal.idpk)
+
+    retried = OutboxMessage.find_by!(message_type: "negotiation-proposal")
+    assert_equal({ "direction" => "take", "quantity" => 5000.0, "pricePerEnergy" => 10.0 }, retried.payload["data"])
+    assert @proposal.reload.pending?
+  end
+
   private
 
   def with_build_proposal_raising(error)

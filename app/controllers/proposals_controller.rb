@@ -32,19 +32,21 @@ class ProposalsController < ApplicationController
 
     cycle = Cycle.find_by!(cycle_id: cycle_id)
 
-    # 3. Guardar la propuesta en la base de datos (tabla proposals)
-    proposal = Proposal.create!(
-      idpk: payload[:idpk],
-      cycle_id: payload[:cycleId],
-      direction: payload[:data][:direction],
-      quantity: payload[:data][:quantity],
-      price_per_energy: payload[:data][:pricePerEnergy],
-      generation_cost: cycle.generation_cost,
-      status: "PENDING"
-    )
-
-    # 4. Publicar hacia la central (guarda en outbox_messages para el connector)
-    RabbitMQPublisher.publish(payload)
+    # 3. Guardar la propuesta (quantity = energía) y 4. publicarla hacia la central (outbox_messages,
+    # para el connector) en una sola transacción: si falla el publish no queda una propuesta sin mensaje
+    proposal = Proposal.transaction do
+      created = Proposal.create!(
+        idpk: payload[:idpk],
+        cycle_id: payload[:cycleId],
+        direction: payload[:data][:direction],
+        quantity: payload[:data][:quantity],
+        price_per_energy: payload[:data][:pricePerEnergy],
+        generation_cost: cycle.generation_cost,
+        status: "PENDING"
+      )
+      RabbitMQPublisher.publish(payload)
+      created
+    end
 
     # 5. Agendar la verificación de timeout de 30 segundos (ADR3)
     NegotiationTimeoutJob.set(wait: 30.seconds).perform_later(proposal.idpk)

@@ -20,13 +20,16 @@ class NegotiationService
     (1.05 * generation_cost.to_f).round(2)
   end
 
-  # 3. Cálculo de capacidad vendible: max(0, generationCapacity - consumption)
-  def self.available_capacity(generation_capacity, consumption)
-    [0, generation_capacity.to_f - consumption.to_f].max
+  # 3. Energía vendible que queda en el ciclo: max(0, generationCapacity - consumption) menos lo ya
+  # vendido en ese ciclo (Enunciado § El tope de la oferta: así calcula la central data.spare)
+  def self.available_capacity(generation_capacity, consumption, sold = 0)
+    [0, [0, generation_capacity.to_f - consumption.to_f].max - sold.to_f].max
   end
 
-  def self.calculate_quantity(pricePerEnergy, energy)
-    (energy.to_f * pricePerEnergy).round(2)
+  # Energía ya vendida en el ciclo: los give que la central nos confirmó (quedan en el ledger con
+  # energy_change negativo)
+  def self.sold_energy(cycle_id)
+    -Transaction.where(cycle_id: cycle_id, operation_type: "give").sum(:energy_change).to_f
   end
 
   # 4. Construcción y validación de propuesta de negociación
@@ -34,15 +37,17 @@ class NegotiationService
     cycle = Cycle.find_by(cycle_id: cycle_id)
     raise ActiveRecord::RecordNotFound, "Ciclo no encontrado: #{cycle_id}" unless cycle
 
+    energy = energy.to_f
     generation_cost = cycle.generation_cost
     max_cap = calculate_price_cap(generation_cost)
     price = calculate_price(direction, generation_cost)
-    quantity = calculate_quantity(price, energy)
-    generation_capacity = cycle.generation_capacity
-    consumption = cycle.consumption
 
-    if energy > available_capacity(generation_capacity, consumption)
-      raise OverCapacityError, "La cantidad (#{energy}) supera la capacidad disponible (#{available_capacity(generation_capacity, consumption)}) para el ciclo #{cycle_id}"
+    # OVER_CAPACITY solo aplica a give: comprar (take) no usa capacidad propia
+    if direction.to_s == 'give'
+      spare = available_capacity(cycle.generation_capacity, cycle.consumption, sold_energy(cycle_id))
+      if energy > spare
+        raise OverCapacityError, "La energía (#{energy}) supera la capacidad vendible restante (#{spare}) para el ciclo #{cycle_id}"
+      end
     end
 
     # Validar tope de precio para evitar rechazo PRICE_ABOVE_CAP
@@ -57,7 +62,8 @@ class NegotiationService
       cycleId: cycle_id,
       data: {
         direction: direction,
-        quantity: quantity,
+        # energía (kWh), no monto: el monto round2(energy × pricePerEnergy) solo va en el transfer de pago
+        quantity: energy,
         pricePerEnergy: price
       },
       timestamp: Time.current.iso8601
