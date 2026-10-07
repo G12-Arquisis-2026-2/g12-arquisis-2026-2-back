@@ -52,12 +52,47 @@ class OutboxSenderTest < Minitest::Test
     }.merge(changes)
   end
 
-  def run_sender(payloads, publisher: FakePublisher.new, mark_status: 200)
+  def build_sender(payloads, publisher: FakePublisher.new, mark_status: 200, enabled: true)
     pending = payloads.each_with_index.map { |payload, index| { 'id' => index + 1, 'payload' => payload } }
     @master = FakeMaster.new(pending, mark_status: mark_status)
     @publisher = publisher
     @logs = []
-    OutboxSender.new(master: @master, publisher: publisher, city_id: '12', log: ->(text) { @logs << text }).run_once
+    OutboxSender.new(master: @master, publisher: publisher, city_id: '12', log: ->(text) { @logs << text },
+                     enabled: enabled)
+  end
+
+  def run_sender(payloads, **options)
+    build_sender(payloads, **options).run_once
+  end
+
+  def test_disabled_does_not_publish_nor_mark_and_logs_what_it_would_send
+    second = outgoing('msgId' => '33333333-3333-4333-8333-333333333333')
+    run_sender([outgoing, second], enabled: false)
+
+    assert_empty @publisher.published
+    assert_empty @master.marks
+    assert_equal 2, @logs.size
+    assert_includes @logs.first, 'ENABLE_PUBLISHER apagado'
+    %w[negotiation-report 11111111-1111-4111-8111-111111111111 22222222-2222-4222-8222-222222222222 cityId=12].each do |part|
+      assert_includes @logs.first, part
+    end
+    refute_includes @logs.first, 'budgetBalance'
+  end
+
+  def test_disabled_logs_each_pending_only_once_across_rounds
+    sender = build_sender([outgoing], enabled: false)
+    3.times { sender.run_once }
+
+    assert_empty @publisher.published
+    assert_empty @master.marks
+    assert_equal 1, @logs.size
+  end
+
+  def test_disabled_still_marks_invalid_messages_as_failed
+    run_sender([outgoing('cityId' => '99')], enabled: false)
+
+    assert_empty @publisher.published
+    assert_equal [1, 'failed'], @master.marks.first.first(2)
   end
 
   def test_publishes_the_message_as_is_and_marks_it_sent

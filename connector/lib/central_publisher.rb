@@ -3,12 +3,16 @@ require 'securerandom'
 require 'time'
 
 class CentralPublisher
-  def initialize(channel, exchange:, routing_key:, user_id:, city_id:)
+  # enabled: false es ENABLE_PUBLISHER apagado: no se manda nada al broker, solo se loguea
+  def initialize(channel, exchange:, routing_key:, user_id:, city_id:, enabled: true,
+                 log: ->(text) { puts "[Connector] #{text}" })
     @channel = channel
     @exchange = exchange
     @routing_key = routing_key
     @user_id = user_id
     @city_id = city_id
+    @enabled = enabled
+    @log = log
   end
 
   def ack(message)
@@ -23,8 +27,10 @@ class CentralPublisher
   end
 
   # para los mensajes del outbox: se publica tal cual y se espera a que el broker confirme que lo recibio
+  # apagado devuelve false (no confirmado), asi nunca se marca como enviado algo que no salio
   def publish_confirmed(message)
-    publish(message)
+    return false unless publish(message)
+
     @channel.wait_for_confirms
   end
 
@@ -42,10 +48,18 @@ class CentralPublisher
   end
 
   # se publica con el nombre del exchange porque no podemos declararlo. sin user_id la central lo rechaza
+  # devuelve false si no se publico por tener ENABLE_PUBLISHER apagado
   def publish(message)
+    unless @enabled
+      @log.call("ENABLE_PUBLISHER apagado, no se publica: type=#{message['type']} " \
+                "msgId=#{message['msgId']} idpk=#{message['idpk']} cityId=#{message['cityId']}")
+      return false
+    end
+
     @channel.basic_publish(
       JSON.generate(message), @exchange, @routing_key,
       user_id: @user_id, content_type: 'application/json'
     )
+    true
   end
 end

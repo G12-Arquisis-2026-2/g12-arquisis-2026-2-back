@@ -12,6 +12,8 @@ RETRY_SECONDS = 5
 OUTBOX_SECONDS = 2
 MAX_SECONDS_OFFLINE = 120
 ALIVE_FILE = '/tmp/connector_alive'.freeze
+# apagado por defecto: solo publica hacia la central si ENABLE_PUBLISHER es exactamente "true"
+PUBLISHER_ENABLED = ENV.fetch('ENABLE_PUBLISHER', 'false') == 'true'
 
 def log(text)
   puts "[Connector] #{text}"
@@ -54,7 +56,9 @@ def central_publisher(channel)
     exchange: ENV.fetch('RABBITMQ_EXCHANGE'),
     routing_key: ENV.fetch('CENTRAL_ROUTING_KEY'),
     user_id: ENV.fetch('RABBITMQ_USER'),
-    city_id: ENV.fetch('CITY_ID')
+    city_id: ENV.fetch('CITY_ID'),
+    enabled: PUBLISHER_ENABLED,
+    log: method(:log)
   )
 end
 
@@ -72,6 +76,8 @@ def start_outbox_thread(sender, connection, channel)
     end
   end
 end
+
+log 'ENABLE_PUBLISHER apagado: no se publica nada hacia la central, solo se loguea.' unless PUBLISHER_ENABLED
 
 unless ENV.fetch('RABBITMQ_USER') == "city.#{ENV.fetch('CITY_ID')}"
   log "OJO: RABBITMQ_USER no es city.#{ENV.fetch('CITY_ID')}, la central va a rechazar lo que publiquemos."
@@ -98,7 +104,7 @@ log "Escuchando en '#{queue_name}'..."
 outbox_channel = connection.create_channel
 outbox_channel.confirm_select
 sender = OutboxSender.new(master: master, publisher: central_publisher(outbox_channel),
-                          city_id: ENV.fetch('CITY_ID'), log: method(:log))
+                          city_id: ENV.fetch('CITY_ID'), log: method(:log), enabled: PUBLISHER_ENABLED)
 start_outbox_thread(sender, connection, outbox_channel)
 channels = [channel, outbox_channel]
 
