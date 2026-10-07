@@ -1,65 +1,31 @@
 class CyclesController < ApplicationController
+  # GET /cycles (Historial de todos los ciclos)
+  def index
+    cycles = Cycle.where.not(valid_until: nil).order(valid_until: :desc)
+    formatted_cycles = cycles.map { |cycle| CyclePresenter.format(cycle) }
 
-    def index
-        # Mock data que simula el historial de ciclos
-        render json: {
-          cycles: [
-            {
-              cycleId: "cycle-9431",
-              statusStatement: {
-                energy: {
-                  generationCapacity: 1234512,
-                  consumption: 1444121,
-                  generationCost: 210
-                },
-                validUntil: "2026-09-01T14:20:00Z"
-              },
-              fundsReceived: 508145,
-              demandStatements: [
-                {
-                  quantity: 1500,
-                  valuePerKwh: 215,
-                  appliedAt: "2026-09-01T14:05:00Z"
-                }
-              ],
-              voluntaryNegotiations: [
-                {
-                  proposalId: "prop-001",
-                  direction: "take",
-                  quantity: 2024,
-                  pricePerEnergy: 210,
-                  status: "paid"
-                }
-              ],
-              negotiationReport: {
-                budgetBalance: 131212,
-                energyBalance: 1232,
-                sentAt: "2026-09-01T14:15:00Z"
-              },
-              finalBalances: {
-                budget: 131212,
-                energy: 1232
-              },
-              lastOperation: "negotiation-report"
-            }
-          ]
-        }, status: :ok
+    render json: { cycles: formatted_cycles }, status: :ok
+  end
+
+  # GET /cycles/current (Obtiene el ciclo activo actual)
+  def current
+    cycle = Cycle.where.not(valid_until: nil).order(valid_until: :desc).first
+
+    if cycle
+      render json: { cycle: CyclePresenter.format(cycle) }, status: :ok
+    else
+      render json: { error: "NO_ACTIVE_CYCLE", detail: "No hay un ciclo registrado aún" }, status: :not_found
     end
-    
-    def show
-      # Detalle de un ciclo específico
-      render json: {
-          cycleId: params[:id],
-          statusStatement: {
-            energy: { generationCapacity: 1234512, consumption: 1444121, generationCost: 210 },
-            validUntil: "2026-09-01T14:20:00Z"
-          },
-          fundsReceived: 508145,
-          demandStatements: [],
-          voluntaryNegotiations: [],
-          negotiationReport: { budgetBalance: 131212, energyBalance: 1232 },
-          finalBalances: { budget: 131212, energy: 1232 },
-          lastOperation: "status-statement"
-        }, status: :ok
+  end
+
+  # GET /cycles/:id (Detalle de un ciclo específico por cycle_id)
+  def show
+    cycle = Cycle.find_by(cycle_id: params[:id])
+
+    if cycle
+      render json: { cycle: CyclePresenter.format(cycle) }, status: :ok
+    else
+      render json: { error: "NOT_FOUND", detail: "Ciclo #{params[:id]} no encontrado" }, status: :not_found
     end
+  end
 end
