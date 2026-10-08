@@ -14,6 +14,11 @@ Rails.application.routes.draw do
 
   # Recepción desde el connector
   post '/events', to: 'events#create'
+  post '/events/rejected', to: 'events#rejected'
+
+  # Mensajes por enviar a la central (los pide y los marca el connector)
+  get  '/events/outbox',     to: 'outbox#pending'
+  post '/events/outbox/:id', to: 'outbox#result'
 
   # Endpoints requeridos (RF1, RF2, RF3, RF4)
   get '/history', to: 'history#index'
@@ -24,6 +29,7 @@ Rails.application.routes.draw do
 
   # RF01: Historial de ciclos
   get '/cycles',     to: 'cycles#index'
+  get '/cycles/current', to: 'cycles#current'
   get '/cycles/:id', to: 'cycles#show'
 
   # RF02: Tabla de conectividad vigente
@@ -35,4 +41,12 @@ Rails.application.routes.draw do
 
   # RF05: Auditoría de anomalías (duplicados, descartes y NACKs)
   get '/audit-logs', to: 'audit_logs#index'
+
+  namespace :api do
+    namespace :v1 do
+      get "ledger/:cycle_id", to: "ledger#show", as: :ledger
+      get "distances", to: "distances#index", as: :distances
+      get "audit-logs", to: "audit_logs#index", as: :audit_logs
+    end
+  end
 end

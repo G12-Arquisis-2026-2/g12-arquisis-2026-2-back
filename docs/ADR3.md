@@ -18,3 +18,16 @@ Se opta por la Alternativa 2 (Scheduler asíncrono con máquina de estados).
 ## Consecuencias
 * **Positivas:** Evita el doble gasto en el ledger, maximiza el rendimiento asíncrono y tolera caídas.
 * **Negativas:** Añade la complejidad de gestionar tareas programadas (schedulers) en segundo plano.
+
+## Análisis Postmortem
+
+### Modificaciones y Adaptaciones durante Implementación
+1. **Timeout extendido a la fase de cobro (GIVE):** Se amplió NegotiationTimeoutJob para esperar el transfer de pago tras confirmar una venta (wait_for_transfer), reintentando con el mismo idpk hasta un tope máximo.
+2. **idpk estático vs. msgId dinámico:** Cada reintento mantiene el idpk original por regla de idempotencia, pero forzando un msgId nuevo para el sobre de la central.
+3. **Cancelación temprana:** ErrorProcessorService cambia el estado a REJECTED si la central rechaza la propuesta, y cycle_expired? detiene el bucle si la ventana del ciclo cierra.
+4. **Control de concurrencia:** Se aplicó bloqueo pesimista (with_lock) y validación de reintentos pendientes para evitar ejecuciones de jobs duplicadas o en paralelo.
+
+### Evaluación de Resultados
+1. **No bloqueo de la API:** Exitoso. La API responde 201 Created de inmediato y delega el flujo de espera al background worker.
+2. **Idempotencia:** Exitoso. La restricción UNIQUE en idpk evitó duplicaciones en el ledger por reintentos o respuestas tardías.
+3. **Tolerancia a fallos:** Exitoso. Los jobs persisten en la base de datos/cola, retomando el ciclo de reintentos si el contenedor o servicio se reinicia.

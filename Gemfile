@@ -35,6 +35,9 @@ gem "image_processing", "~> 1.2"
 # Use Rack CORS for handling Cross-Origin Resource Sharing (CORS), making cross-origin Ajax possible
 gem "rack-cors"
 
+# New Relic APM; se configura solo con variables de entorno (NEW_RELIC_LICENSE_KEY, NEW_RELIC_APP_NAME, NEW_RELIC_LOG)
+gem "newrelic_rpm"
+
 group :development, :test do
   # See https://guides.rubyonrails.org/debugging_rails_applications.html#debugging-with-the-debug-gem
   gem "debug", platforms: %i[ mri windows ], require: "debug/prelude"
