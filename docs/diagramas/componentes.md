@@ -1,4 +1,4 @@
-# Diagrama UML
+# Diagrama componentes
 
 Vista UML de componentes del nodo EnergyShark de la ciudad TK3 tal como corre hoy en producción.
 Cada flecha va desde quien inicia la conexión hacia quien la recibe, y su etiqueta indica el protocolo.
