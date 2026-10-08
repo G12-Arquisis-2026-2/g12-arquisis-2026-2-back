@@ -85,14 +85,3 @@ flowchart LR
 - **ECR:** `web` y `connector` usan imágenes de ECR en `us-east-2` (`docker-compose.prod.yml`); `db` usa
   `postgres:15-alpine` de Docker Hub.
 
-## A confirmar
-
-- Valor real de `MASTER_URL` en producción (vive en el `.env`, que no se leyó). La documentación de despliegue dice
-  `http://web/events`, que apunta a Thruster en el puerto 80 del contenedor `web`.
-- Quién construye y sube las imágenes a ECR y con qué comando: el repo no tiene CI (no hay `.github/`).
-- Que las variables `NEW_RELIC_*` estén definidas en el `.env` de producción (de eso depende que el APM reporte).
-- Protocolo y región del endpoint de New Relic (se asume HTTPS, que es como reportan sus agentes; el repo no lo
-  fija).
-- Si API Gateway enruta o bloquea `/events/rejected`, `/events/outbox` y `/events/outbox/:id`: Nginx solo bloquea
-  la ruta exacta `/events` (`infra/nginx/api.conf:6`).
-- Nombre del exchange: el código lo lee de `RABBITMQ_EXCHANGE`; la documentación de despliegue lo nombra `energy.x`.
