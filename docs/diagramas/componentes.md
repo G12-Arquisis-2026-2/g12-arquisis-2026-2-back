@@ -34,7 +34,7 @@ flowchart LR
           APM["Agente APM<br/>gema newrelic_rpm"]
         end
         CONN["«component» contenedor connector<br/>Ruby + Bunny<br/>consumidor + hilo outbox"]
-        DB[("«component» contenedor db<br/>PostgreSQL 15, sin puerto publicado<br/>bases primary, cache, queue, cable")]
+        DB[("«component» contenedor db<br/>PostgreSQL 15, sin puerto publicado<br/>bases primary, cache, queue, cable<br/>tabla outbox_messages en primary")]
       end
     end
   end
@@ -47,7 +47,7 @@ flowchart LR
   APIGW -->|"HTTP + header X-Origin-Verify †"| NGINX
   NGINX -->|"HTTP 127.0.0.1:3000"| THR
   THR -->|"HTTP"| PUMA
-  PUMA -->|"SQL base primary y cache"| DB
+  PUMA -->|"SQL base primary y cache<br/>RabbitMQPublisher escribe en outbox_messages"| DB
   SQ -->|"SQL base queue"| DB
   CONN -->|"HTTP red interna<br/>POST /events, POST /events/rejected<br/>GET /events/outbox, POST /events/outbox/:id"| THR
   CONN -->|"AMQPS consume city.TK3.q, ack manual"| BROKER
@@ -60,7 +60,11 @@ flowchart LR
   class AUTH0,CF,S3,APIGW,NRI docdesp
 ```
 
-## Notas de lectura
+## Explicación del diagrama
+
+- **Front y entrada a la API.** El navegador descarga la SPA desde CloudFront, que lee el bucket S3 privado (†),
+  inicia sesión en Auth0 (†) y llama a la API con el JWT. API Gateway (†) valida el token y reenvía por HTTP a Nginx
+  con `X-Origin-Verify`. Nginx pasa a Thruster (`127.0.0.1:3000` → puerto 80 del contenedor `web`) y Thruster a Puma.
 
 - **El back nunca habla con el broker.** `RabbitMQPublisher` (`app/services/rabbit_m_q_publisher.rb`) solo
   inserta una fila en `outbox_messages`. El hilo outbox del connector la pide cada 2 s con `GET /events/outbox`,
