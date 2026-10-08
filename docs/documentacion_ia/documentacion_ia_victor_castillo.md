@@ -1,4 +1,4 @@
-# Declaración de uso de IA — Integrante 1 (Víctor)
+# Declaración de uso de IA — Víctor Castillo
 > - **Modelo:**
 Claude Opus 5.5 (chat) y Claude Code (terminal)
 > - **Plataforma:**
