@@ -118,6 +118,9 @@ sequenceDiagram
 
 ## Notas de lectura
 
+- Estados de `Proposal` (`app/models/proposal.rb:14-22`): se crea `pending`; un `give` la pasa a `confirmed` y su
+  transfer a `paid`; un `take` la pasa directo a `paid`. Se cierra como `expired`, `rejected` o `failed` según las
+  ramas del diagrama. El estado `timeout` existe en el enum pero ningún código lo asigna.
 - `Proposal.close!` solo cierra desde el estado indicado en `from:` (por defecto `pending`). Un `error` de la
   central sobre el reintento de un `give` ya confirmado no lo pasa a REJECTED: ese caso lo cierra el job como
   FAILED.
