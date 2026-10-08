@@ -110,10 +110,3 @@ flowchart LR
   periodo de cierre, con los saldos que calcula `CycleBalanceService`.
 - **Lectura del front.** `CyclesController` arma cada ciclo con `CyclePresenter`. `ConnectivityController` y
   `AuditLogsController` leen directo `distance_tables` y `audit_logs`.
-
-## A confirmar
-
-- Que API Gateway y Nginx enruten al back solo las rutas del front: Nginx bloquea solo la ruta exacta `/events`
-  (`infra/nginx/api.conf:6`). `/events/rejected` y `/events/outbox*` no están bloqueadas.
-- No se dibujan `HistoryController` ni `Api::V1::*` (`/history`, `/api/v1/...`): existen en `config/routes.rb` pero
-  el front no los usa.
