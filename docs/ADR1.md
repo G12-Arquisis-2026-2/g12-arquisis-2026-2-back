@@ -37,12 +37,7 @@ Se opta por la Alternativa 2 (Worker Desacoplado) bajo el estilo de Arquitectura
 7. **Verificación del certificado:** Bunny no verifica el certificado del broker cuando recibe una URL, así que se dejó verify_peer: true explícito.
 
 ### Evaluación de Resultados
-1. **La caída del broker no bota la API:** [Exitoso / Parcial]. [Completar con lo observado en la prueba de corte: la API siguió respondiendo y el connector reconectó en X segundos.]
-2. **Reconexión automática:** [Exitoso / Parcial]. [Completar: se vio en los logs "Se perdió la conexión" y "Conexión recuperada", sin intervención manual.]
-3. **No se pierden mensajes ya recibidos:** Parcial. Se cumple ante caídas del connector, del broker y de la API, porque el mensaje solo se confirma al broker después de guardado. No se cumple en un caso: si la API responde 500 de forma repetida para un mensaje, se descarta tras 4 intentos. Fue una decisión consciente para no bloquear la cola. [Confirmar si la base de datos caída ya responde 503; si no, ese caso también termina en descarte.]
-4. **Mensajes inválidos sin caída del servicio:** [Exitoso / Parcial]. [Completar con la prueba de mensaje malformado y sin msgId: nack o descarte, registro en auditoría, connector sano.]
-
-### Qué haríamos distinto
-- Definir desde el inicio el contrato entre el connector y la API (códigos de respuesta), que fue la fuente de la mayoría de los ajustes.
-- Guardar la cuenta de reintentos fuera de la memoria del proceso: hoy se pierde si el connector se reinicia.
-- Enviar a una cola aparte los mensajes que se descartan por reintentos, en vez de eliminarlos.
+1. **La caída del broker no bota la API:** Exitoso en pruebas locales. Con un RabbitMQ de prueba detenido, la API siguió respondiendo consultas y el connector no se reinició. Es consecuencia directa del diseño: la API no tiene ninguna conexión al broker. No se registró una prueba de corte en producción.
+2. **Reconexión automática:** Exitoso en pruebas locales. Al volver el broker de prueba, el connector reconectó solo en unos 20 segundos y volvió a consumir, y en los logs quedaron los avisos de conexión perdida y recuperada. Los casos de espera sin límite están cubiertos por tests (94 del connector, todos en verde).
+3. **No se pierden mensajes ya recibidos:** Parcial. Se cumple ante caídas del connector, del broker y de la API, porque el mensaje solo se confirma al broker después de guardado, está cubierto por tests y por la prueba local con la API detenida. No se cumple en un caso: si la API responde un error 500 de forma repetida para un mensaje, se descarta tras 4 intentos. Fue una decisión consciente para no bloquear la cola.
+4. **Mensajes inválidos sin caída del servicio:** Exitoso en pruebas locales. Un mensaje sin idpk recibió nack MALFORMED_MESSAGE, y un texto que no es JSON y un mensaje sin msgId se descartaron sin respuesta, los tres quedaron en la auditoría y el connector siguió sano. Incluye el caso de bytes inválidos, que en una versión anterior dejaba al connector reintentando el mismo mensaje.
