@@ -1,4 +1,4 @@
-# Diagrama de componentes internos del back
+# Diagrama UML
 
 Vista UML de componentes de lo que corre dentro del contenedor `web` (Rails) y de cómo se conecta con el
 connector y la central. Cada flecha va **desde quien inicia** hacia quien recibe, y su etiqueta dice qué viaja.
