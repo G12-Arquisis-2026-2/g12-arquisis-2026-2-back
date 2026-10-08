@@ -2,8 +2,8 @@
 
 Este documento describe cómo está desplegado el sistema en AWS, qué hace cada componente y por qué
 se tomaron las decisiones principales. Los diagramas están en Mermaid: GitHub los dibuja
-automáticamente al abrir este archivo. El diagrama UML de componentes y el de secuencia de una propuesta
-están en [`docs/diagramas/`](diagramas/); la sección 9 explica cómo leerlos.
+automáticamente al abrir este archivo. Los dos diagramas UML de componentes (sistema completo y
+componentes internos del back) están en [`docs/diagramas/`](diagramas/); la sección 9 explica cómo leerlos.
 
 Lo marcado con † está configurado fuera del repo (consola de AWS, Auth0 o la propia EC2) y no se puede
 verificar desde el código.
@@ -27,7 +27,9 @@ verificar desde el código.
 ## 2. Diagrama de componentes
 
 El diagrama UML de componentes, con su explicación debajo, está en
-[`docs/diagramas/componentes.md`](diagramas/componentes.md). En resumen:
+[`docs/diagramas/componentes.md`](diagramas/componentes.md). Lo que hay dentro del contenedor `web` (controladores,
+servicios, jobs y outbox) está en [`docs/diagramas/componentes-internos-back.md`](diagramas/componentes-internos-back.md).
+En resumen:
 
 - **Front.** El navegador descarga la SPA desde CloudFront (que lee el bucket S3 privado con OAC †), inicia
   sesión en Auth0 † y llama a la API por HTTPS con el access token como `Bearer`.
@@ -120,8 +122,8 @@ sequenceDiagram
 
 ## 5. Flujo de mensajes con la central
 
-La negociación voluntaria (propuesta, confirmación y pago) está en
-[`secuencia-propuesta.md`](diagramas/secuencia-propuesta.md).
+Los componentes que intervienen están en
+[`componentes-internos-back.md`](diagramas/componentes-internos-back.md).
 
 **Entrada (de la central hacia nosotros)**
 
@@ -166,6 +168,18 @@ La negociación voluntaria (propuesta, confirmación y pago) está en
     corrige con un `idpk` nuevo; no encola nada después de `T - 30 s`, y el outbox no publica un reporte a menos de
     5 s de `T`. Un `REPORT_TOO_EARLY` lo reprograma para `data.opensAt` con el mismo `idpk`. Si la ventana cierra
     sin reporte entregado, queda registrado como `REPORT_MISSED` en `audit_logs`.
+
+**Negociación voluntaria (propuesta saliente)**
+
+13. `POST /proposals` valida precio y capacidad vendible con `NegotiationService` y crea la `Proposal` en estado
+    `pending` junto con su fila de outbox, en una sola transacción. El connector la publica como cualquier otro
+    mensaje del outbox.
+14. La central confirma con `give` (la propuesta pasa a `confirmed` y luego a `paid` cuando llega su `transfer`) o
+    con `take` (pasa a `paid` y el back deja en el outbox el `transfer` con que pagamos). Un `error`
+    `PRICE_ABOVE_CAP`, `OVER_CAPACITY`, `CYCLE_EXPIRED` o `CYCLE_UNKNOWN` la cierra como `rejected`.
+15. `NegotiationTimeoutJob` espera 30 s. Sin confirmación, reintenta con el mismo `idpk` y `msgId` nuevo hasta que
+    cierra la ventana (`expired`). Si un `give` confirmado no recibe su transfer, reintenta hasta 3 veces
+    (`failed`).
 
 **Exposición:** Nginx responde 404 en la ruta exacta `/events` y API Gateway exige token en todas las rutas salvo
 `/up`, `/healthz` y los `OPTIONS` del preflight †. Las otras rutas internas (`/events/rejected`, `/events/outbox` y
@@ -252,12 +266,14 @@ actual no las lee.
 
 ## 9. Cómo leer los diagramas
 
-Hay dos, ambos en [`docs/diagramas/`](diagramas/). Cada uno empieza con una descripción corta y termina con una
-lista "A confirmar". Lo marcado con † viene de esta documentación de despliegue y no se ve en el repo.
+Hay dos diagramas UML de componentes, ambos en [`docs/diagramas/`](diagramas/), con el mismo estilo: cada flecha va
+desde quien inicia hacia quien recibe, y su etiqueta dice qué viaja. Cada uno tiene la explicación debajo y termina
+con una lista "A confirmar". Lo marcado con † viene de esta documentación de despliegue y no se ve en el repo.
 
-- [`componentes.md`](diagramas/componentes.md): diagrama UML de componentes de todo el sistema, con su explicación
-  debajo. Cada flecha va desde quien inicia la conexión y dice el protocolo (HTTPS, HTTP, AMQPS, SQL). Muestra el
-  connector consumiendo y publicando, el outbox, Solid Queue dentro de Puma y la descarga de imágenes desde ECR.
-- [`secuencia-propuesta.md`](diagramas/secuencia-propuesta.md): diagrama UML de secuencia de una propuesta `give`
-  o `take`, desde `POST /proposals` hasta el pago. Incluye la transacción propuesta + outbox, las esperas de 30 s,
-  los reintentos con el mismo `idpk` y los errores de la central que la cierran como `rejected`.
+- [`componentes.md`](diagramas/componentes.md): el sistema completo (front, Auth0, API Gateway, Nginx, contenedores
+  `web`, `db` y `connector`, la central, New Relic y ECR), con el protocolo de cada conexión (HTTPS, HTTP, AMQPS,
+  SQL). Muestra el connector consumiendo y publicando, el outbox, Solid Queue dentro de Puma y ECR.
+- [`componentes-internos-back.md`](diagramas/componentes-internos-back.md): lo que hay dentro del back, por capas
+  (controladores, core de negociación, jobs, integración con la central y datos). Sirve para seguir el camino de un
+  evento entrante (connector → `EventsController` → procesador → base) y de una propuesta saliente
+  (`ProposalsController` → `RabbitMQPublisher` → `outbox_messages` → connector → central).
