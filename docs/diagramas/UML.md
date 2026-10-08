@@ -1,10 +1,10 @@
 # Diagrama de componentes (arquitectura actual)
 
 Vista UML de componentes del nodo EnergyShark de la ciudad TK3 tal como corre hoy en producción.
-Cada flecha va **desde quien inicia la conexión** hacia quien la recibe, y su etiqueta indica el protocolo.
+Cada flecha va desde quien inicia la conexión hacia quien la recibe, y su etiqueta indica el protocolo.
 Los contenedores `web`, `connector` y `db` y sus conexiones salen de `docker-compose.prod.yml`, `Dockerfile`,
 `config/puma.rb`, `infra/nginx/api.conf` y del código del connector. Lo marcado con † (y borde punteado)
-no se ve en el repo y se toma **según la documentación de despliegue** (`docs/arquitectura-y-despliegue.md`).
+no se ve en el repo y se toma según la documentación de despliegue (`docs/arquitectura-y-despliegue.md`).
 
 ```mermaid
 flowchart LR
