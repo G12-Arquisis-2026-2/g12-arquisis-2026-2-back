@@ -15,7 +15,7 @@ WORKDIR /rails
 ENV RAILS_ENV="development" \
     BUNDLE_PATH="/usr/local/bundle"
 
-COPY Gemfile ./
+COPY Gemfile Gemfile.lock ./
 RUN bundle install
 
 COPY . .
