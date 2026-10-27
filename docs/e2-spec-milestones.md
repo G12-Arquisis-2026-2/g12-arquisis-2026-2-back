@@ -1,9 +1,10 @@
-# 1. Especificación de la Entrega (Spec)
+# 1. Especificación de la Entrega
 Entrega: martes 3 de noviembre de 2026.
 
-Objetivo General: Evolucionar el nodo de Tokyo-3 (TK3) desde la negociación con la Central hacia un mercado entre ciudades (protocolo v3). El nodo publica ofertas, compra y vende energía directamente con otras ciudades mediante swaps custodiados por la wallet de la Central, y opera de forma autónoma ciclo a ciclo, tolerando una wallet lenta que a veces falla. La interfaz gráfica permite observar el mercado, administrar la estrategia sin redeploy y auditar cada ciclo.
+### Objetivo General: 
+Evolucionar el nodo de Tokyo-3 (TK3) desde la negociación con la Central hacia un mercado entre ciudades (protocolo v3). El nodo publica ofertas, compra y vende energía directamente con otras ciudades mediante swaps custodiados por la wallet de la Central, y opera de forma autónoma ciclo a ciclo, tolerando una wallet lenta que a veces falla. La interfaz gráfica permite observar el mercado, administrar la estrategia sin redeploy y auditar cada ciclo.
 
-Qué cambia respecto de la E1:
+### Qué cambia respecto de la E1:
 - La wallet (REST) pasa a ser la fuente de verdad de créditos (CR) y energía (KWH). El Ledger local deja de tener autoridad y pasa a ser apoyo a la decisión, reconciliado contra GET /balance.
 - Se retiran negotiation-proposal, give, take, el transfer de pago y demand-statement (la Central responde TYPE_RETIRED).
 - Se agregan los mensajes offer, offer-updated, offer-withdrawn, bid, bid-accepted, bid-rejected, los eventos de la wallet (swap-*), trade-recorded, imbalance-settlement y market-closed.
@@ -11,7 +12,8 @@ Qué cambia respecto de la E1:
 - Las reglas de recepción de la E1 (envelope, user_id, ACK/NACK) aplican también a los mensajes de otras ciudades.
 - El ciclo dura 20 minutos: 10 de mercado y 5 de cierre para el negotiation-report.
 
-Arquitectura de Componentes: Se mantiene la arquitectura de la E1 en contenedores, con un consumidor nuevo y dos módulos nuevos en el backend:
+### Arquitectura de Componentes: 
+Se mantiene la arquitectura de la E1 en contenedores, con un consumidor nuevo y dos módulos nuevos en el backend:
 
 Connector city (RabbitMQ): Script en Ruby (Bunny) que consume city.TK3.q con passive: true. Ahora también recibe bids y respuestas de otras ciudades, y los eventos de la wallet. Valida envelope y user_id contra cityId (NACK IDENTITY_MISMATCH si no corresponde) y reenvía al backend vía HTTP POST.
 Connector market (nuevo): Consumidor de market.TK3 (exchange topic market). Mantiene el libro de ofertas vigente y detecta market-closed. Publica las ofertas propias solo con routing key market.offer.TK3. Los mensajes del feed no se responden con ACK.
@@ -26,7 +28,7 @@ Backend (Ruby on Rails): API RESTful que centraliza la lógica de negocio.
 Estrategia (Jobs): Workers que ejecutan la política de mercado leída desde configuración en base de datos. Como vendedor: publica y mantiene la oferta, acepta bids en serie por oferta y traduce rechazos de la wallet a bid-rejected. Como comprador: calcula el precio efectivo (precio más transporte según la distance-table vigente), envía bids, verifica el token y acepta swaps. Registra por ciclo la estrategia y el span usados (experimento RF06).
 Frontend: Aplicación React con build estático en S3 + CloudFront. Vistas de historial de ciclos (RF01), mercado en vivo (RF02), administración del mercado (RF04), auditoría (RF05) y experimento de span (RF06).
 
-Reglas que no se negocian:
+### Reglas que no se negocian:
 - La Idempotency-Key se guarda antes de la primera llamada y se reutiliza en cada reintento. Una llave nueva es una operación nueva.
 - Los eventos de la wallet son la verdad, no el código HTTP.
 - Nunca se aceptan dos bids contra la misma cantidad.
@@ -34,10 +36,10 @@ Reglas que no se negocian:
 - Ningún secreto (.env, .pem, API key de la wallet) entra al repositorio.
 - El commit de cada ADR (AD4, AD5, AD6) precede a los commits que lo implementan.
 
-2. Plan de Milestones (Hoja de Ruta)
+# 2. Plan de Milestones 
 Para organizar el desarrollo de la Entrega 2, el equipo dividió el trabajo en 5 hitos. Cada hito termina en una condición de salida que el grupo revisa antes de avanzar.
 
-Milestone 1: Fundaciones
+### Milestone 1: Fundaciones
 Objetivo: Dejar escritas las decisiones de arquitectura y cerrar el primer swap dentro del periodo de puntaje.
 Condición de salida: ADRs de AD4, AD5 y AD6 en el repositorio y al menos un swap liquidado (G04).
 
@@ -56,7 +58,7 @@ Tareas:
 
 - Ambiente local en Ubuntu con RabbitMQ propio, para no consumir de la cola de producción.
 
-Milestone 2: Arreglos de la entrega anterior y ciclo de Mercado Autónomo
+### Milestone 2: Arreglos de la entrega anterior y ciclo de Mercado Autónomo
 Objetivo: Que el nodo venda y compre solo, sin intervención manual.
 Condición de salida: Tres ciclos seguidos operando de forma autónoma.
 
@@ -79,7 +81,7 @@ Tareas:
 
 - Rutas nuevas en API Gateway con authorizer y CORS, e instrumentación en New Relic del feed y de la wallet.
 
-Milestone 3: Robustez y Anomalías
+### Milestone 3: Robustez y Anomalías
 Objetivo: Preparar el sistema para las anomalías inducidas de la demo.
 Condición de salida: Las 7 anomalías de la lista probadas al menos una vez.
 
@@ -98,7 +100,7 @@ Tareas:
 
 - Dashboard de APM e infraestructura para la anomalía 7, con medición de la latencia de la wallet.
 
-Milestone 4: Documentación y Ensayo
+### Milestone 4: Documentación y Ensayo
 Objetivo: Completar la documentación evaluada y ensayar la demo.
 Condición de salida: Todos los documentos en /docs y un ensayo completo de demo.
 
@@ -115,7 +117,7 @@ Tareas:
 
 - Ensayo de demo con anomalías elegidas al azar.
 
-Milestone 5: Entrega
+### Milestone 5: Entrega
 Objetivo: Entregar con todos los requisitos esenciales verificados.
 
 Tareas:
@@ -127,7 +129,7 @@ Tareas:
 
 - Verificación uno por uno de los gates G01 a G09 y deploy final.
 
-3. Roles
+# 3. Roles
 Víctor Castillo, Mensajería RabbitMQ y Mensajes entre Ciudades: Extiende el connector para consumir las dos colas (city.TK3.q y market.TK3) y publicar en el exchange market con su routing key propia. Responsable de validar user_id en mensajes de otras ciudades, del manejo de duplicados y NACK de pares, del límite de 60 operaciones de mercado por minuto y de la reconexión automática al broker. Implementa los contract tests en CI. Documenta el post-mortem de AD1.
 
 Maximiliano Weldt, Wallet, Ledger y Consistencia: Implementa el cliente de la wallet con Idempotency-Key y reintentos, la aplicación idempotente de los eventos swap-* en cualquier orden y la verificación del swapToken contra el JWKS. Reconcilia el Ledger con GET /balance al cierre de cada ciclo. Documenta el ADR de AD5 y el post-mortem de AD2.
