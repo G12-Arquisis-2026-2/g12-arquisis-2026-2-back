@@ -1,5 +1,5 @@
-1. Especificación de la Entrega (Spec)
-Fecha: lunes 26 de octubre de 2026 (apertura de la ventana de desarrollo). Entrega: martes 3 de noviembre de 2026.
+# 1. Especificación de la Entrega (Spec)
+Entrega: martes 3 de noviembre de 2026.
 
 Objetivo General: Evolucionar el nodo de Tokyo-3 (TK3) desde la negociación con la Central hacia un mercado entre ciudades (protocolo v3). El nodo publica ofertas, compra y vende energía directamente con otras ciudades mediante swaps custodiados por la wallet de la Central, y opera de forma autónoma ciclo a ciclo, tolerando una wallet lenta que a veces falla. La interfaz gráfica permite observar el mercado, administrar la estrategia sin redeploy y auditar cada ciclo.
 
@@ -37,7 +37,7 @@ Reglas que no se negocian:
 2. Plan de Milestones (Hoja de Ruta)
 Para organizar el desarrollo de la Entrega 2, el equipo dividió el trabajo en 5 hitos. Cada hito termina en una condición de salida que el grupo revisa antes de avanzar.
 
-Milestone 1: Fundaciones (lunes 26 – martes 27 de octubre)
+Milestone 1: Fundaciones
 Objetivo: Dejar escritas las decisiones de arquitectura y cerrar el primer swap dentro del periodo de puntaje.
 Condición de salida: ADRs de AD4, AD5 y AD6 en el repositorio y al menos un swap liquidado (G04).
 
@@ -56,7 +56,7 @@ Tareas:
 
 - Ambiente local en Ubuntu con RabbitMQ propio, para no consumir de la cola de producción.
 
-Milestone 2: Arreglos de la entrega anterior y ciclo de Mercado Autónomo (miércoles 28 – jueves 29 de octubre)
+Milestone 2: Arreglos de la entrega anterior y ciclo de Mercado Autónomo
 Objetivo: Que el nodo venda y compre solo, sin intervención manual.
 Condición de salida: Tres ciclos seguidos operando de forma autónoma.
 
@@ -79,7 +79,7 @@ Tareas:
 
 - Rutas nuevas en API Gateway con authorizer y CORS, e instrumentación en New Relic del feed y de la wallet.
 
-Milestone 3: Robustez y Anomalías (viernes 30 – sábado 31 de octubre)
+Milestone 3: Robustez y Anomalías
 Objetivo: Preparar el sistema para las anomalías inducidas de la demo.
 Condición de salida: Las 7 anomalías de la lista probadas al menos una vez.
 
@@ -98,7 +98,7 @@ Tareas:
 
 - Dashboard de APM e infraestructura para la anomalía 7, con medición de la latencia de la wallet.
 
-Milestone 4: Documentación y Ensayo (domingo 1 – lunes 2 de noviembre)
+Milestone 4: Documentación y Ensayo
 Objetivo: Completar la documentación evaluada y ensayar la demo.
 Condición de salida: Todos los documentos en /docs y un ensayo completo de demo.
 
@@ -115,7 +115,7 @@ Tareas:
 
 - Ensayo de demo con anomalías elegidas al azar.
 
-Milestone 5: Entrega (martes 3 de noviembre)
+Milestone 5: Entrega
 Objetivo: Entregar con todos los requisitos esenciales verificados.
 
 Tareas:
