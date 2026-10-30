@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_10_08_200000) do
+ActiveRecord::Schema[8.1].define(version: 2026_10_29_230418) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
 
@@ -98,6 +98,18 @@ ActiveRecord::Schema[8.1].define(version: 2026_10_08_200000) do
     t.datetime "last_transfer_retry_at"
     t.index ["cycle_id"], name: "index_proposals_on_cycle_id"
     t.index ["idpk"], name: "index_proposals_on_idpk", unique: true
+  end
+
+  create_table "swap_intentions", force: :cascade do |t|
+    t.string "idpk", null: false
+    t.string "swap_id"
+    t.integer "status", default: 0, null: false
+    t.decimal "give_amount"
+    t.decimal "take_amount"
+    t.datetime "expires_at"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["idpk"], name: "index_swap_intentions_on_idpk", unique: true
   end
 
   create_table "transactions", force: :cascade do |t|
