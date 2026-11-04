@@ -1,0 +1,10 @@
+{
+  "base": "../valid/published-example.json",
+  "set": {
+    "/data/acceptor": "COR"
+  },
+  "expect": {
+    "keyword": "additionalProperties",
+    "instancePath": "/data"
+  }
+}

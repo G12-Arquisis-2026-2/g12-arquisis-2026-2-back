@@ -1,0 +1,10 @@
+{
+  "base": "../valid/funding.json",
+  "set": {
+    "/data/creditLine": -1
+  },
+  "expect": {
+    "keyword": "minimum",
+    "instancePath": "/data/creditLine"
+  }
+}

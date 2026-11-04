@@ -1,0 +1,33 @@
+{
+  "idpk": "4d8b2f6a-1c9e-4a73-b5d0-7e3f9a2c6b18",
+  "msgId": "a6c1e9f3-5b2d-4e80-9a4f-2d7b1c8e3f65",
+  "type": "swap-proposed",
+  "timestamp": "2026-10-20T14:06:13Z",
+  "sender": "central",
+  "data": {
+    "swapId": "swp-77",
+    "idpk": "3b9e6c1a-8d2f-4b57-a0e4-6f1c9d3b7a28",
+    "proposer": "HGW",
+    "give": {
+      "asset": "KWH",
+      "amount": 7300
+    },
+    "take": {
+      "asset": "CR",
+      "amount": 2409000
+    },
+    "memo": "HGW-9431",
+    "expiresAt": "2026-10-20T14:06:42Z",
+    "token": "eyJhbGciOiJFUzI1NiIs...",
+    "balancesAfter": {
+      "CR": {
+        "available": 1800000,
+        "held": 0
+      },
+      "KWH": {
+        "available": 12700,
+        "held": 7300
+      }
+    }
+  }
+}

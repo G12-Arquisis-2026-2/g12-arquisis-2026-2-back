@@ -1,0 +1,18 @@
+{
+  "idpk": "ec214fba-11ac-4d8a-bbb3-d225718250d1",
+  "msgId": "7902d003-0b7f-49d2-a87d-e89124d52c30",
+  "type": "bid-accepted",
+  "timestamp": "2026-10-20T14:06:13Z",
+  "cityId": "HGW",
+  "cycleId": "cycle-9431",
+  "data": {
+    "target": "01256c1d-3a8d-4146-8a61-14b1270af094",
+    "offerId": "HGW-9431",
+    "quantity": 7300,
+    "pricePerEnergy": 330,
+    "amount": 2409000,
+    "swapId": "swp-77",
+    "swapToken": "eyJhbGciOiJFUzI1NiIs...",
+    "expiresAt": "2026-10-20T14:06:42Z"
+  }
+}

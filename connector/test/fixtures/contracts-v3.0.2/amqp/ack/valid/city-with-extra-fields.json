@@ -1,0 +1,12 @@
+{
+  "idpk": "ec9d4f8b-5fd3-459d-80d8-c154fbe6452f",
+  "msgId": "1781b4ab-757b-453f-877a-f1abdaf21246",
+  "type": "ack",
+  "timestamp": "2026-10-20T14:03:41Z",
+  "cityId": "COR",
+  "nodeVersion": "1.4.2",
+  "data": {
+    "target": "a26a60e2-2eae-4bc2-8e68-826607aa2c5e",
+    "receivedAt": "2026-10-20T14:03:40Z"
+  }
+}

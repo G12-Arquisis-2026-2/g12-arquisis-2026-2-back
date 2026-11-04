@@ -1,0 +1,18 @@
+{
+  "idpk": "5f9b2d7e-1c4a-4b86-9e3f-2a8c6d0b4f17",
+  "msgId": "d7a3e1c9-8f2b-4d45-b6a0-3e9c5f1d7b82",
+  "type": "swap-rejected",
+  "timestamp": "2026-10-20T14:03:12Z",
+  "sender": "central",
+  "reason": "INSUFFICIENT_ASSET",
+  "code": 402,
+  "data": {
+    "swapId": "swp-77",
+    "operation": "accept",
+    "message": "CR available 150000.5, required 2409000",
+    "asset": "CR",
+    "available": 150000.5,
+    "required": 2409000,
+    "idpk": "e5a1d8c3-4f9b-4b72-9d6e-1c8a3f5b0d27"
+  }
+}

@@ -1,0 +1,10 @@
+{
+  "base": "../valid/published-example.json",
+  "unset": [
+    "/data/idpk"
+  ],
+  "expect": {
+    "keyword": "required",
+    "instancePath": "/data"
+  }
+}

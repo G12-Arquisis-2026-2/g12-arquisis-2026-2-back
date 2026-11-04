@@ -1,0 +1,10 @@
+{
+  "base": "../valid/published-example.json",
+  "set": {
+    "/data/remaining": 12700.5
+  },
+  "expect": {
+    "keyword": "type",
+    "instancePath": "/data/remaining"
+  }
+}

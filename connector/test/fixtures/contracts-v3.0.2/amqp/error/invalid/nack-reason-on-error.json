@@ -1,0 +1,11 @@
+{
+  "base": "../valid/cycle-expired.json",
+  "set": {
+    "/reason": "MALFORMED_MESSAGE",
+    "/code": 422
+  },
+  "expect": {
+    "keyword": "oneOf",
+    "instancePath": ""
+  }
+}

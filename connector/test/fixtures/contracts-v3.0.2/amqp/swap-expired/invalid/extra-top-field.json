@@ -1,0 +1,10 @@
+{
+  "base": "../valid/expired.json",
+  "set": {
+    "/cityId": "HGW"
+  },
+  "expect": {
+    "keyword": "unevaluatedProperties",
+    "instancePath": ""
+  }
+}

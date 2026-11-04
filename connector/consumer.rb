@@ -14,6 +14,8 @@ MAX_SECONDS_OFFLINE = 120
 ALIVE_FILE = '/tmp/connector_alive'.freeze
 # apagado por defecto: solo publica hacia la central si ENABLE_PUBLISHER es exactamente "true"
 PUBLISHER_ENABLED = ENV.fetch('ENABLE_PUBLISHER', 'false') == 'true'
+# routing key para responderle a otra ciudad: city.{CODE} (contratos v3.0.2, tabla "Mensajes AMQP")
+PEER_ROUTING_KEY_FORMAT = ENV.fetch('PEER_ROUTING_KEY_FORMAT', 'city.%s')
 
 def log(text)
   puts "[Connector] #{text}"
@@ -37,7 +39,9 @@ rescue StandardError => e
   retry
 end
 
-# la pausa entre reintentos (5s, 15s, 45s) la hace el processor antes de devolver :retry
+# la pausa entre reintentos (5s, 15s, 45s) la hace el processor antes de devolver :retry.
+# ojo: esto es el ack AL BROKER (sacar el mensaje de la cola). el mensaje "ack" del protocolo,
+# el que se le manda a la central o a otra ciudad, lo publica el processor
 def settle(channel, delivery_tag, outcome)
   case outcome
   when :done   then channel.ack(delivery_tag)
@@ -56,9 +60,40 @@ def central_publisher(channel)
     routing_key: ENV.fetch('CENTRAL_ROUTING_KEY'),
     user_id: ENV.fetch('RABBITMQ_USER'),
     city_id: ENV.fetch('CITY_ID'),
+    peer_routing_key_format: PEER_ROUTING_KEY_FORMAT,
     enabled: PUBLISHER_ENABLED,
     log: method(:log)
   )
+end
+
+# un canal por cola: prefetch 1, un mensaje a la vez, no se pide otro hasta resolver el actual
+def consumer_channel(connection)
+  channel = connection.create_channel
+  channel.prefetch(1)
+  channel
+end
+
+# passive porque no tenemos permiso para crear la cola.
+# sin block: true. si se corta la red bunny reconecta solo y vuelve a suscribir este consumidor
+def subscribe(channel, queue_name, processor)
+  queue = channel.queue(queue_name, passive: true)
+  queue.subscribe(manual_ack: true) do |delivery, properties, body|
+    settle(channel, delivery.delivery_tag, processor.process(body, properties.user_id))
+  end
+  log "Escuchando en '#{queue_name}'..."
+end
+
+# si la cola del mercado no existe o no tenemos permiso, se sigue solo con la de la ciudad:
+# caerse aca dejaria sin responder tambien a la central. el canal queda cerrado y fuera de la vigilancia
+def subscribe_market(connection, master)
+  channel = consumer_channel(connection)
+  # nil: en la cola del mercado nunca se publica una respuesta
+  processor = MessageProcessor.new(master: master, publisher: nil, queue: :market)
+  subscribe(channel, ENV.fetch('MARKET_QUEUE_NAME', "market.#{ENV.fetch('CITY_ID')}"), processor)
+  channel
+rescue Bunny::NotFound, Bunny::AccessRefused => e
+  log "OJO: no se pudo abrir la cola del mercado (#{e.class}). Se sigue solo con la cola de la ciudad."
+  nil
 end
 
 # cada 2 segundos publica lo que la API dejo pendiente. si algo falla se loguea y se sigue en la otra vuelta
@@ -83,29 +118,24 @@ unless ENV.fetch('RABBITMQ_USER') == "city.#{ENV.fetch('CITY_ID')}"
 end
 
 connection = connect(ENV.fetch('RABBITMQ_URL'))
-channel = connection.create_channel
-channel.prefetch(1) # un mensaje a la vez, no se pide otro hasta resolver el actual
-
 master = MasterClient.new(ENV.fetch('MASTER_URL'))
-processor = MessageProcessor.new(master: master, publisher: central_publisher(channel))
 
-queue_name = ENV.fetch('QUEUE_NAME')
-# passive porque no tenemos permiso para crear la cola
-queue = channel.queue(queue_name, passive: true)
+# city.TK3: central, otras ciudades y wallet. aca si se responde ack/nack
+city_channel = consumer_channel(connection)
+city_processor = MessageProcessor.new(master: master, publisher: central_publisher(city_channel))
+subscribe(city_channel, ENV.fetch('QUEUE_NAME'), city_processor)
 
-# sin block: true. si se corta la red bunny reconecta solo, con block terminabamos abriendo 2 conexiones
-queue.subscribe(manual_ack: true) do |delivery, _properties, body|
-  settle(channel, delivery.delivery_tag, processor.process(body))
-end
-log "Escuchando en '#{queue_name}'..."
+# market.TK3: canal y consumidor propios, misma politica de reintentos
+market_channel = subscribe_market(connection, master)
 
 # canal aparte para el hilo que publica: en bunny un canal no se puede compartir entre hilos
 outbox_channel = connection.create_channel
 outbox_channel.confirm_select
 sender = OutboxSender.new(master: master, publisher: central_publisher(outbox_channel),
-                          city_id: ENV.fetch('CITY_ID'), log: method(:log), enabled: PUBLISHER_ENABLED)
+                          city_id: ENV.fetch('CITY_ID'), log: method(:log), enabled: PUBLISHER_ENABLED,
+                          peer_routing_key_format: PEER_ROUTING_KEY_FORMAT)
 start_outbox_thread(sender, connection, outbox_channel)
-channels = [channel, outbox_channel]
+channels = [city_channel, market_channel, outbox_channel].compact
 
 offline_since = nil
 channel_was_closed = false

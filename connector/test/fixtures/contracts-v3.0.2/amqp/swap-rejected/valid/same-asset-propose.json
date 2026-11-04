@@ -1,0 +1,15 @@
+{
+  "idpk": "2e8b5d1a-7c4f-4b93-8e6a-1f3d9c7b2e56",
+  "msgId": "a4f9c2e7-6b1d-4d38-b5a3-7e0c4f9d1b62",
+  "type": "swap-rejected",
+  "timestamp": "2026-10-20T14:09:18Z",
+  "sender": "central",
+  "reason": "SAME_ASSET",
+  "code": 422,
+  "data": {
+    "swapId": "swp-79",
+    "operation": "propose",
+    "message": "give y take son el mismo activo (CR).",
+    "idpk": "d6b2f9a4-1c8e-4e53-8a7d-3f0b5c9e2a16"
+  }
+}

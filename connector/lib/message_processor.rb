@@ -5,9 +5,10 @@ require_relative 'message_validator'
 #   :retry  devolverlo a la cola (la pausa ya se hizo aca)
 #   :reject se agotaron los reintentos, sacarlo de la cola sin requeue
 # solo cuenta como intento que la API falle con ese mensaje (un 5xx que no sea 502, 503 ni 504).
-# si la API esta caida o no se pudo publicar a la central, se espera y se reintenta sin tope
+# si la API esta caida o no se pudo publicar la respuesta, se espera y se reintenta sin tope.
+# queue: :city (city.TK3, se responde ack/nack) o :market (market.TK3, nunca se responde nada)
 class MessageProcessor
-  REJECTION_TYPES = %w[nack error].freeze
+  REJECTION_TYPES = %w[nack error bid-rejected].freeze
   # pausa antes de cada reintento cuando la API falla con ese mensaje. al cuarto fallo se rechaza
   RETRY_DELAYS = [5, 15, 45].freeze
   # pausa cuando la API esta caida o no se pudo publicar a la central. no cuenta como intento
@@ -18,17 +19,20 @@ class MessageProcessor
   # no se pudo publicar el ack o el nack: es problema de la conexion con el broker, no del mensaje
   class PublishError < StandardError; end
 
-  def initialize(master:, publisher:, log: ->(text) { puts "[Connector] #{text}" }, sleeper: ->(s) { sleep s })
+  def initialize(master:, publisher:, queue: :city, log: ->(text) { puts "[Connector] #{text}" },
+                 sleeper: ->(s) { sleep s })
     @master = master
     @publisher = publisher
+    @queue = queue
     @log = log
     @sleeper = sleeper
     # fallos por msgId. en memoria: con prefetch(1) el requeue vuelve altiro a este mismo consumer
     @failures = {}
   end
 
-  def process(raw_body)
-    decision = validate(raw_body)
+  # user_id: la propiedad AMQP user_id del mensaje (properties.user_id de Bunny)
+  def process(raw_body, user_id = nil)
+    decision = validate(raw_body, user_id)
     key = retry_key(decision, raw_body)
     outcome = handle(decision, raw_body)
     return wait_and_requeue if outcome == :wait
@@ -40,7 +44,7 @@ class MessageProcessor
 
   private
 
-  # devuelve :wait si el problema no es del mensaje (API caida o no se pudo publicar a la central)
+  # devuelve :wait si el problema no es del mensaje (API caida o no se pudo publicar la respuesta)
   def handle(decision, raw_body)
     case decision.action
     when :discard then discard(decision, raw_body)
@@ -48,7 +52,7 @@ class MessageProcessor
     else               deliver(decision)
     end
   rescue PublishError => e
-    @log.call("No se pudo publicar a la central (#{e.message}). Vuelve a la cola en #{WAIT_DELAY}s.")
+    @log.call("No se pudo publicar la respuesta (#{e.message}). Vuelve a la cola en #{WAIT_DELAY}s.")
     :wait
   rescue StandardError => e
     # si falla algo raro mejor reintentar que perder el mensaje
@@ -98,16 +102,17 @@ class MessageProcessor
   end
 
   # si el validador se cae se descarta. reintentarlo seria fallar igual para siempre y trabar la cola
-  def validate(raw_body)
-    MessageValidator.check(raw_body)
+  def validate(raw_body, user_id)
+    MessageValidator.check(raw_body, user_id, queue: @queue)
   rescue StandardError => e
     MessageValidator.discard("el validador falló (#{e.class})")
   end
 
   def discard(decision, raw_body)
     @log.call("Descartado: #{decision.detail}")
-    # una respuesta de la central invalida igual se registra como CENTRAL_<tipo>, nunca se responde
-    if reply?(decision.message)
+    # una respuesta de la central invalida igual se registra como CENTRAL_<tipo>, nunca se responde.
+    # una que no publico la central (reason IDENTITY_MISMATCH) va como descarte, no como de la central
+    if reply?(decision.message) && decision.reason != 'IDENTITY_MISMATCH'
       report('central', decision.message, decision.detail)
     else
       # va como texto porque la API lo guarda tal cual llego
@@ -123,8 +128,10 @@ class MessageProcessor
   # nack y listo, no se reintenta porque va a seguir igual de malo
   def reject(decision)
     message = decision.message
-    @log.call("Nack #{decision.reason} a #{message['msgId']}: #{decision.detail}")
-    publish { @publisher.nack(message, decision.reason, decision.code, decision.detail) }
+    @log.call("Nack #{decision.reason} a #{message['msgId']} (#{destination(decision)}): #{decision.detail}")
+    publish do
+      @publisher.nack(message, decision.reason, decision.code, decision.detail, to_city: decision.reply_to)
+    end
     report('nack', message, decision.reason)
     :done
   end
@@ -136,7 +143,7 @@ class MessageProcessor
 
     if result.saved?
       # ojo: primero guardar y despues el ack, si no podemos perder el mensaje
-      publish { @publisher.ack(message) } if decision.send_ack
+      publish { @publisher.ack(message, to_city: decision.reply_to) } if decision.send_ack
       @log.call("Mensaje #{message['msgId']} (#{message['type']}) guardado.")
       :done
     elsif result.invalid?
@@ -155,17 +162,24 @@ class MessageProcessor
     message = decision.message
     @log.call("La API rechazó #{message['msgId']}: #{result.reason}")
     reason, code = result.error_code == 'UNKNOWN_TYPE' ? ['UNKNOWN_TYPE', 400] : ['MALFORMED_MESSAGE', 422]
-    # los ack/nack/error de la central no se responden nunca
-    publish { @publisher.nack(message, reason, code, result.reason) } if decision.send_ack
+    # los ack/nack/error/bid-rejected y los del mercado no se responden nunca
+    return :done unless decision.send_ack
+
+    publish { @publisher.nack(message, reason, code, result.reason, to_city: decision.reply_to) }
     :done
   end
 
   # solo se deja en el log, no se reenvia nada: el mismo mensaje volveria a fallar
   def log_rejection(message)
     target = message['data'].is_a?(Hash) ? message['data']['target'] : nil
-    text = "La central rechazó #{target} con #{message['type']}: #{message['reason']} (#{message['code']})."
+    who = message['cityId'] ? "La ciudad #{message['cityId']}" : 'La central'
+    text = "#{who} rechazó #{target} con #{message['type']}: #{message['reason']} (#{message['code']})."
     text += ' Revisar RABBITMQ_USER y CITY_ID.' if message['reason'] == 'IDENTITY_MISMATCH'
     @log.call(text)
+  end
+
+  def destination(decision)
+    decision.reply_to ? "responde a la ciudad #{decision.reply_to}" : 'responde a la central'
   end
 
   # si el aviso falla da lo mismo, se loguea y se sigue

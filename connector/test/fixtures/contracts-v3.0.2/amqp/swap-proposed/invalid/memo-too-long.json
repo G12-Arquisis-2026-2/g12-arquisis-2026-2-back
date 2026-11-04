@@ -1,0 +1,10 @@
+{
+  "base": "../valid/published-example.json",
+  "set": {
+    "/data/memo": "MMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMM"
+  },
+  "expect": {
+    "keyword": "maxLength",
+    "instancePath": "/data/memo"
+  }
+}

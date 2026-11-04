@@ -1,0 +1,10 @@
+{
+  "base": "../valid/cycle-expired.json",
+  "set": {
+    "/data/cap": 330
+  },
+  "expect": {
+    "keyword": "additionalProperties",
+    "instancePath": "/data"
+  }
+}

@@ -1,0 +1,10 @@
+{
+  "base": "../valid/central-malformed-message.json",
+  "set": {
+    "/reason": "PRICE_ABOVE_CAP"
+  },
+  "expect": {
+    "keyword": "oneOf",
+    "instancePath": ""
+  }
+}

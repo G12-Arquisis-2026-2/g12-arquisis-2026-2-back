@@ -1,0 +1,14 @@
+{
+  "idpk": "e3deefc2-5279-4586-877e-2da4a0097e2d",
+  "msgId": "957adcbb-c0db-439b-8d3b-da8bd46b6b74",
+  "type": "error",
+  "timestamp": "2026-10-20T14:03:41Z",
+  "sender": "central",
+  "reason": "CYCLE_EXPIRED",
+  "code": 410,
+  "data": {
+    "target": "a26a60e2-2eae-4bc2-8e68-826607aa2c5e",
+    "message": "the negotiation window of cycle-9430 is closed",
+    "cycleId": "cycle-9430"
+  }
+}

@@ -1,0 +1,10 @@
+{
+  "base": "../valid/enabled-routes.json",
+  "set": {
+    "/data/distances/HGW/transportCost": "0.0034"
+  },
+  "expect": {
+    "keyword": "type",
+    "instancePath": "/data/distances/HGW/transportCost"
+  }
+}

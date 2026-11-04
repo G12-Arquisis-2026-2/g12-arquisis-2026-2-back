@@ -1,0 +1,10 @@
+{
+  "base": "../valid/closed.json",
+  "unset": [
+    "/data"
+  ],
+  "expect": {
+    "keyword": "required",
+    "instancePath": ""
+  }
+}

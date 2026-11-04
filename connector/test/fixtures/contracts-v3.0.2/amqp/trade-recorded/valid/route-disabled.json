@@ -1,0 +1,20 @@
+{
+  "idpk": "6d2a9f4c-1e7b-4d83-a5c0-8b3e6f1d2a79",
+  "msgId": "b9e3f6a2-4c8d-4e17-9b0a-5f2d7c1e8a36",
+  "type": "trade-recorded",
+  "timestamp": "2026-10-20T14:11:02Z",
+  "sender": "central",
+  "cycleId": "cycle-9431",
+  "data": {
+    "swapId": "swp-91",
+    "offerId": "TAR-9431",
+    "seller": "TAR",
+    "buyer": "COR",
+    "quantity": 2000,
+    "pricePerEnergy": 330,
+    "energyTotal": 660000,
+    "transportPerEnergy": 3206.42,
+    "transportTotal": 6412840,
+    "routeEnabled": false
+  }
+}

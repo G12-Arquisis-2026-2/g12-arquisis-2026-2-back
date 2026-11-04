@@ -1,0 +1,13 @@
+{
+  "idpk": "2d6f8a1e-9c3b-4e57-a0d4-6b8e1f2c7a93",
+  "msgId": "f7a2c9e4-1b6d-4083-9e5f-3c8a0d7b2e16",
+  "type": "transfer",
+  "timestamp": "2026-10-20T14:05:12Z",
+  "sender": "central",
+  "cycleId": "cycle-9431",
+  "data": {
+    "quantity": 1087373.15,
+    "balanceAfter": 1803145.4,
+    "creditLine": 1200000
+  }
+}

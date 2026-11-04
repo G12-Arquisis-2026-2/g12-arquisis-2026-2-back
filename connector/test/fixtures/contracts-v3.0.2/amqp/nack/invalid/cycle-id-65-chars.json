@@ -1,0 +1,10 @@
+{
+  "base": "../valid/central-with-cycle-id.json",
+  "set": {
+    "/data/cycleId": "ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc"
+  },
+  "expect": {
+    "keyword": "maxLength",
+    "instancePath": "/data/cycleId"
+  }
+}

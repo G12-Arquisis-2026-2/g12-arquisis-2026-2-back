@@ -1,0 +1,13 @@
+{
+  "idpk": "ecaa9cde-b5d5-4872-8bb6-707dc91f7bc8",
+  "msgId": "8792187e-3b3b-4659-8756-fb31fb8b51a7",
+  "type": "error",
+  "timestamp": "2026-10-20T14:03:41Z",
+  "sender": "central",
+  "reason": "TYPE_RETIRED",
+  "code": 410,
+  "data": {
+    "target": "a26a60e2-2eae-4bc2-8e68-826607aa2c5e",
+    "message": "type negotiation-proposal was retired in protocol v3"
+  }
+}

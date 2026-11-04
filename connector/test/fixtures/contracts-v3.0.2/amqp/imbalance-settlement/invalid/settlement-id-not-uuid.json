@@ -1,0 +1,10 @@
+{
+  "base": "../valid/coverage-negative.json",
+  "set": {
+    "/data/settlementId": "uuid"
+  },
+  "expect": {
+    "keyword": "format",
+    "instancePath": "/data/settlementId"
+  }
+}

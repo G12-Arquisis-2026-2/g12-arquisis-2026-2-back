@@ -1,0 +1,15 @@
+{
+  "idpk": "49a6857f-739f-4158-853f-8b43747f9af6",
+  "msgId": "3b1905a5-cf7e-44aa-9588-9eca02539b79",
+  "type": "bid-rejected",
+  "timestamp": "2026-10-20T14:06:07Z",
+  "cityId": "HGW",
+  "cycleId": "cycle-9431",
+  "reason": "OFFER_WITHDRAWN",
+  "code": 410,
+  "data": {
+    "target": "01256c1d-3a8d-4146-8a61-14b1270af094",
+    "offerId": "HGW-9431",
+    "message": "la oferta HGW-9431 fue retirada"
+  }
+}

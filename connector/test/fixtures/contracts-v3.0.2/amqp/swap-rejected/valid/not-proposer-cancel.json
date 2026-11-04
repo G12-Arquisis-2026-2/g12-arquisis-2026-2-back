@@ -1,0 +1,15 @@
+{
+  "idpk": "4a6d9c2f-8b3e-4a17-9c5b-2e7f1a4d8c63",
+  "msgId": "f3b8e1d6-5a2c-4f94-b7d0-9c1e6a3f2b85",
+  "type": "swap-rejected",
+  "timestamp": "2026-10-20T14:07:16Z",
+  "sender": "central",
+  "reason": "NOT_PROPOSER",
+  "code": 403,
+  "data": {
+    "swapId": "swp-77",
+    "operation": "cancel",
+    "message": "Sólo el proponente puede cancelar el swap.",
+    "idpk": "9c4e2b7f-5a1d-4d86-b3c0-7f6a1e9d4b25"
+  }
+}

@@ -1,0 +1,10 @@
+{
+  "base": "../valid/published-example.json",
+  "set": {
+    "/data/give/amount": 7300.5
+  },
+  "expect": {
+    "keyword": "oneOf",
+    "instancePath": "/data/give"
+  }
+}

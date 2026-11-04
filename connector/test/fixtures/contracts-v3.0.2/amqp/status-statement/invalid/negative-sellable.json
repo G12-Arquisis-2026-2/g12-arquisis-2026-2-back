@@ -1,0 +1,10 @@
+{
+  "base": "../valid/sellable-zero.json",
+  "set": {
+    "/data/energy/sellable": -209609
+  },
+  "expect": {
+    "keyword": "minimum",
+    "instancePath": "/data/energy/sellable"
+  }
+}

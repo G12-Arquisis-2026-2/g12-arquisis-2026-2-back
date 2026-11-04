@@ -1,0 +1,15 @@
+{
+  "idpk": "c318981b-d15f-4cc7-8bf4-2cd49c680c37",
+  "msgId": "c7ea711e-5f9f-4662-8c04-72b15f6aac52",
+  "type": "error",
+  "timestamp": "2026-10-20T14:03:41Z",
+  "sender": "central",
+  "reason": "REPORT_TOO_EARLY",
+  "code": 422,
+  "data": {
+    "target": "a26a60e2-2eae-4bc2-8e68-826607aa2c5e",
+    "message": "the closing period of cycle-9431 has not opened",
+    "cycleId": "cycle-9431",
+    "opensAt": "2026-10-20T14:15:00Z"
+  }
+}

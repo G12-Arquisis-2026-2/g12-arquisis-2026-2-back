@@ -1,0 +1,10 @@
+{
+  "base": "../valid/market-closed.json",
+  "set": {
+    "/code": 409
+  },
+  "expect": {
+    "keyword": "oneOf",
+    "instancePath": ""
+  }
+}

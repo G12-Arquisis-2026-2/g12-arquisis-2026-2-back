@@ -1,0 +1,10 @@
+{
+  "base": "../valid/quantity-unavailable.json",
+  "unset": [
+    "/data/available"
+  ],
+  "expect": {
+    "keyword": "required",
+    "instancePath": "/data"
+  }
+}

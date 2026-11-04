@@ -1,0 +1,10 @@
+{
+  "base": "../valid/insufficient-asset-propose.json",
+  "set": {
+    "/data/offerId": "HGW-9431"
+  },
+  "expect": {
+    "keyword": "additionalProperties",
+    "instancePath": "/data"
+  }
+}

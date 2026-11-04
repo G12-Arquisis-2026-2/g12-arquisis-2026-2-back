@@ -1,0 +1,33 @@
+{
+  "idpk": "9e2c7a4f-3b1d-4f68-8c5a-0d6e2b9f4a71",
+  "msgId": "1f7d3b9e-6a2c-4c15-b8e0-4a9f1d6c2e37",
+  "type": "swap-settled",
+  "timestamp": "2026-10-20T14:06:31Z",
+  "sender": "central",
+  "data": {
+    "swapId": "swp-77",
+    "idpk": "c01d5e8a-2f7b-4d39-9a6c-1e4b8f2d7c50",
+    "proposer": "HGW",
+    "acceptor": "COR",
+    "give": {
+      "asset": "KWH",
+      "amount": 7300
+    },
+    "take": {
+      "asset": "CR",
+      "amount": 2409000
+    },
+    "memo": "HGW-9431",
+    "settledAt": "2026-10-20T14:06:30Z",
+    "balancesAfter": {
+      "CR": {
+        "available": 4209000,
+        "held": 0
+      },
+      "KWH": {
+        "available": 12700,
+        "held": 0
+      }
+    }
+  }
+}

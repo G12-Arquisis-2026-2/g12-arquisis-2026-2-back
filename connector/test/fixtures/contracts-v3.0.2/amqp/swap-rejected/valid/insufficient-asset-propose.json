@@ -1,0 +1,18 @@
+{
+  "idpk": "8d4a1f7c-2e9b-4c63-a5f0-9b2d6e1c7a38",
+  "msgId": "0c6e3a9f-5b1d-4e72-8a4c-7f2b9d1e6c53",
+  "type": "swap-rejected",
+  "timestamp": "2026-10-20T14:02:11Z",
+  "sender": "central",
+  "reason": "INSUFFICIENT_ASSET",
+  "code": 402,
+  "data": {
+    "swapId": "swp-78",
+    "operation": "propose",
+    "message": "KWH available 4200, required 6000",
+    "asset": "KWH",
+    "available": 4200,
+    "required": 6000,
+    "idpk": "2b7e4a9c-6d1f-4e38-8c5b-0f3a7d2e9b61"
+  }
+}
