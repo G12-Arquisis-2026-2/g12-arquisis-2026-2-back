@@ -1,0 +1,10 @@
+{
+  "idpk": "0af14d6f-1b8c-4fd3-8496-79088704d0a7",
+  "msgId": "fa753730-83bb-4591-8485-724e0c6a1c6b",
+  "type": "ack",
+  "timestamp": "2026-10-20T14:03:41Z",
+  "sender": "central",
+  "data": {
+    "target": "a26a60e2-2eae-4bc2-8e68-826607aa2c5e"
+  }
+}

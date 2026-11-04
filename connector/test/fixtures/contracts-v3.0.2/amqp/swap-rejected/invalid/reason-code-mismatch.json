@@ -1,0 +1,10 @@
+{
+  "base": "../valid/insufficient-asset-propose.json",
+  "set": {
+    "/code": 409
+  },
+  "expect": {
+    "keyword": "oneOf",
+    "instancePath": ""
+  }
+}

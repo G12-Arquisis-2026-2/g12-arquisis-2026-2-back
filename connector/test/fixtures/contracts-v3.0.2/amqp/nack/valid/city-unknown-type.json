@@ -1,0 +1,13 @@
+{
+  "idpk": "e80fe4bf-9b5f-4231-866b-18d632dfeb01",
+  "msgId": "cac1a0bd-4d6a-48a3-8afa-5e50317a5bcf",
+  "type": "nack",
+  "timestamp": "2026-10-20T14:03:41Z",
+  "cityId": "HGW",
+  "reason": "UNKNOWN_TYPE",
+  "code": 400,
+  "data": {
+    "target": "a26a60e2-2eae-4bc2-8e68-826607aa2c5e",
+    "message": "unknown type \"negotiation-propsal\""
+  }
+}

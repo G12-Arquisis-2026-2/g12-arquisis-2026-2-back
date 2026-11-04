@@ -1,0 +1,10 @@
+{
+  "base": "../valid/funding.json",
+  "set": {
+    "/data/becauseOf": "6e3b9d1a-4c7f-4e28-a5b0-2d8c1f7e9a43"
+  },
+  "expect": {
+    "keyword": "additionalProperties",
+    "instancePath": "/data"
+  }
+}

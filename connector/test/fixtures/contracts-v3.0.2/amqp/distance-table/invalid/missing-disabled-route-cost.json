@@ -1,0 +1,10 @@
+{
+  "base": "../valid/enabled-routes.json",
+  "unset": [
+    "/data/disabledRouteTransportCost"
+  ],
+  "expect": {
+    "keyword": "required",
+    "instancePath": "/data"
+  }
+}

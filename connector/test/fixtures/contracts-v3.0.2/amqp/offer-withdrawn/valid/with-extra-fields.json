@@ -1,0 +1,13 @@
+{
+  "idpk": "32513399-7f82-4af5-9ef7-53dc1829f18e",
+  "msgId": "4ba7f6ab-0d32-428e-b916-13964404788e",
+  "type": "offer-withdrawn",
+  "timestamp": "2026-10-20T14:12:02Z",
+  "cityId": "HGW",
+  "cycleId": "cycle-9431",
+  "data": {
+    "offerId": "HGW-9431",
+    "why": "sin excedente"
+  },
+  "nodeVersion": "2.4.1"
+}

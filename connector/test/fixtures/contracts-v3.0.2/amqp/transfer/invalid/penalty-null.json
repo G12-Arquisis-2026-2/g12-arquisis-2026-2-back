@@ -1,0 +1,10 @@
+{
+  "base": "../valid/funding.json",
+  "set": {
+    "/data/penalty": null
+  },
+  "expect": {
+    "keyword": "type",
+    "instancePath": "/data/penalty"
+  }
+}

@@ -1,0 +1,15 @@
+{
+  "idpk": "3c8f1b6e-9d2a-4e54-a7c3-5b0f8d2e6a19",
+  "msgId": "6e1b9d4f-2a7c-4c83-9f5e-1d4b7a0c8e26",
+  "type": "swap-rejected",
+  "timestamp": "2026-10-20T14:05:14Z",
+  "sender": "central",
+  "reason": "SWAP_NOT_PROPOSED",
+  "code": 409,
+  "data": {
+    "swapId": "swp-77",
+    "operation": "cancel",
+    "message": "El swap ya fue liquidado.",
+    "idpk": "4f8c1e6a-9b3d-4a59-8e2f-5d0b7c3a1f48"
+  }
+}

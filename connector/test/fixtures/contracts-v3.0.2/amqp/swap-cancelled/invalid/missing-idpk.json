@@ -1,0 +1,10 @@
+{
+  "base": "../valid/cancelled.json",
+  "unset": [
+    "/data/idpk"
+  ],
+  "expect": {
+    "keyword": "required",
+    "instancePath": "/data"
+  }
+}

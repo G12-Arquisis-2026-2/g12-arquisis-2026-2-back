@@ -1,0 +1,10 @@
+{
+  "base": "../valid/funding-with-penalty.json",
+  "unset": [
+    "/data/penalty/forCycleId"
+  ],
+  "expect": {
+    "keyword": "required",
+    "instancePath": "/data/penalty"
+  }
+}

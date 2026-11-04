@@ -1,0 +1,10 @@
+{
+  "base": "../valid/published-example.json",
+  "unset": [
+    "/cityId"
+  ],
+  "expect": {
+    "keyword": "required",
+    "instancePath": ""
+  }
+}

@@ -1,0 +1,14 @@
+{
+  "idpk": "d3edd061-fe61-4e8c-8dc2-e80f833a487b",
+  "msgId": "50380419-a37b-4e8b-88a0-1490642a04a4",
+  "type": "nack",
+  "timestamp": "2026-10-20T14:03:41Z",
+  "sender": "central",
+  "reason": "MALFORMED_MESSAGE",
+  "code": 422,
+  "data": {
+    "target": "a26a60e2-2eae-4bc2-8e68-826607aa2c5e",
+    "message": "budgetBalance must be a number",
+    "cycleId": "cycle-9431"
+  }
+}

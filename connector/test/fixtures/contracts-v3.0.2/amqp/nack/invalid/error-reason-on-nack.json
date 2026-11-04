@@ -1,0 +1,11 @@
+{
+  "base": "../valid/central-malformed-message.json",
+  "set": {
+    "/reason": "CYCLE_EXPIRED",
+    "/code": 410
+  },
+  "expect": {
+    "keyword": "oneOf",
+    "instancePath": ""
+  }
+}

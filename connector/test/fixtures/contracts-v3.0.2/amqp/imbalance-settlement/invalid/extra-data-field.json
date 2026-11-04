@@ -1,0 +1,10 @@
+{
+  "base": "../valid/coverage-negative.json",
+  "set": {
+    "/data/consumption": 1444121
+  },
+  "expect": {
+    "keyword": "additionalProperties",
+    "instancePath": "/data"
+  }
+}

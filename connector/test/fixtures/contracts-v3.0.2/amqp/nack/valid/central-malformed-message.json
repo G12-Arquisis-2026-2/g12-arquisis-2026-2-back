@@ -1,0 +1,13 @@
+{
+  "idpk": "68c23f51-bdfb-4d80-86c2-094928fd4645",
+  "msgId": "5aa3a386-6632-4cdb-88f8-94291eee15e4",
+  "type": "nack",
+  "timestamp": "2026-10-20T14:03:41Z",
+  "sender": "central",
+  "reason": "MALFORMED_MESSAGE",
+  "code": 422,
+  "data": {
+    "target": "a26a60e2-2eae-4bc2-8e68-826607aa2c5e",
+    "message": "quantity must be a positive number"
+  }
+}

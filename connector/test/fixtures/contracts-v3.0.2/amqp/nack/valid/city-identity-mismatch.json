@@ -1,0 +1,13 @@
+{
+  "idpk": "b81fd933-cb38-4c0d-8fa7-3b4e22607267",
+  "msgId": "f1bc4b03-39e7-4015-8b74-133663adcf41",
+  "type": "nack",
+  "timestamp": "2026-10-20T14:03:41Z",
+  "cityId": "HGW",
+  "reason": "IDENTITY_MISMATCH",
+  "code": 403,
+  "data": {
+    "target": "a26a60e2-2eae-4bc2-8e68-826607aa2c5e",
+    "message": "user_id city.TAR does not match cityId COR"
+  }
+}

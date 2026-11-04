@@ -1,0 +1,10 @@
+{
+  "base": "../valid/route-enabled.json",
+  "set": {
+    "/data/seller": "hgw"
+  },
+  "expect": {
+    "keyword": "pattern",
+    "instancePath": "/data/seller"
+  }
+}

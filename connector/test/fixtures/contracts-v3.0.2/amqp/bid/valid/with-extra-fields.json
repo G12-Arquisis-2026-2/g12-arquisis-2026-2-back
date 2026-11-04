@@ -1,0 +1,14 @@
+{
+  "idpk": "29829926-6d59-4bce-a165-eb482b67c0ee",
+  "msgId": "01db15f2-fb60-42d4-9e32-1dfbc8e4cf75",
+  "type": "bid",
+  "timestamp": "2026-10-20T14:06:05Z",
+  "cityId": "COR",
+  "cycleId": "cycle-9431",
+  "data": {
+    "offerId": "HGW-9431",
+    "quantity": 7300,
+    "pricePerEnergy": 330
+  },
+  "nodeVersion": "1.0.3"
+}

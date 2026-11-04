@@ -1,0 +1,10 @@
+{
+  "base": "../valid/coverage-negative.json",
+  "set": {
+    "/data/deficit": 12000.5
+  },
+  "expect": {
+    "keyword": "type",
+    "instancePath": "/data/deficit"
+  }
+}

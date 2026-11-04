@@ -1,0 +1,10 @@
+{
+  "base": "../valid/report-too-early.json",
+  "unset": [
+    "/data/opensAt"
+  ],
+  "expect": {
+    "keyword": "required",
+    "instancePath": "/data"
+  }
+}

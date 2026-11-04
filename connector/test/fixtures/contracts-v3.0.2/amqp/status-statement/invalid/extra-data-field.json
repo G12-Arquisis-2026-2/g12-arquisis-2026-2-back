@@ -1,0 +1,10 @@
+{
+  "base": "../valid/sellable-zero.json",
+  "set": {
+    "/data/budget": 600000
+  },
+  "expect": {
+    "keyword": "additionalProperties",
+    "instancePath": "/data"
+  }
+}

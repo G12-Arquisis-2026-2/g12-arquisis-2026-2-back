@@ -32,6 +32,20 @@ class OutboxControllerTest < ActionDispatch::IntegrationTest
     assert_equal first.payload, response.parsed_body.first["payload"]
   end
 
+  test "hands out the destination of each message (empty = the central)" do
+    central = publish("negotiation-report")
+    bid = RabbitMQPublisher.publish({ type: "bid", cycleId: "cycle-7", data: {} }, to_city: "HGW")
+    offer = RabbitMQPublisher.publish({ type: "offer", cycleId: "cycle-7", data: {} }, to_market: true)
+
+    get "/events/outbox"
+
+    items = response.parsed_body.index_by { |item| item["payload"]["msgId"] }
+    assert_equal [nil, nil], items[central.msg_id].values_at("exchange", "routing_key")
+    assert_equal [nil, "city.HGW"], items[bid].values_at("exchange", "routing_key")
+    assert_equal ["market", "market.offer.12"], items[offer].values_at("exchange", "routing_key")
+    assert_equal %w[exchange id payload routing_key], items[bid].keys.sort
+  end
+
   test "does not hand out a report whose cycle window already closed" do
     Cycle.create!(cycle_id: "cycle-7", valid_until: Time.utc(2026, 10, 7, 14, 20))
     report = travel_to(Time.utc(2026, 10, 7, 14, 16)) { publish("negotiation-report") }

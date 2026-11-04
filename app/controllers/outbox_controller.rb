@@ -7,7 +7,7 @@ class OutboxController < ApplicationController
   def pending
     OutboxMessage.expire_late_reports!
     messages = OutboxMessage.pending.limit(BATCH_SIZE)
-    render json: messages.map { |message| { id: message.id, payload: message.payload } }
+    render json: messages.map { |message| message.slice(:id, :payload, :exchange, :routing_key) }
   end
 
   # POST /events/outbox/:id   { "status": "sent" }  o  { "status": "failed", "reason": "..." }

@@ -1,0 +1,13 @@
+{
+  "idpk": "2f26d50c-caf0-4930-8510-71a1de205590",
+  "msgId": "82b72eae-be5c-4448-89e2-4234b187d426",
+  "type": "nack",
+  "timestamp": "2026-10-20T14:03:41Z",
+  "sender": "central",
+  "reason": "IDENTITY_MISMATCH",
+  "code": 403,
+  "data": {
+    "target": "a26a60e2-2eae-4bc2-8e68-826607aa2c5e",
+    "message": "user_id city.TAR does not match cityId COR"
+  }
+}

@@ -1,0 +1,10 @@
+{
+  "base": "../valid/swap-not-proposed-accept.json",
+  "set": {
+    "/data/operation": "withdraw"
+  },
+  "expect": {
+    "keyword": "enum",
+    "instancePath": "/data/operation"
+  }
+}

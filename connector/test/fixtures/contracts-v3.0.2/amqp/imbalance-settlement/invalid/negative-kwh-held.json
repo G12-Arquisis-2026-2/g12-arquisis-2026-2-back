@@ -1,0 +1,10 @@
+{
+  "base": "../valid/coverage-negative.json",
+  "set": {
+    "/data/kwhHeld": -1
+  },
+  "expect": {
+    "keyword": "minimum",
+    "instancePath": "/data/kwhHeld"
+  }
+}

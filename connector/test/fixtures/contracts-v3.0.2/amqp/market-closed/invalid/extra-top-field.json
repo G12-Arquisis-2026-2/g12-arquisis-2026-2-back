@@ -1,0 +1,10 @@
+{
+  "base": "../valid/closed.json",
+  "set": {
+    "/cityId": "COR"
+  },
+  "expect": {
+    "keyword": "unevaluatedProperties",
+    "instancePath": ""
+  }
+}

@@ -1,0 +1,15 @@
+{
+  "idpk": "923a7093-30b2-4b4c-9a62-61df90d1caa0",
+  "msgId": "164fe7d6-ade9-40bd-8516-1df22cc43427",
+  "type": "offer",
+  "timestamp": "2026-10-20T14:05:20Z",
+  "cityId": "HGW",
+  "cycleId": "cycle-9431",
+  "data": {
+    "offerId": "HGW-9431",
+    "quantity": 20000,
+    "pricePerEnergy": 330,
+    "note": "energía solar, entrega inmediata"
+  },
+  "nodeVersion": "2.4.1"
+}

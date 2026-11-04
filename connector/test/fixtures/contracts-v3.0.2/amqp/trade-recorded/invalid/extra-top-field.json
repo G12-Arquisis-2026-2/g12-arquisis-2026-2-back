@@ -1,0 +1,10 @@
+{
+  "base": "../valid/route-enabled.json",
+  "set": {
+    "/cityId": "COR"
+  },
+  "expect": {
+    "keyword": "unevaluatedProperties",
+    "instancePath": ""
+  }
+}

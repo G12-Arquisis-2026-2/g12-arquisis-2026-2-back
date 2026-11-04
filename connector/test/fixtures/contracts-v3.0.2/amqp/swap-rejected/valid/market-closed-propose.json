@@ -1,0 +1,15 @@
+{
+  "idpk": "6c3a8f2d-1e9b-4f57-9d4c-3b7e0a6f8d24",
+  "msgId": "8b1e4d7a-9c2f-4a65-a3e8-2f6d1c9b5a07",
+  "type": "swap-rejected",
+  "timestamp": "2026-10-20T14:01:19Z",
+  "sender": "central",
+  "reason": "MARKET_CLOSED",
+  "code": 410,
+  "data": {
+    "swapId": "swp-80",
+    "operation": "propose",
+    "message": "El activo KWH no está habilitado para swaps.",
+    "idpk": "5e1a7c3f-9d4b-4c28-b6e2-8a3f1d7c0b94"
+  }
+}

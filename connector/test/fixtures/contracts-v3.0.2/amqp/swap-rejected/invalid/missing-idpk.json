@@ -1,0 +1,10 @@
+{
+  "base": "../valid/insufficient-asset-propose.json",
+  "unset": [
+    "/data/idpk"
+  ],
+  "expect": {
+    "keyword": "required",
+    "instancePath": "/data"
+  }
+}

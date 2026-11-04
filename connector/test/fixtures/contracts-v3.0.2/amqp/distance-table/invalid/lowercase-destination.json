@@ -1,0 +1,14 @@
+{
+  "base": "../valid/enabled-routes.json",
+  "set": {
+    "/data/distances/hgw": {
+      "distance": 62763183,
+      "transportCost": 0.0034,
+      "enabled": true
+    }
+  },
+  "expect": {
+    "keyword": "additionalProperties",
+    "instancePath": "/data/distances"
+  }
+}

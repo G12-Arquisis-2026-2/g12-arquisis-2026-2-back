@@ -1,0 +1,10 @@
+{
+  "base": "../valid/closed.json",
+  "set": {
+    "/data/cycleId": "cycle-9431"
+  },
+  "expect": {
+    "keyword": "additionalProperties",
+    "instancePath": "/data"
+  }
+}

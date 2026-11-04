@@ -1,0 +1,10 @@
+{
+  "base": "../valid/route-enabled.json",
+  "set": {
+    "/data/distance": 62763
+  },
+  "expect": {
+    "keyword": "additionalProperties",
+    "instancePath": "/data"
+  }
+}

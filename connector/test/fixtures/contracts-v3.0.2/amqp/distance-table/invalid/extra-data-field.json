@@ -1,0 +1,10 @@
+{
+  "base": "../valid/enabled-routes.json",
+  "set": {
+    "/data/routes": 2
+  },
+  "expect": {
+    "keyword": "additionalProperties",
+    "instancePath": "/data"
+  }
+}

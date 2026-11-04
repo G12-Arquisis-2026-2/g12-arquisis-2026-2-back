@@ -2,6 +2,7 @@ require 'minitest/autorun'
 require 'json'
 require_relative '../lib/master_client'
 require_relative '../lib/message_processor'
+require_relative 'support/samples'
 
 # correr desde /connector: ruby test/message_processor_test.rb
 class MessageProcessorTest < Minitest::Test
@@ -40,38 +41,38 @@ class MessageProcessorTest < Minitest::Test
       @nacks = []
     end
 
-    def ack(message)
+    def ack(message, to_city: nil)
       @calls << :ack
-      @acks << message
+      @acks << message.merge('respondidoA' => to_city)
     end
 
-    def nack(message, reason, code, detail)
+    def nack(message, reason, code, detail, to_city: nil)
       @calls << :nack
-      @nacks << { message: message, reason: reason, code: code, detail: detail }
+      @nacks << { message: message, reason: reason, code: code, detail: detail, to_city: to_city }
     end
   end
 
-  def build(**master_options)
+  def build(queue: :city, **master_options)
     @calls = []
     @logs = []
     @sleeps = []
     @master = FakeMaster.new(@calls, **master_options)
     @publisher = FakePublisher.new(@calls)
-    MessageProcessor.new(master: @master, publisher: @publisher, log: ->(text) { @logs << text },
-                         sleeper: ->(seconds) { @sleeps << seconds })
+    # en la cola del mercado no hay publisher: si se intentara responder, revienta
+    processor = MessageProcessor.new(master: @master, publisher: queue == :market ? nil : @publisher, queue: queue,
+                                     log: ->(text) { @logs << text }, sleeper: ->(seconds) { @sleeps << seconds })
+    # por omision los mensajes de prueba llegan como los publica la central: con user_id "central"
+    original = processor.method(:process)
+    processor.define_singleton_method(:process) { |body, user_id = 'central'| original.call(body, user_id) }
+    processor
   end
 
+  # un transfer de la central, tomado de los ejemplos oficiales
   def valid_message(changes = {})
-    {
-      'msgId' => '11111111-1111-4111-8111-111111111111',
-      'idpk' => '22222222-2222-4222-8222-222222222222',
-      'type' => 'transfer',
-      'timestamp' => '2026-10-06T14:00:00Z',
-      'sender' => 'central',
-      'cycleId' => 'cycle-9431',
-      'data' => { 'quantity' => 508_145 }
-    }.merge(changes)
+    Samples.message('transfer', changes)
   end
+
+  TARGET = '0b1c2d3e-4f50-4a61-8b72-9c83d4e5f607'.freeze
 
   def test_valid_message_is_saved_and_then_acked
     processor = build
@@ -80,6 +81,7 @@ class MessageProcessorTest < Minitest::Test
     assert_equal %i[deliver ack], @calls
     assert_equal valid_message, @master.delivered.first
     assert_equal valid_message['msgId'], @publisher.acks.first['msgId']
+    assert_nil @publisher.acks.first['respondidoA']
   end
 
   def test_master_down_means_no_reply_and_retry
@@ -137,7 +139,7 @@ class MessageProcessorTest < Minitest::Test
 
   def test_ack_from_central_is_saved_but_not_answered
     processor = build
-    ack = valid_message('type' => 'ack', 'data' => { 'target' => 'abc' })
+    ack = Samples.message('ack')
 
     assert_equal :done, processor.process(JSON.generate(ack))
     assert_equal %i[deliver], @calls
@@ -145,7 +147,7 @@ class MessageProcessorTest < Minitest::Test
 
   def test_reply_from_central_is_not_nacked_even_if_master_says_422
     processor = build(status: 422)
-    nack = valid_message('type' => 'nack')
+    nack = Samples.message('nack')
 
     assert_equal :done, processor.process(JSON.generate(nack))
     assert_equal %i[deliver], @calls
@@ -207,22 +209,22 @@ class MessageProcessorTest < Minitest::Test
 
   def test_nack_from_central_is_logged_with_reason_code_and_target
     processor = build
-    nack = valid_message('type' => 'nack', 'reason' => 'MALFORMED_MESSAGE', 'code' => 422,
-                         'data' => { 'target' => 'msg-rechazado', 'message' => 'x' })
+    nack = Samples.message('nack', 'reason' => 'MALFORMED_MESSAGE', 'code' => 422,
+                                   'data' => { 'target' => TARGET, 'message' => 'x' })
 
     assert_equal :done, processor.process(JSON.generate(nack))
     assert_equal %i[deliver], @calls
     line = @logs.find { |text| text.include?('La central rechazó') }
     assert_includes line, 'MALFORMED_MESSAGE'
     assert_includes line, '422'
-    assert_includes line, 'msg-rechazado'
+    assert_includes line, TARGET
     refute_includes line, 'RABBITMQ_USER'
   end
 
   def test_identity_mismatch_says_what_to_check
     processor = build
-    nack = valid_message('type' => 'nack', 'reason' => 'IDENTITY_MISMATCH', 'code' => 403,
-                         'data' => { 'target' => 'msg-rechazado' })
+    nack = Samples.message('nack', 'reason' => 'IDENTITY_MISMATCH', 'code' => 403,
+                                   'data' => { 'target' => TARGET, 'message' => 'x' })
 
     assert_equal :done, processor.process(JSON.generate(nack))
     assert_equal %i[deliver], @calls
@@ -422,7 +424,7 @@ class MessageProcessorTest < Minitest::Test
 
   def test_reply_from_central_that_keeps_failing_is_rejected_without_answering
     processor = build(status: 500)
-    body = JSON.generate(valid_message('type' => 'ack', 'data' => { 'target' => 'abc' }))
+    body = JSON.generate(Samples.message('ack'))
 
     3.times { processor.process(body) }
     assert_equal :reject, processor.process(body)
@@ -430,34 +432,175 @@ class MessageProcessorTest < Minitest::Test
     assert_equal 'MAX_RETRIES_EXCEEDED', @master.rejected.first[:reason]
   end
 
-  def test_give_and_take_are_saved_and_acked
-    %w[give take].each do |type|
+  def test_give_and_take_are_retired_and_never_reach_the_api
+    %w[give take demand-statement].each do |type|
       processor = build
-      message = valid_message('type' => type, 'data' => { 'target' => 'msg-propuesta', 'energy' => 300,
-                                                          'pricePerEnergy' => 1.5 })
 
-      assert_equal :done, processor.process(JSON.generate(message))
-      assert_equal %i[deliver ack], @calls
-      assert_empty @publisher.nacks
+      assert_equal :done, processor.process(JSON.generate(valid_message('type' => type)))
+      assert_equal %i[nack report_rejected], @calls
+      assert_equal ['UNKNOWN_TYPE', 400], @publisher.nacks.first.values_at(:reason, :code)
     end
   end
 
-  def test_status_statement_without_valid_until_is_nacked_and_acked_in_the_queue
+  def test_status_statement_without_market_is_nacked_and_acked_in_the_queue
     processor = build
-    data = { 'energy' => { 'generationCapacity' => 900, 'consumption' => 700, 'generationCost' => 12 } }
-    message = valid_message('type' => 'status-statement', 'data' => data)
+    message = Samples.message('status-statement')
+    message['data'].delete('market')
 
     assert_equal :done, processor.process(JSON.generate(message))
     assert_equal %i[nack report_rejected], @calls
     assert_empty @master.delivered
     nack = @publisher.nacks.first
-    assert_equal ['MALFORMED_MESSAGE', 422, 'falta el campo data.validUntil'], nack.values_at(:reason, :code, :detail)
+    assert_equal ['MALFORMED_MESSAGE', 422, 'falta el campo data.market'], nack.values_at(:reason, :code, :detail)
+  end
+
+  # --- protocolo v3: otras ciudades ---
+
+  # el bid oficial, pero enviado por HGW
+  def bid(changes = {})
+    Samples.message('bid', 'cityId' => 'HGW').merge(changes)
+  end
+
+  def test_bid_from_another_city_is_saved_and_acked_to_that_city
+    processor = build
+
+    assert_equal :done, processor.process(JSON.generate(bid), 'city.HGW')
+    assert_equal %i[deliver ack], @calls
+    assert_equal 'HGW', @publisher.acks.first['respondidoA']
+  end
+
+  def test_bid_with_foreign_user_id_gets_identity_mismatch_sent_to_the_real_sender
+    processor = build
+
+    assert_equal :done, processor.process(JSON.generate(bid), 'city.XXX')
+    assert_equal %i[nack report_rejected], @calls
+    assert_empty @master.delivered
+    nack = @publisher.nacks.first
+    assert_equal ['IDENTITY_MISMATCH', 403, 'XXX'], nack.values_at(:reason, :code, :to_city)
+    assert(@logs.any? { |line| line.include?('responde a la ciudad XXX') })
+  end
+
+  # README v3.0.2: lo que dice venir de la central sin user_id "central" no lo publico ella
+  def test_central_message_without_central_user_id_is_discarded_and_reported
+    [nil, 'city.XXX'].each do |user_id|
+      [valid_message, Samples.message('swap-settled'), Samples.message('ack')].each do |message|
+        processor = build
+
+        assert_equal :done, processor.process(JSON.generate(message), user_id)
+        assert_equal %i[report_rejected], @calls
+        assert_equal 'discard', @master.rejected.first[:kind]
+        assert_empty @publisher.acks + @publisher.nacks
+      end
+    end
+  end
+
+  # sin user_id: IDENTITY_MISMATCH a la ciudad que dice ser, la unica a la que se puede responder
+  def test_bid_without_user_id_gets_identity_mismatch_sent_to_its_city_id
+    processor = build
+
+    assert_equal :done, processor.process(JSON.generate(bid), nil)
+    assert_equal ['IDENTITY_MISMATCH', 403, 'HGW'], @publisher.nacks.first.values_at(:reason, :code, :to_city)
+  end
+
+  def test_malformed_bid_is_nacked_to_the_city
+    processor = build
+
+    assert_equal :done, processor.process(JSON.generate(bid('data' => { 'offerId' => 'o', 'quantity' => '7300' })),
+                                          'city.HGW')
+    assert_equal ['MALFORMED_MESSAGE', 422, 'HGW'], @publisher.nacks.first.values_at(:reason, :code, :to_city)
+  end
+
+  def test_api_422_on_a_bid_is_nacked_to_the_city
+    processor = build(status: 422, body: '{"error":"UNKNOWN_TYPE","detail":"type \"bid\" is not supported"}')
+
+    assert_equal :done, processor.process(JSON.generate(bid), 'city.HGW')
+    assert_equal ['UNKNOWN_TYPE', 400, 'HGW'], @publisher.nacks.first.values_at(:reason, :code, :to_city)
+  end
+
+  def test_bid_rejected_is_saved_and_never_answered
+    processor = build
+    message = Samples.message('bid-rejected', 'data' => { 'target' => TARGET, 'offerId' => 'HGW-9431',
+                                                          'available' => 100 })
+
+    assert_equal :done, processor.process(JSON.generate(message), 'city.HGW')
+    assert_equal %i[deliver], @calls
+    assert(@logs.any? { |line| line.include?("La ciudad HGW rechazó #{TARGET}") })
+  end
+
+  def test_malformed_bid_rejected_is_discarded_without_answering
+    processor = build
+    message = Samples.message('bid-rejected', 'data' => { 'target' => TARGET })
+
+    assert_equal :done, processor.process(JSON.generate(message), 'city.HGW')
+    assert_equal %i[report_rejected], @calls
+  end
+
+  # el schema no le pone maximo al cycleId: 65 caracteres se guarda y se responde ack
+  def test_long_cycle_id_is_well_formed
+    processor = build
+
+    assert_equal :done, processor.process(JSON.generate(valid_message('cycleId' => 'c' * 65)))
+    assert_equal %i[deliver ack], @calls
+  end
+
+  # --- cola del mercado ---
+
+  # la oferta oficial, de HGW
+  def offer(changes = {})
+    Samples.message('offer', changes)
+  end
+
+  def test_market_offer_is_saved_and_nothing_is_published
+    processor = build(queue: :market)
+
+    assert_equal :done, processor.process(JSON.generate(offer), 'city.HGW')
+    assert_equal %i[deliver], @calls
+    assert_empty @publisher.acks + @publisher.nacks
+  end
+
+  def test_market_malformed_or_foreign_message_is_reported_and_removed_from_the_queue
+    [[offer('data' => 'x'), 'city.HGW'], [offer, 'city.XXX'], [offer, nil], [bid, 'city.HGW']].each do |message, user_id|
+      processor = build(queue: :market)
+
+      assert_equal :done, processor.process(JSON.generate(message), user_id)
+      assert_equal %i[report_rejected], @calls
+      assert_equal 'discard', @master.rejected.first[:kind]
+      assert_empty @publisher.acks + @publisher.nacks
+    end
+  end
+
+  # market-closed llega sin user_id: viaja por market.closed, que ninguna ciudad puede usar
+  def test_market_closed_without_user_id_is_saved_and_nothing_is_published
+    processor = build(queue: :market)
+
+    assert_equal :done, processor.process(JSON.generate(Samples.message('market-closed')), nil)
+    assert_equal %i[deliver], @calls
+  end
+
+  def test_market_message_rejected_by_the_api_is_not_answered
+    processor = build(queue: :market, status: 422, body: '{"error":"UNKNOWN_TYPE"}')
+
+    assert_equal :done, processor.process(JSON.generate(offer), 'city.HGW')
+    assert_equal %i[deliver], @calls
+  end
+
+  def test_market_uses_the_same_retry_policy
+    processor = build(queue: :market, status: 503)
+    body = JSON.generate(offer)
+
+    5.times { assert_equal :retry, processor.process(body, 'city.HGW') }
+    assert_equal [MessageProcessor::WAIT_DELAY] * 5, @sleeps
+
+    @master.status = 500
+    3.times { assert_equal :retry, processor.process(body, 'city.HGW') }
+    assert_equal :reject, processor.process(body, 'city.HGW')
+    assert_equal 'MAX_RETRIES_EXCEEDED', @master.rejected.first[:reason]
   end
 
   def test_error_from_central_is_logged_and_nothing_is_published
     processor = build
-    error = valid_message('type' => 'error', 'reason' => 'CYCLE_EXPIRED', 'code' => 410,
-                          'data' => { 'target' => 'msg-rechazado', 'message' => 'x' })
+    error = Samples.message('error', 'reason' => 'CYCLE_EXPIRED', 'code' => 410,
+                                     'data' => { 'target' => TARGET, 'message' => 'x' })
 
     assert_equal :done, processor.process(JSON.generate(error))
     assert_empty @publisher.acks + @publisher.nacks

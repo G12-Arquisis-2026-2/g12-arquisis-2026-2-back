@@ -1,0 +1,10 @@
+{
+  "base": "../valid/settled.json",
+  "set": {
+    "/cityId": "HGW"
+  },
+  "expect": {
+    "keyword": "unevaluatedProperties",
+    "instancePath": ""
+  }
+}

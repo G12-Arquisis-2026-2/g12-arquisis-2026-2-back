@@ -1,0 +1,10 @@
+{
+  "base": "../valid/published-example.json",
+  "unset": [
+    "/data/swapToken"
+  ],
+  "expect": {
+    "keyword": "required",
+    "instancePath": "/data"
+  }
+}

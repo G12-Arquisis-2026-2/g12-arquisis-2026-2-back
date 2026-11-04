@@ -1,0 +1,10 @@
+{
+  "base": "../valid/settled.json",
+  "unset": [
+    "/data/acceptor"
+  ],
+  "expect": {
+    "keyword": "required",
+    "instancePath": "/data"
+  }
+}

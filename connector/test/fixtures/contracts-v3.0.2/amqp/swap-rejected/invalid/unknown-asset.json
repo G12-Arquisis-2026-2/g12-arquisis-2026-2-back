@@ -1,0 +1,10 @@
+{
+  "base": "../valid/insufficient-asset-propose.json",
+  "set": {
+    "/data/asset": "USD"
+  },
+  "expect": {
+    "keyword": "enum",
+    "instancePath": "/data/asset"
+  }
+}

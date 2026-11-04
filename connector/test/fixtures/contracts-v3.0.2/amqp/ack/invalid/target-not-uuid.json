@@ -1,0 +1,10 @@
+{
+  "base": "../valid/city.json",
+  "set": {
+    "/data/target": "msg-1"
+  },
+  "expect": {
+    "keyword": "format",
+    "instancePath": "/data/target"
+  }
+}
