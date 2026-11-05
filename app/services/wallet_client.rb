@@ -73,6 +73,7 @@ class WalletClient
     request["X-Api-Key"] = @api_key
 
     response = http_client(uri).request(request)
+    return retry_read("HTTP #{response.code}", path) if response.is_a?(Net::HTTPTooManyRequests)
     return retry_read("HTTP #{response.code}", path) if RETRYABLE_HTTP_STATUSES.include?(response.code.to_i)
 
     Result.new(
@@ -94,6 +95,14 @@ class WalletClient
     request.body = JSON.generate(payload)
 
     response = http_client(uri).request(request)
+
+    if response.is_a?(Net::HTTPTooManyRequests)
+      retry_required(
+        "HTTP 429", idempotency_key, path, payload, enqueue_retry,
+        retry_after(response["Retry-After"])
+      )
+      return Result.new(success?: false, status: 429, body: response.body, retry_required?: true)
+    end
 
     if RETRYABLE_HTTP_STATUSES.include?(response.code.to_i)
       retry_required("HTTP #{response.code}", idempotency_key, path, payload, enqueue_retry)
@@ -119,7 +128,7 @@ class WalletClient
     http
   end
 
-  def retry_required(cause, idempotency_key, path, payload, enqueue_retry)
+  def retry_required(cause, idempotency_key, path, payload, enqueue_retry, wait_seconds = nil)
     Rails.logger.warn(
       "[WalletClient] #{path} falló por red/servidor (#{cause}); operation encolada con idempotency_key=#{idempotency_key}"
     )
@@ -131,7 +140,21 @@ class WalletClient
       path: path,
       payload: payload,
       idempotency_key: idempotency_key
-    ) if defined?(WalletRetryJob)
+    ) if defined?(WalletRetryJob) && wait_seconds.nil?
+
+    WalletRetryJob.set(wait: wait_seconds.seconds).perform_later(
+      operation: "wallet_http",
+      path: path,
+      payload: payload,
+      idempotency_key: idempotency_key
+    ) if defined?(WalletRetryJob) && wait_seconds
+  end
+
+  def retry_after(value)
+    seconds = Integer(value.to_s, exception: false)
+    seconds.positive? ? seconds : nil
+  rescue ArgumentError
+    nil
   end
 
   def retry_read(cause, path)

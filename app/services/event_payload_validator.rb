@@ -35,6 +35,12 @@ class EventPayloadValidator
         route = require_hash!(distances, code, "data.distances.")
         %w[distance transportCost enabled].each { |key| require_value!(route, key, "data.distances.#{code}.") }
       end
+    when "imbalance-settlement"
+      %w[kwhHeld deficit coverage pricePerEnergy total balanceAfter settlementId].each do |key|
+        require_value!(data, key, "data.")
+      end
+    when *%w[swap-proposed swap-settled swap-rejected swap-cancelled swap-expired]
+      validate_wallet_event!(data, type)
     end
   end
 
@@ -79,5 +85,18 @@ class EventPayloadValidator
     value
   end
 
-  private_class_method :require_value!, :require_number!, :require_hash!, :validate_demand_statement!
+  def self.validate_wallet_event!(data, type)
+    require_value!(data, "swapId", "data.")
+
+    if %w[swap-proposed swap-settled].include?(type)
+      require_value!(data, "idpk", "data.")
+      require_hash!(data, "give", "data.")
+      require_hash!(data, "take", "data.")
+    end
+
+    require_value!(data, "idpk", "data.") if %w[swap-rejected swap-cancelled].include?(type)
+  end
+
+  private_class_method :require_value!, :require_number!, :require_hash!,
+                        :validate_demand_statement!, :validate_wallet_event!
 end

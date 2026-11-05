@@ -29,31 +29,48 @@ class WalletEventWorker
   private
 
   def handle_proposed(event)
-    token = event.dig("data", "token")
-    claims = WalletTokenValidator.verify!(token)
+    data = event.fetch("data")
+    claims = WalletTokenValidator.verify!(data.fetch("token"))
     return false unless claims
 
-    swap_id = claims["sub"]
-    proposer = claims["proposer"]
-    give = claims["give"]
-    take = claims["take"]
+    idpk = data.fetch("idpk")
+    swap_id = claims["sub"] || data["swapId"]
+    intention = SwapIntention.find_by(swap_id: swap_id) if swap_id.present?
+    intention ||= SwapIntention.find_or_initialize_by(idpk: idpk)
+    intention.swap_id ||= swap_id
+    intention.give_amount = nested_amount(claims["give"], data.dig("give", "amount"))
+    intention.take_amount = nested_amount(claims["take"], data.dig("take", "amount"))
+    intention.expires_at = Time.at(claims.fetch("exp"))
+    intention.status = :pending
+    intention.save!
 
-    SwapIntention.find_or_create_by!(idpk: event.dig("data", "idpk")) do |intention|
-      intention.swap_id = swap_id
-      intention.give_amount = give
-      intention.take_amount = take
-      intention.expires_at = Time.at(claims.fetch("exp"))
-      intention.status = :pending
-    end
-
-    Rails.logger.info("[WalletEventWorker] Swap #{swap_id} proposed by #{proposer}")
+    Rails.logger.info("[WalletEventWorker] Swap #{swap_id} proposed by #{claims['proposer']}")
     true
   end
 
   def reconcile(event, status)
-    idpk = event.dig("data", "idpk")
-    return if idpk.blank?
+    data = event.fetch("data")
+    idpk = data["idpk"] || event["idpk"] || data["swapId"]
+    return false if idpk.blank?
 
-    SwapIntention.find_by(idpk: idpk)&.update!(status: status)
+    swap_id = data["swapId"]
+    intention = SwapIntention.find_by(swap_id: swap_id) if swap_id.present?
+    intention ||= SwapIntention.find_by(idpk: data["idpk"])
+    intention ||= SwapIntention.find_or_initialize_by(idpk: idpk)
+
+    intention.swap_id ||= swap_id
+    intention.give_amount = nested_amount(data["give"], 0) if intention.give_amount.blank?
+    intention.take_amount = nested_amount(data["take"], 0) if intention.take_amount.blank?
+    intention.status = status
+    intention.save!
+    true
+  end
+
+  def nested_amount(value, fallback = nil)
+    if value.is_a?(Hash)
+      value["quantity"] || value["amount"] || fallback
+    else
+      value || fallback
+    end
   end
 end
