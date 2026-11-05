@@ -12,12 +12,14 @@ class WalletClient
     end
   end
 
-  RETRYABLE_HTTP_STATUSES = [502, 503, 504].freeze
+  RETRYABLE_HTTP_STATUSES = [429, 502, 503, 504].freeze
   NETWORK_ERRORS = [
     Net::OpenTimeout,
     Net::ReadTimeout,
+    Net::WriteTimeout,
     EOFError,
-    Errno::ECONNRESET
+    Errno::ECONNRESET,
+    Errno::ETIMEDOUT
   ].freeze
 
   class RetryableFailure < StandardError; end
@@ -96,7 +98,14 @@ class WalletClient
     response = http_client(uri).request(request)
 
     if RETRYABLE_HTTP_STATUSES.include?(response.code.to_i)
-      retry_required("HTTP #{response.code}", idempotency_key, path, payload, enqueue_retry)
+      retry_required(
+        "HTTP #{response.code}",
+        idempotency_key,
+        path,
+        payload,
+        enqueue_retry,
+        retry_after: response.code.to_i == 429 ? response["Retry-After"] : nil
+      )
       return Result.new(success?: false, status: response.code.to_i, body: response.body, retry_required?: true)
     end
 
@@ -119,19 +128,36 @@ class WalletClient
     http
   end
 
-  def retry_required(cause, idempotency_key, path, payload, enqueue_retry)
+  def retry_required(cause, idempotency_key, path, payload, enqueue_retry, retry_after: nil)
     Rails.logger.warn(
       "[WalletClient] #{path} falló por red/servidor (#{cause}); operation encolada con idempotency_key=#{idempotency_key}"
     )
 
     return unless enqueue_retry
 
-    WalletRetryJob.perform_later(
+    job = WalletRetryJob
+    delay = retry_after_delay(retry_after)
+    job = job.set(wait: delay) if delay
+    job.perform_later(
       operation: "wallet_http",
       path: path,
       payload: payload,
       idempotency_key: idempotency_key
     ) if defined?(WalletRetryJob)
+  end
+
+  def retry_after_delay(value)
+    return if value.blank?
+
+    seconds = Float(value)
+    seconds.positive? ? seconds.seconds : nil
+  rescue ArgumentError, TypeError
+    begin
+      retry_at = Time.httpdate(value)
+      [retry_at - Time.current, 0].max.seconds
+    rescue ArgumentError, TypeError
+      nil
+    end
   end
 
   def retry_read(cause, path)

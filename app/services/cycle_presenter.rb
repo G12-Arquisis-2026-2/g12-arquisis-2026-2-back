@@ -12,6 +12,7 @@ class CyclePresenter
     {
       cycleId: @cycle_id,
       statusStatement: status_statement_data,
+      marketStrategy: market_strategy_data,
       fundsReceived: funds_received,
       demandStatements: demand_statements,
       voluntaryNegotiations: voluntary_negotiations,
@@ -28,13 +29,43 @@ class CyclePresenter
   def status_statement_data
     return nil unless @cycle.valid_until.present?
 
-    {
+    statement = {
       energy: {
         generationCapacity: @cycle.generation_capacity || 0,
         consumption: @cycle.consumption || 0,
         generationCost: @cycle.generation_cost || 0.0
       },
       validUntil: @cycle.valid_until.iso8601
+    }
+    statement[:energy][:sellable] = @cycle.sellable if @cycle.sellable
+    statement[:market] = market_data if market_data
+    statement
+  end
+
+  def market_data
+    return nil if @cycle.buyback_price.blank? && @cycle.imbalance_price.blank?
+
+    {
+      buybackPrice: @cycle.buyback_price,
+      imbalancePrice: @cycle.imbalance_price,
+      minBid: @cycle.min_bid,
+      opensAt: @cycle.market_opens_at&.iso8601,
+      lastOfferAt: @cycle.last_offer_at&.iso8601,
+      lastBidAt: @cycle.last_bid_at&.iso8601,
+      closesAt: @cycle.closes_at&.iso8601,
+      reportOpensAt: @cycle.report_opens_at&.iso8601
+    }
+  end
+
+  def market_strategy_data
+    strategy = @cycle.market_strategy
+    return nil unless strategy
+
+    {
+      id: strategy.id,
+      sellPriceMultiplier: strategy.sell_price_multiplier,
+      maxBuyEffectivePriceRatio: strategy.max_buy_effective_price_ratio,
+      spanSeconds: strategy.span_seconds
     }
   end
 
