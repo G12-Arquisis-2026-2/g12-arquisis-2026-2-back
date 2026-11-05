@@ -23,7 +23,7 @@ class WalletTokenValidator
 
   def self.jwks
     Rails.cache.fetch(CACHE_KEY, expires_in: 1.hour) do
-      uri = URI.join("#{ENV["WALLET_URL"].to_s.chomp("/")}/", ".well-known/jwks.json")
+      uri = URI.join("#{ENV["WALLET_URL"].to_s.chomp("/")}/", "/.well-known/jwks.json")
       response = Net::HTTP.get_response(uri)
       raise JWT::DecodeError, "JWKS request failed with HTTP #{response.code}" unless response.is_a?(Net::HTTPSuccess)
 
