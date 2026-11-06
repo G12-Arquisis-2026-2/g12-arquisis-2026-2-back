@@ -9,7 +9,7 @@ Backend del nodo de la ciudad **Tokyo-3 (TK3)** para EnergyShark (IIC2173, 2026-
 
 Los schemas de los mensajes y el OpenAPI de la API viven en el repositorio de contratos: [https://github.com/<org>/energyshark-e1-contracts](https://github.com/G12-Arquisis-2026-2/IIC2173-2026-2-G12-contratos/blob/main/agents.md)
 
-Contexto compartido para agentes: ver [`agents.md`] en ese repositorio.
+Contexto compartido para agentes: ver [`agents.md`](https://github.com/G12-Arquisis-2026-2/IIC2173-2026-2-G12-contratos/blob/main/agents.md) en ese repositorio.
 
 ## Arquitectura
 
@@ -48,15 +48,14 @@ for f in test/*_test.rb; do ruby -Itest "$f"; done
 
 Incluye los contract tests (`contract_examples_test.rb`), que validan los mensajes contra los ejemplos oficiales del curso (`test/fixtures/contracts-v3.0.2`). Corren en GitHub Actions en cada PR ([.github/workflows/ci.yml](.github/workflows/ci.yml)).
 
-## Documentación
-
 | Documento | Contenido |
 | --- | --- |
 | [docs/e2-spec-milestones.md](docs/e2-spec-milestones.md) | Spec de la entrega, plan de milestones y roles |
-| [docs/ADRs.md](docs/ADRs.md) | Índice de decisiones de arquitectura (AD1 a AD6) y su correspondencia con los archivos ADR |
+| [docs/indices_ADRs.md](docs/indices_ADRs.md) | Índice de decisiones de arquitectura (AD1 a AD6) y su correspondencia con los archivos ADR |
 | [docs/diagrama_UML.md](docs/diagrama_UML.md) | Diagrama de componentes |
 | [docs/guia-local.md](docs/guia-local.md) | Cómo correr la aplicación en local |
-| `docs/` (AI logs) | Logs de uso de AI por integrante |
+| [docs/deploy-e2.md](docs/deploy-e2.md) | Pasos de deploy en EC2 y ECR, con rollback |
+| [docs/documentacion_ia/](docs/documentacion_ia/) | Logs de uso de AI por integrante |
 
 ## Configuración
 
