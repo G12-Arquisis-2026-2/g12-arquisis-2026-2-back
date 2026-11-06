@@ -1,6 +1,16 @@
 class MarketMessageProcessor
   def self.call(payload)
-    ProcessedMessage.process_once(payload) { new(payload).call }
+    processed = ProcessedMessage.process_once(payload) { new(payload).call }
+    resend_bid_reply(payload) if !processed && payload["type"] == "bid"
+    processed
+  end
+
+  # Bid repetido: se reenvía la respuesta que ya dimos (anomalía 1). Si falla solo se loguea,
+  # porque un 500 trabaría la cola del connector.
+  def self.resend_bid_reply(payload)
+    RabbitMQPublisher.resend_bid_reply(payload)
+  rescue StandardError => e
+    Rails.logger.error("[MarketMessageProcessor] No se pudo reenviar la respuesta al bid #{payload['idpk']} (#{e.class}: #{e.message})")
   end
 
   def initialize(payload)

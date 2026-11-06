@@ -40,12 +40,13 @@ module MessageValidator
   Decision = Struct.new(:action, :message, :send_ack, :reason, :code, :detail, :reply_to, keyword_init: true)
 
   # user_id: la propiedad AMQP user_id del mensaje. queue: :city o :market
-  def self.check(raw_body, user_id = nil, queue: :city)
+  # routing_key: con la que el broker lo entrego (delivery_info.routing_key). solo se revisa en el mercado
+  def self.check(raw_body, user_id = nil, queue: :city, routing_key: nil)
     message = parse(raw_body)
     return discard('el cuerpo no es un objeto JSON') if message.nil?
     return discard('el mensaje no trae msgId', message) unless text?(message['msgId'])
 
-    return check_market(message, user_id) if queue == :market
+    return check_market(message, user_id, routing_key) if queue == :market
     return discard_forged_central(message, user_id) if forged_central?(message, user_id)
     return check_no_reply(message, user_id) if NO_REPLY_TYPES.include?(message['type'])
 
@@ -102,13 +103,25 @@ module MessageValidator
 
   # market-closed llega sin user_id (viaja por market.closed, que ninguna ciudad puede usar).
   # las ofertas si traen user_id, y debe ser city.{cityId}
-  def self.check_market(message, user_id)
+  def self.check_market(message, user_id, routing_key)
     problem = problem_in(message, user_id, MARKET_TYPES)
     if problem
       return discard("mensaje del mercado inválido. #{problem[0]}: #{problem[2]}", message, reason: problem[0])
     end
 
+    expected = market_routing_key(message)
+    unless routing_key == expected
+      return discard("#{message['type']} llegó con routing key #{routing_key.inspect} y no por #{expected}",
+                     message, reason: 'WRONG_ROUTING_KEY')
+    end
+
     accept(message, send_ack: false)
+  end
+
+  # un market-closed sin user_id solo es confiable si vino por market.closed, la routing key que ninguna
+  # ciudad puede usar. una oferta, solo por la routing key de la ciudad que dice publicarla
+  def self.market_routing_key(message)
+    message['type'] == 'market-closed' ? 'market.closed' : "market.offer.#{message['cityId']}"
   end
 
   # devuelve [reason, code, detalle] del primer problema, o nil si esta todo bien

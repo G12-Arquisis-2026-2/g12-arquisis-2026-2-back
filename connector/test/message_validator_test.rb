@@ -15,8 +15,8 @@ class MessageValidatorTest < Minitest::Test
   end
 
   # por omision el user_id es el que corresponde al emisor del mensaje
-  def check(message, user_id = Samples.user_for(message), queue: :city)
-    MessageValidator.check(JSON.generate(message), user_id, queue: queue)
+  def check(message, user_id = Samples.user_for(message), queue: :city, routing_key: nil)
+    MessageValidator.check(JSON.generate(message), user_id, queue: queue, routing_key: routing_key)
   end
 
   def assert_nack(decision, reason, code)
@@ -352,8 +352,9 @@ class MessageValidatorTest < Minitest::Test
 
   # --- cola del mercado ---
 
-  def check_market(message, user_id = Samples.user_for(message))
-    check(message, user_id, queue: :market)
+  # por omision llega con la routing key con que el broker lo entregaria
+  def check_market(message, user_id = Samples.user_for(message), routing_key = Samples.market_routing_key(message))
+    check(message, user_id, queue: :market, routing_key: routing_key)
   end
 
   # punto 6
@@ -365,6 +366,30 @@ class MessageValidatorTest < Minitest::Test
 
   def test_mercado_market_closed_publicado_por_una_ciudad_se_descarta
     assert_discard check_market(sample('market-closed'), 'city.XXX')
+  end
+
+  def test_mercado_market_closed_que_no_llego_por_market_closed_se_descarta
+    ['market.offer.HGW', 'market.offer.TK3', 'market.closed.x', '', nil].each do |routing_key|
+      decision = check_market(sample('market-closed'), nil, routing_key)
+      assert_discard decision
+      assert_equal 'WRONG_ROUTING_KEY', decision.reason
+    end
+  end
+
+  def test_mercado_oferta_solo_se_acepta_por_la_routing_key_de_su_ciudad
+    %w[offer offer-updated offer-withdrawn].each do |type|
+      message = sample(type)
+      assert_accept_without_reply check_market(message, 'city.HGW', 'market.offer.HGW')
+      ['market.offer.TK3', 'market.closed', 'market.offer.', nil].each do |routing_key|
+        decision = check_market(message, 'city.HGW', routing_key)
+        assert_discard decision
+        assert_equal 'WRONG_ROUTING_KEY', decision.reason
+      end
+    end
+  end
+
+  def test_la_routing_key_no_se_revisa_en_la_cola_de_la_ciudad
+    assert_accept_with_ack check(sample('transfer'), routing_key: 'cualquier.cosa')
   end
 
   def test_mercado_ofertas_validas_se_aceptan_sin_responder

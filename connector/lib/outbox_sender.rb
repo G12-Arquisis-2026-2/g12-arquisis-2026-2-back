@@ -1,3 +1,5 @@
+require 'securerandom'
+require 'time'
 require_relative 'message_validator'
 require_relative 'rate_limiter'
 
@@ -14,8 +16,9 @@ class OutboxSender
   Destination = Struct.new(:kind, :exchange, :routing_key)
 
   # enabled: false es el modo de ENABLE_PUBLISHER apagado (ver dry_run)
+  # offers: OfferMemory donde se anota cada oferta que sale al mercado (nil = no se recuerda nada)
   def initialize(master:, publisher:, city_id:, log:, enabled: true, peer_routing_key_format: 'city.%s',
-                 limiter: RateLimiter.new(limit: MARKET_LIMIT_PER_MINUTE, window: 60))
+                 limiter: RateLimiter.new(limit: MARKET_LIMIT_PER_MINUTE, window: 60), offers: nil)
     @master = master
     @publisher = publisher
     @city_id = city_id
@@ -23,12 +26,23 @@ class OutboxSender
     @enabled = enabled
     @peer_format = peer_routing_key_format
     @limiter = limiter
+    @offers = offers
     @dry_run_logged = {}
+    @republish_pending = false
+  end
+
+  # lo llama bunny desde su hilo de recuperacion. no se publica ahi: el canal del outbox es de este
+  # hilo (bunny no permite compartirlo), asi que se deja anotado para la proxima vuelta
+  def connection_recovered!
+    @republish_pending = true
   end
 
   def run_once
+    return unless channel_ready?
+
     @limited = false
     @held = 0
+    republish_offer if @republish_pending
     @master.pending_outbox.each do |item|
       # si uno no se pudo publicar se corta la vuelta, asi no salen desordenados
       break unless handle(item)
@@ -37,6 +51,42 @@ class OutboxSender
   end
 
   private
+
+  # un canal que cerro el broker se reemplaza. uno que se cerro por un corte lo recupera bunny solo
+  def channel_ready?
+    reopen_channel if @publisher.closed_by_broker
+    @publisher.channel_open?
+  end
+
+  def reopen_channel
+    @publisher.reopen_channel
+    @log.call('Canal del outbox reabierto.')
+  end
+
+  # va antes que los pendientes: si hay un offer-updated nuevo en el outbox, tiene que salir despues
+  def republish_offer
+    offer = @offers&.offer_to_republish
+    return finish_republish('No hay oferta vigente que republicar tras la reconexión.') unless offer
+
+    destination = Destination.new(:market, offer.exchange, offer.routing_key)
+    return hold unless quota_for?(destination)
+
+    copy = offer.message.merge('msgId' => SecureRandom.uuid, 'timestamp' => Time.now.utc.iso8601)
+    unless @publisher.publish_confirmed(copy, exchange: offer.exchange, routing_key: offer.routing_key)
+      return @log.call('El broker no confirmó la oferta republicada, se intenta en la otra vuelta.')
+    end
+
+    finish_republish("Oferta del ciclo #{copy['cycleId']} republicada tras reconexión " \
+                     "(idpk #{copy['idpk']}, msgId #{copy['msgId']}).")
+  rescue StandardError => e
+    # se intenta de nuevo en la otra vuelta, mientras siga vigente
+    @log.call("No se pudo republicar la oferta (#{e.class}), se intenta en la otra vuelta.")
+  end
+
+  def finish_republish(text)
+    @republish_pending = false
+    @log.call(text)
+  end
 
   def handle(item)
     id = item['id']
@@ -128,17 +178,29 @@ class OutboxSender
   def publish(id, message, destination)
     confirmed = @publisher.publish_confirmed(message, exchange: destination.exchange,
                                                       routing_key: destination.routing_key)
-    unless confirmed
-      @log.call("El broker no confirmó #{message['msgId']}, queda pendiente.")
-      return false
-    end
+    return not_published(id, "El broker no confirmó #{message['msgId']}") unless confirmed
 
     @log.call("Publicado #{message['type']} #{message['msgId']} hacia #{destination.routing_key || 'la central'}.")
+    @offers&.offer_published(message, destination.exchange, destination.routing_key)
     mark_sent(id)
     true
   rescue StandardError => e
-    @log.call("No se pudo publicar #{message['msgId']} (#{e.class}), queda pendiente.")
-    false
+    not_published(id, "No se pudo publicar #{message['msgId']} (#{e.class})")
+  end
+
+  # si el broker cerro el canal por este mensaje (ej: sin permiso), reintentarlo fallaria igual:
+  # queda fallido con el motivo del broker y se sigue con un canal nuevo
+  def not_published(id, text)
+    reason = @publisher.closed_by_broker
+    unless reason
+      @log.call("#{text}, queda pendiente.")
+      return false
+    end
+
+    @log.call("#{text}: el broker cerró el canal del outbox (#{reason}). Queda fallido.")
+    @master.mark_outbox(id, 'failed', "el broker cerró el canal: #{reason}")
+    reopen_channel
+    true
   end
 
   # ojo: si esto falla el mensaje sale de nuevo en la otra vuelta, con el mismo idpk (la central lo toma como repetido)
