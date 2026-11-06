@@ -38,9 +38,12 @@ class WalletEventWorker
     intention = SwapIntention.find_by(swap_id: swap_id) if swap_id.present?
     intention ||= SwapIntention.find_or_initialize_by(idpk: idpk)
     intention.swap_id ||= swap_id
+    intention.cycle_id ||= event["cycleId"]
     intention.give_amount = nested_amount(claims["give"], data.dig("give", "amount"))
     intention.take_amount = nested_amount(claims["take"], data.dig("take", "amount"))
     intention.expires_at = Time.at(claims.fetch("exp"))
+    return false if intention.persisted? && %w[settled rejected cancelled expired].include?(intention.status)
+
     intention.status = :pending
     intention.save!
 
@@ -59,8 +62,11 @@ class WalletEventWorker
     intention ||= SwapIntention.find_or_initialize_by(idpk: idpk)
 
     intention.swap_id ||= swap_id
+    intention.cycle_id ||= data["cycleId"] || event["cycleId"]
     intention.give_amount = nested_amount(data["give"], 0) if intention.give_amount.blank?
     intention.take_amount = nested_amount(data["take"], 0) if intention.take_amount.blank?
+    return false if %w[settled rejected cancelled expired].include?(intention.status)
+
     intention.status = status
     intention.save!
     true

@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_11_06_000001) do
+ActiveRecord::Schema[8.1].define(version: 2026_11_06_000002) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
 
@@ -37,17 +37,21 @@ ActiveRecord::Schema[8.1].define(version: 2026_11_06_000001) do
     t.string "report_msg_id"
     t.datetime "report_not_before"
     t.datetime "report_missed_at"
+    t.bigint "market_strategy_id"
     t.integer "sellable"
     t.decimal "buyback_price", precision: 15, scale: 2
     t.decimal "imbalance_price", precision: 15, scale: 2
     t.integer "min_bid"
+    t.datetime "market_opens_at"
     t.datetime "last_offer_at"
     t.datetime "last_bid_at"
     t.datetime "closes_at"
     t.datetime "report_opens_at"
-    t.bigint "market_strategy_id"
-    t.datetime "market_opens_at"
     t.datetime "market_closed_at"
+    t.decimal "cr_delta", precision: 20, scale: 2
+    t.decimal "kwh_delta", precision: 20, scale: 2
+    t.datetime "reconciliation_scheduled_at"
+    t.datetime "reconciled_at"
     t.index ["cycle_id"], name: "index_cycles_on_cycle_id", unique: true
     t.index ["market_strategy_id"], name: "index_cycles_on_market_strategy_id"
     t.index ["report_msg_id"], name: "index_cycles_on_report_msg_id"
@@ -68,8 +72,8 @@ ActiveRecord::Schema[8.1].define(version: 2026_11_06_000001) do
     t.string "destination_code", null: false
     t.integer "distance", null: false
     t.decimal "transport_cost", null: false
-    t.decimal "disabled_route_transport_cost", precision: 15, scale: 6
     t.boolean "enabled", null: false
+    t.decimal "disabled_route_transport_cost", precision: 15, scale: 6
     t.index ["destination_code"], name: "index_distance_tables_on_destination_code", unique: true
   end
 
@@ -123,7 +127,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_11_06_000001) do
     t.boolean "active", default: true, null: false
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
-    t.index ["active"], name: "index_market_strategies_on_active", unique: true, where: "(active = true)"
+    t.index ["active"], name: "index_market_strategies_on_active", unique: true, where: "active"
   end
 
   create_table "outbox_messages", force: :cascade do |t|
@@ -179,6 +183,10 @@ ActiveRecord::Schema[8.1].define(version: 2026_11_06_000001) do
     t.datetime "expires_at"
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
+    t.string "cycle_id"
+    t.string "cancel_idempotency_key"
+    t.index ["cancel_idempotency_key"], name: "index_swap_intentions_on_cancel_idempotency_key", unique: true
+    t.index ["cycle_id"], name: "index_swap_intentions_on_cycle_id"
     t.index ["idpk"], name: "index_swap_intentions_on_idpk", unique: true
   end
 

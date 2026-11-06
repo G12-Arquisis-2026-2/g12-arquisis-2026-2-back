@@ -58,6 +58,7 @@ class CycleService
     mark_missed_reports(now)
     cycle = Cycle.where.not(valid_until: nil).order(valid_until: :desc).first
 
+    schedule_reconciliations(cycle, now)
     wakes = [now + MAX_SLEEP, status_step(cycle, now)]
     wakes << report_step(cycle, now) if cycle
     wakes << request_if_due("distance-table", since: now - CYCLE_LENGTH, now: now) unless DistanceTable.exists?
@@ -93,6 +94,17 @@ class CycleService
 
   # Publica una petición si toca. Devuelve cuándo toca la siguiente, o nil si ya no quedan intentos.
   # El registro de lo pedido son los mismos mensajes del outbox.
+  def self.schedule_reconciliations(cycle, now)
+    return unless cycle
+
+    reconciliation_at = cycle.valid_until + 10.minutes
+    return unless now >= reconciliation_at &&
+                  cycle.reconciliation_scheduled_at.nil? && cycle.reconciled_at.nil?
+
+    cycle.update_column(:reconciliation_scheduled_at, reconciliation_at)
+    CycleReconciliationJob.perform_later(cycle.cycle_id)
+  end
+
   def self.request_if_due(ask, since:, now:)
     sent = OutboxMessage.where(message_type: "request")
                         .where("payload -> 'data' ->> 'ask' = ?", ask)
@@ -163,6 +175,6 @@ class CycleService
                  .where("payload ->> 'cycleId' = ?", cycle.cycle_id).exists?
   end
 
-  private_class_method :status_step, :request_if_due, :report_step, :send_report,
+  private_class_method :status_step, :request_if_due, :schedule_reconciliations, :report_step, :send_report,
                        :mark_missed_reports, :report_delivered?
 end
