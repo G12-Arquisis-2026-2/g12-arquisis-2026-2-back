@@ -47,7 +47,13 @@ class NegotiationStrategyService
       route = distance_for(distances, city_id)
       next unless route
 
-      transport_cost = route_value(route, route_enabled?(route) ? :transportCost : :disabledRouteTransportCost)
+      transport_cost_key = route_enabled?(route) ? :transportCost : :disabledRouteTransportCost
+      begin
+        transport_cost = route_value(route, transport_cost_key)
+      rescue KeyError
+        Rails.logger.warn("[NegotiationStrategyService] Omitiendo ruta #{city_id}: falta #{transport_cost_key}")
+        next
+      end
       transport = (route_value(route, :distance).to_d * transport_cost).round(2)
       effective_price = offer_price.to_d + transport
       next if effective_price > price_limit

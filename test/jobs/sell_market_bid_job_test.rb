@@ -55,6 +55,7 @@ class SellMarketBidJobTest < ActiveSupport::TestCase
     assert_equal "proposing", bid.status
     assert_equal 40, @offer.reload.reserved_quantity
     assert_equal 800.to_d, wallet.proposed[:take][:amount]
+    assert_kind_of Numeric, wallet.proposed[:take][:amount]
     assert_equal bid.proposal_idpk, wallet.proposed[:idempotency_key]
     assert_equal 60, OutboxMessage.find_by!(message_type: "offer-updated").payload.dig("data", "remaining")
   end

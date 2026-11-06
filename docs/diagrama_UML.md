@@ -15,7 +15,7 @@ flowchart LR
   end
 
   subgraph ENT["Entrada (controladores)"]
-    PC["«component» ProposalsController<br/>GET y POST /proposals"]
+    PC["«component» ProposalsController<br/>GET /proposals"]
     RD["«component» CyclesController, ConnectivityController,<br/>AuditLogsController<br/>GET /cycles, /connectivity, /audit-logs"]
     EV["«component» EventsController<br/>POST /events, POST /events/rejected"]
     OB["«component» OutboxController<br/>GET /events/outbox, POST /events/outbox/:id"]
@@ -61,11 +61,8 @@ flowchart LR
   ERR -->|"REJECTED"| PRP
   ERR -->|"REPORT_TOO_EARLY"| CS
 
-  PC -->|"build_proposal"| NS
-  PC -->|"create PENDING"| PRP
-  PC -->|"misma transacción"| PUB
+  PC -->|"lista"| PRP
   PRP -->|"after_commit de un give confirmado"| NTJ
-  PC -->|"espera de 30 s"| NTJ
   NTJ -->|"reintento con el mismo idpk"| NS
   NTJ -->|"negotiation-proposal"| PUB
   COJ -->|"tick con advisory lock"| CS
@@ -98,10 +95,10 @@ flowchart LR
 - **Confirmación de una propuesta.** Un `give` de la central pasa la propuesta a CONFIRMED y su transfer a PAID. Un
   `take` la pasa a PAID y deja en el outbox nuestro `transfer` de pago. Un `error` (PRICE_ABOVE_CAP, OVER_CAPACITY,
   CYCLE_EXPIRED, CYCLE_UNKNOWN) la cierra como REJECTED.
-- **Propuesta saliente.** `ProposalsController` valida con `NegotiationService` (precio y capacidad vendible),
-  crea la `Proposal` PENDING y la fila de outbox en una sola transacción, y agenda `NegotiationTimeoutJob` a 30 s.
-  El connector pide los pendientes cada 2 s (`GET /events/outbox`), los publica con `user_id` esperando el confirm
-  del broker, y los marca con `POST /events/outbox/:id`.
+- **Propuestas E1.** `ProposalsController` conserva el listado `GET /proposals`; la creación `POST /proposals`
+  está deshabilitada porque la central retiró `negotiation-proposal` (`TYPE_RETIRED`). El connector sigue
+  publicando mensajes pendientes de outbox con `user_id`, esperando el confirm del broker, y marcándolos con
+  `POST /events/outbox/:id`.
 - **Esperas de 30 s.** Una propuesta sin confirmación se reintenta con el mismo `idpk` y `msgId` nuevo hasta que
   cierra la ventana del ciclo (pasa a EXPIRED). Un `give` confirmado sin transfer se reintenta hasta 3 veces (luego
   FAILED).

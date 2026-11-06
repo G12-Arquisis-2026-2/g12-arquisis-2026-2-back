@@ -68,7 +68,7 @@ El `.env` lo usan el connector y `docker-compose.prod.yml`. Si lo creas, deja lo
 
 ### 3.2 `CITY_ID` con un `docker-compose.override.yml` local
 
-**`CITY_ID=TK3` es obligatorio.** `RabbitMQPublisher` usa `ENV.fetch("CITY_ID")` sin valor por defecto (`app/services/rabbit_m_q_publisher.rb:32`). Sin `CITY_ID`, cualquier publicación lanza `KeyError`: `POST /proposals` y las peticiones del orquestador. Qué pasa con los tests sin `CITY_ID`: **[no probado]**.
+**`CITY_ID=TK3` es obligatorio.** `RabbitMQPublisher` usa `ENV.fetch("CITY_ID")` sin valor por defecto (`app/services/rabbit_m_q_publisher.rb:32`). Sin `CITY_ID`, las publicaciones y peticiones del orquestador lanzan `KeyError`. El `POST /proposals` está deshabilitado porque la central retiró `negotiation-proposal`.
 
 `master1` y `master2` **no leen `.env`** (no tienen `env_file`), así que `CITY_ID` se pasa con un override. Crea `docker-compose.override.yml` en la raíz del back:
 

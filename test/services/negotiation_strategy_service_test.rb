@@ -97,6 +97,23 @@ class NegotiationStrategyServiceTest < ActiveSupport::TestCase
     assert_equal 226.to_d, bid[:effective_price_per_energy]
   end
 
+  test "skips a disabled route missing its transport cost and still considers other routes" do
+    offers = [
+      { cityId: "AAA", offerId: "aaa", remaining: 100, pricePerEnergy: 200 },
+      { cityId: "BBB", offerId: "bbb", remaining: 100, pricePerEnergy: 220 }
+    ]
+    distances = {
+      "AAA" => { distance: 2, transportCost: 1, enabled: false },
+      "BBB" => { distance: 1, transportCost: 1, enabled: true }
+    }
+
+    bid = NegotiationStrategyService.best_buy_bid(
+      cycle: @cycle, offers: offers, distances: distances, energy_needed: 50, strategy: @strategy
+    )
+
+    assert_equal "BBB", bid[:city_id]
+  end
+
   test "does not bid on offers below minBid or above the price limit" do
     offers = [
       { cityId: "AAA", offerId: "small", remaining: 9, pricePerEnergy: 1 },

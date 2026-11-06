@@ -50,7 +50,7 @@ class SellMarketBidJob < ApplicationJob
 
     result = WalletClient.new.propose_swap(
       give: { asset: "KWH", amount: bid.quantity },
-      take: { asset: "CR", amount: bid.amount },
+      take: { asset: "CR", amount: bid.amount.to_f },
       memo: bid.offer_id,
       expires_at: bid.expires_at.iso8601,
       idempotency_key: bid.proposal_idpk

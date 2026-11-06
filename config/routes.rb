@@ -42,7 +42,6 @@ Rails.application.routes.draw do
 
   # RF04: Negociaciones voluntarias (listar y proponer)
   get  '/proposals', to: 'proposals#index'
-  post '/proposals', to: 'proposals#create'
 
   # RF05: Auditoría de anomalías (duplicados, descartes y NACKs)
   get '/audit-logs', to: 'audit_logs#index'

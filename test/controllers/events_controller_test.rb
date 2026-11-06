@@ -149,6 +149,22 @@ class EventsControllerTest < ActionDispatch::IntegrationTest
     assert_equal 0, AuditLog.count
   end
 
+  test "receives swap-proposed through the market swap service" do
+    post_event(
+      "type" => "swap-proposed",
+      "idpk" => "event-swap-proposed-1",
+      "data" => {
+        "idpk" => "unknown-market-proposal",
+        "swapId" => "swap-1",
+        "token" => "signed-swap-token",
+        "expiresAt" => 1.minute.from_now.iso8601
+      }
+    )
+
+    assert_response :created
+    assert_equal "saved", response.parsed_body["status"]
+  end
+
   test "give and take are saved in the ledger" do
     post_event give_take_payload("give", "idpk-give")
     assert_response :created
