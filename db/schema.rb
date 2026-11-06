@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_11_03_000001) do
+ActiveRecord::Schema[8.1].define(version: 2026_11_05_000004) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
 
@@ -37,7 +37,19 @@ ActiveRecord::Schema[8.1].define(version: 2026_11_03_000001) do
     t.string "report_msg_id"
     t.datetime "report_not_before"
     t.datetime "report_missed_at"
+    t.integer "sellable"
+    t.decimal "buyback_price", precision: 15, scale: 2
+    t.decimal "imbalance_price", precision: 15, scale: 2
+    t.integer "min_bid"
+    t.datetime "last_offer_at"
+    t.datetime "last_bid_at"
+    t.datetime "closes_at"
+    t.datetime "report_opens_at"
+    t.bigint "market_strategy_id"
+    t.datetime "market_opens_at"
+    t.datetime "market_closed_at"
     t.index ["cycle_id"], name: "index_cycles_on_cycle_id", unique: true
+    t.index ["market_strategy_id"], name: "index_cycles_on_market_strategy_id"
     t.index ["report_msg_id"], name: "index_cycles_on_report_msg_id"
   end
 
@@ -56,8 +68,62 @@ ActiveRecord::Schema[8.1].define(version: 2026_11_03_000001) do
     t.string "destination_code", null: false
     t.integer "distance", null: false
     t.decimal "transport_cost", null: false
+    t.decimal "disabled_route_transport_cost", precision: 15, scale: 6
     t.boolean "enabled", null: false
     t.index ["destination_code"], name: "index_distance_tables_on_destination_code", unique: true
+  end
+
+  create_table "market_bids", force: :cascade do |t|
+    t.string "cycle_id", null: false
+    t.string "offer_id", null: false
+    t.string "bid_idpk", null: false
+    t.string "bid_msg_id", null: false
+    t.string "side", null: false
+    t.string "buyer_city", null: false
+    t.string "seller_city", null: false
+    t.integer "quantity", null: false
+    t.decimal "price_per_energy", precision: 15, scale: 2
+    t.decimal "amount", precision: 15, scale: 2
+    t.string "status", default: "pending", null: false
+    t.string "proposal_idpk"
+    t.string "accept_idpk"
+    t.string "swap_id"
+    t.datetime "expires_at"
+    t.jsonb "raw_payload", default: {}, null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["accept_idpk"], name: "index_market_bids_on_accept_idpk", unique: true
+    t.index ["bid_idpk"], name: "index_market_bids_on_bid_idpk", unique: true
+    t.index ["bid_msg_id"], name: "index_market_bids_on_bid_msg_id", unique: true
+    t.index ["cycle_id", "side", "status"], name: "index_market_bids_on_cycle_id_and_side_and_status"
+    t.index ["proposal_idpk"], name: "index_market_bids_on_proposal_idpk", unique: true
+    t.index ["swap_id"], name: "index_market_bids_on_swap_id"
+  end
+
+  create_table "market_offers", force: :cascade do |t|
+    t.string "cycle_id", null: false
+    t.string "offer_id", null: false
+    t.string "city_id", null: false
+    t.integer "quantity", null: false
+    t.integer "remaining", null: false
+    t.integer "reserved_quantity", default: 0, null: false
+    t.decimal "price_per_energy", precision: 15, scale: 2, null: false
+    t.boolean "active", default: true, null: false
+    t.jsonb "raw_payload", default: {}, null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["cycle_id", "active", "remaining"], name: "index_market_offers_on_cycle_id_and_active_and_remaining"
+    t.index ["cycle_id", "city_id", "offer_id"], name: "index_market_offers_on_cycle_id_and_city_id_and_offer_id", unique: true
+  end
+
+  create_table "market_strategies", force: :cascade do |t|
+    t.decimal "sell_price_multiplier", precision: 8, scale: 4, default: "1.1", null: false
+    t.decimal "max_buy_effective_price_ratio", precision: 8, scale: 4, default: "1.0", null: false
+    t.integer "span_seconds", default: 60, null: false
+    t.boolean "active", default: true, null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["active"], name: "index_market_strategies_on_active", unique: true, where: "(active = true)"
   end
 
   create_table "outbox_messages", force: :cascade do |t|
@@ -125,4 +191,6 @@ ActiveRecord::Schema[8.1].define(version: 2026_11_03_000001) do
     t.index ["cycle_id"], name: "index_transactions_on_cycle_id"
     t.index ["idpk"], name: "index_transactions_on_idpk", unique: true
   end
+
+  add_foreign_key "cycles", "market_strategies"
 end

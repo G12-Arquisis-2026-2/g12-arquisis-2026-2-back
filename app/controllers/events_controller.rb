@@ -35,7 +35,14 @@ class EventsController < ApplicationController
     'swap-cancelled' => WalletEventWorker,
     'swap-expired' => WalletEventWorker,
     'error' => ErrorProcessorService
-  }.reverse_merge(AuditedEventService::EVENT_TYPES.keys.index_with(AuditedEventService)).freeze
+  }.reverse_merge(AuditedEventService::EVENT_TYPES.keys.index_with(AuditedEventService))
+   .reverse_merge(
+     %w[
+       offer offer-updated offer-withdrawn bid bid-accepted bid-rejected market-closed
+       swap-proposed swap-settled swap-rejected swap-cancelled swap-expired
+       trade-recorded imbalance-settlement
+     ].index_with(MarketMessageProcessor)
+   ).freeze
 
   def create
     payload = params.except(:controller, :action).permit!.to_h
