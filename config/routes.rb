@@ -35,9 +35,16 @@ Rails.application.routes.draw do
   # RF02: Tabla de conectividad vigente
   get '/connectivity', to: 'connectivity#index'
 
+  # Configuración versionada de la estrategia de mercado
+  get  '/market-strategy', to: 'market_strategies#show'
+  put  '/market-strategy', to: 'market_strategies#update'
+  patch '/market-strategy', to: 'market_strategies#update'
+
   # RF04: Negociaciones voluntarias (listar y proponer)
   get  '/proposals', to: 'proposals#index'
-  post '/proposals', to: 'proposals#create'
+
+  get '/market/live', to: 'market_api#live'
+  get '/experiments/span', to: 'market_api#span'
 
   # RF05: Auditoría de anomalías (duplicados, descartes y NACKs)
   get '/audit-logs', to: 'audit_logs#index'

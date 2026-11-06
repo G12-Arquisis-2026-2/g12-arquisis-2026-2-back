@@ -1,0 +1,10 @@
+{
+  "base": "../valid/sellable-zero.json",
+  "set": {
+    "/data/market/limits/requestAskPerMinute": 10
+  },
+  "expect": {
+    "keyword": "additionalProperties",
+    "instancePath": "/data/market/limits"
+  }
+}

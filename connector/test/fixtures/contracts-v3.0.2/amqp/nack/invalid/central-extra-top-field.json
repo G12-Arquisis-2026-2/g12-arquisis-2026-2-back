@@ -1,0 +1,10 @@
+{
+  "base": "../valid/central-malformed-message.json",
+  "set": {
+    "/cycleId": "cycle-9431"
+  },
+  "expect": {
+    "keyword": "unevaluatedProperties",
+    "instancePath": ""
+  }
+}

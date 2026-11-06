@@ -1,0 +1,16 @@
+{
+  "idpk": "591da6c6-692d-45d2-9ed6-f0308c70c1a1",
+  "msgId": "88b05a26-f5d4-4b4f-892c-e1879d8650da",
+  "type": "bid-rejected",
+  "timestamp": "2026-10-20T14:06:07Z",
+  "cityId": "HGW",
+  "cycleId": "cycle-9431",
+  "reason": "BID_TOO_SMALL",
+  "code": 422,
+  "data": {
+    "target": "01256c1d-3a8d-4146-8a61-14b1270af094",
+    "offerId": "HGW-9431",
+    "message": "quantity 300 menor que minBid 500",
+    "requested": 300
+  }
+}

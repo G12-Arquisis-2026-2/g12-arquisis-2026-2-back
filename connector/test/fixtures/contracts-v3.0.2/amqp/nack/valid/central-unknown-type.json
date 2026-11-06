@@ -1,0 +1,13 @@
+{
+  "idpk": "71558f3b-da17-4f84-84a5-6c52d3fb705a",
+  "msgId": "f895c1cc-b979-4678-8ccb-ff341875d3a0",
+  "type": "nack",
+  "timestamp": "2026-10-20T14:03:41Z",
+  "sender": "central",
+  "reason": "UNKNOWN_TYPE",
+  "code": 400,
+  "data": {
+    "target": "a26a60e2-2eae-4bc2-8e68-826607aa2c5e",
+    "message": "unknown type \"negotiation-propsal\""
+  }
+}

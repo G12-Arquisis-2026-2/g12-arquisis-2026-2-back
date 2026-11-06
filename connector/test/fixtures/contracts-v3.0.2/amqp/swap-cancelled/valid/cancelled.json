@@ -1,0 +1,21 @@
+{
+  "idpk": "6b3f9d1c-7e4a-4b82-a5d0-3c8e1f6b9a24",
+  "msgId": "e2a8c4f6-9d1b-4e57-8b3a-5f0c7d2e1a96",
+  "type": "swap-cancelled",
+  "timestamp": "2026-10-20T14:06:25Z",
+  "sender": "central",
+  "data": {
+    "swapId": "swp-77",
+    "idpk": "7f2e9b4d-1a6c-4d83-b0e5-8c3a6f1d9b42",
+    "balancesAfter": {
+      "CR": {
+        "available": 1800000,
+        "held": 0
+      },
+      "KWH": {
+        "available": 20000,
+        "held": 0
+      }
+    }
+  }
+}

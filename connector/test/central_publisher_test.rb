@@ -123,7 +123,8 @@ class CentralPublisherTest < Minitest::Test
     assert_equal false, disabled_publisher.publish_confirmed(message)
     assert_empty @channel.published
     refute @channel.confirms_asked?
-    assert_equal ['ENABLE_PUBLISHER apagado, no se publica: type=negotiation-report msgId=a idpk=b cityId=12'], @logs
+    assert_equal ['ENABLE_PUBLISHER apagado, no se publica: type=negotiation-report msgId=a idpk=b cityId=12 ' \
+                  'routingKey=central'], @logs
   end
 
   def test_disabled_ack_and_nack_are_only_logged
@@ -137,9 +138,113 @@ class CentralPublisherTest < Minitest::Test
     assert_includes @logs.last, 'type=nack'
   end
 
+  # --- protocolo v3: respuestas a otras ciudades y publicacion con destino ---
+
+  def test_ack_to_another_city_uses_its_routing_key_and_the_same_exchange
+    @publisher.ack(ORIGINAL, to_city: 'HGW')
+    published = @channel.published.last
+
+    assert_equal 'energy.x', published[:exchange]
+    assert_equal 'city.HGW', published[:routing_key]
+    assert_equal 'city.12', published[:options][:user_id]
+  end
+
+  def test_nack_to_another_city_uses_its_routing_key
+    @publisher.nack(ORIGINAL, 'IDENTITY_MISMATCH', 403, 'user_id ajeno', to_city: 'XXX')
+
+    assert_equal 'city.XXX', @channel.published.last[:routing_key]
+    assert_equal 'IDENTITY_MISMATCH', last_message['reason']
+  end
+
+  def test_peer_routing_key_format_is_configurable
+    publisher = CentralPublisher.new(@channel, exchange: 'energy.x', routing_key: 'central', user_id: 'city.12',
+                                               city_id: '12', peer_routing_key_format: 'peer.%s.in')
+    publisher.ack(ORIGINAL, to_city: 'HGW')
+
+    assert_equal 'peer.HGW.in', @channel.published.last[:routing_key]
+  end
+
+  def test_nack_omits_an_invalid_cycle_id
+    [nil, '', 9431, 'c' * 65, { 'a' => 1 }].each do |cycle_id|
+      @publisher.nack(ORIGINAL.merge('cycleId' => cycle_id), 'MALFORMED_MESSAGE', 422, 'cycleId inválido')
+
+      refute last_message['data'].key?('cycleId'), cycle_id.inspect
+    end
+  end
+
+  def test_nack_keeps_a_cycle_id_of_64_characters
+    @publisher.nack(ORIGINAL.merge('cycleId' => 'c' * 64), 'MALFORMED_MESSAGE', 422, 'x')
+
+    assert_equal 'c' * 64, last_message['data']['cycleId']
+  end
+
+  def test_publish_confirmed_to_a_destination
+    message = { 'msgId' => 'a', 'idpk' => 'b', 'type' => 'offer', 'cityId' => '12' }
+
+    assert_equal true, @publisher.publish_confirmed(message, exchange: 'market', routing_key: 'market.offer.12')
+    published = @channel.published.last
+    assert_equal ['market', 'market.offer.12', 'city.12'], [published[:exchange], published[:routing_key],
+                                                              published[:options][:user_id]]
+  end
+
+  def test_publish_confirmed_with_only_a_routing_key_uses_the_usual_exchange
+    @publisher.publish_confirmed({ 'type' => 'bid' }, routing_key: 'city.HGW')
+
+    assert_equal %w[energy.x city.HGW], @channel.published.last.values_at(:exchange, :routing_key)
+  end
+
   def test_enabled_is_the_default_and_publishes
     @publisher.ack(ORIGINAL)
 
     assert_equal 1, @channel.published.size
+  end
+
+  # --- canal cerrado por el broker (outbox) ---
+
+  class ClosableChannel < FakeChannel
+    def initialize(open: true, error: nil)
+      super()
+      @open = open
+      @last_channel_error = error
+    end
+
+    def open?
+      @open
+    end
+  end
+
+  def outbox_publisher(channel, open_channel: nil)
+    CentralPublisher.new(channel, exchange: 'energy.x', routing_key: 'central', user_id: 'city.12', city_id: '12',
+                                  open_channel: open_channel)
+  end
+
+  def test_an_open_channel_was_not_closed_by_the_broker
+    assert_nil outbox_publisher(ClosableChannel.new).closed_by_broker
+  end
+
+  def test_a_channel_closed_by_a_network_failure_has_no_broker_reason
+    assert_nil outbox_publisher(ClosableChannel.new(open: false)).closed_by_broker
+  end
+
+  def test_a_channel_closed_by_the_broker_gives_its_reason
+    error = StandardError.new("ACCESS_REFUSED - access to exchange 'market' refused")
+    publisher = outbox_publisher(ClosableChannel.new(open: false, error: error))
+
+    assert_equal error.message, publisher.closed_by_broker
+    refute publisher.channel_open?
+  end
+
+  def test_reopen_channel_publishes_on_the_new_one
+    fresh = ClosableChannel.new
+    closed = ClosableChannel.new(open: false, error: StandardError.new('x'))
+    publisher = outbox_publisher(closed, open_channel: -> { fresh })
+
+    publisher.reopen_channel
+    publisher.publish_confirmed(ORIGINAL)
+
+    assert publisher.channel_open?
+    assert_nil publisher.closed_by_broker
+    assert_equal 1, fresh.published.size
+    assert_empty closed.published
   end
 end

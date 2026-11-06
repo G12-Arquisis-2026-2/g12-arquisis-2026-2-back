@@ -1,0 +1,10 @@
+{
+  "base": "../valid/central-malformed-message.json",
+  "unset": [
+    "/data/message"
+  ],
+  "expect": {
+    "keyword": "required",
+    "instancePath": "/data"
+  }
+}

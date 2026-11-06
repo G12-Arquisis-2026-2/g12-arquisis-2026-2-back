@@ -1,0 +1,10 @@
+{
+  "base": "../valid/closed.json",
+  "set": {
+    "/data/offers": 0
+  },
+  "expect": {
+    "keyword": "additionalProperties",
+    "instancePath": "/data"
+  }
+}

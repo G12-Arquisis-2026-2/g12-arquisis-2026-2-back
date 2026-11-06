@@ -1,0 +1,11 @@
+{
+  "base": "../valid/offer-withdrawn.json",
+  "set": {
+    "/reason": "INSUFFICIENT_ASSET",
+    "/code": 402
+  },
+  "expect": {
+    "keyword": "oneOf",
+    "instancePath": ""
+  }
+}

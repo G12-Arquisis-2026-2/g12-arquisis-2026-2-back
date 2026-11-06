@@ -1,0 +1,10 @@
+{
+  "base": "../valid/quantity-unavailable.json",
+  "set": {
+    "/data/requested": 7300.5
+  },
+  "expect": {
+    "keyword": "type",
+    "instancePath": "/data/requested"
+  }
+}

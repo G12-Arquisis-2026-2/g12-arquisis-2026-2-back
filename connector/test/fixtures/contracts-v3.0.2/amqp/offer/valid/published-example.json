@@ -1,0 +1,13 @@
+{
+  "idpk": "7aa6c943-3c99-4a75-a848-3a720cbf311c",
+  "msgId": "4399ad39-a9e9-47be-aef7-e66bc0ea6124",
+  "type": "offer",
+  "timestamp": "2026-10-20T14:05:20Z",
+  "cityId": "HGW",
+  "cycleId": "cycle-9431",
+  "data": {
+    "offerId": "HGW-9431",
+    "quantity": 20000,
+    "pricePerEnergy": 330
+  }
+}

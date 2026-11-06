@@ -1,0 +1,10 @@
+{
+  "base": "../valid/closed.json",
+  "unset": [
+    "/cycleId"
+  ],
+  "expect": {
+    "keyword": "required",
+    "instancePath": ""
+  }
+}

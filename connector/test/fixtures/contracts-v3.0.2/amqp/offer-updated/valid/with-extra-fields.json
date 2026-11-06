@@ -1,0 +1,15 @@
+{
+  "idpk": "e297eca2-9818-4bde-a784-b7b21afe7fe4",
+  "msgId": "3c0e24e0-81fe-4d76-abd5-e27264c87034",
+  "type": "offer-updated",
+  "timestamp": "2026-10-20T14:06:45Z",
+  "cityId": "HGW",
+  "cycleId": "cycle-9431",
+  "data": {
+    "offerId": "HGW-9431",
+    "remaining": 12700,
+    "pricePerEnergy": 330,
+    "soldSoFar": 7300
+  },
+  "nodeVersion": "2.4.1"
+}

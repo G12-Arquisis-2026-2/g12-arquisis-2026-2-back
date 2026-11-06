@@ -35,6 +35,9 @@ gem "image_processing", "~> 1.2"
 # Use Rack CORS for handling Cross-Origin Resource Sharing (CORS), making cross-origin Ajax possible
 gem "rack-cors"
 
+# Validation and decoding of ES256 JWTs issued by the Central Wallet
+gem "jwt", "~> 2.10"
+
 # New Relic APM; se configura solo con variables de entorno (NEW_RELIC_LICENSE_KEY, NEW_RELIC_APP_NAME, NEW_RELIC_LOG)
 gem "newrelic_rpm"
 

@@ -1,0 +1,10 @@
+{
+  "base": "../valid/expired.json",
+  "set": {
+    "/data/idpk": "3b9e6c1a-8d2f-4b57-a0e4-6f1c9d3b7a28"
+  },
+  "expect": {
+    "keyword": "additionalProperties",
+    "instancePath": "/data"
+  }
+}

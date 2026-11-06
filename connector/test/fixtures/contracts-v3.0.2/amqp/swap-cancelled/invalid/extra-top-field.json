@@ -1,0 +1,10 @@
+{
+  "base": "../valid/cancelled.json",
+  "set": {
+    "/cityId": "HGW"
+  },
+  "expect": {
+    "keyword": "unevaluatedProperties",
+    "instancePath": ""
+  }
+}

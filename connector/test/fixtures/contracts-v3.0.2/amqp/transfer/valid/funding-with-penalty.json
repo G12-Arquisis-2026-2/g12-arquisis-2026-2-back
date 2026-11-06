@@ -1,0 +1,17 @@
+{
+  "idpk": "8c1e4b7a-3f2d-4a69-b5c0-9e7d2a1f6b38",
+  "msgId": "4a9d2e6b-7c1f-4b38-8d05-1e6f3a9c7b24",
+  "type": "transfer",
+  "timestamp": "2026-10-20T14:05:12Z",
+  "sender": "central",
+  "cycleId": "cycle-9431",
+  "data": {
+    "quantity": 1066824.1,
+    "penalty": {
+      "amount": 50000,
+      "forCycleId": "cycle-9430"
+    },
+    "balanceAfter": 1782596.35,
+    "creditLine": 1200000
+  }
+}

@@ -1,0 +1,14 @@
+{
+  "idpk": "fd110bce-b75b-4530-8378-f6ae170132d1",
+  "msgId": "6757ec9d-1f1c-4e11-8ca5-88e27049ec19",
+  "type": "error",
+  "timestamp": "2026-10-20T14:03:41Z",
+  "sender": "central",
+  "reason": "CYCLE_UNKNOWN",
+  "code": 404,
+  "data": {
+    "target": "a26a60e2-2eae-4bc2-8e68-826607aa2c5e",
+    "message": "cycle cycle-99999 does not exist",
+    "cycleId": "cycle-99999"
+  }
+}

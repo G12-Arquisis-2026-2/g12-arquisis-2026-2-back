@@ -1,13 +1,11 @@
 # Saldos que se reportan en el negotiation-report de un ciclo (§ Sobre el presupuesto).
 #
-# budget: acumulado entre ciclos ("el budget se traspasa entre ciclos"). Es la suma del ledger hasta
-#   el cierre del ciclo: transfer (+quantity, la multa ya viene descontada ahí), demand-statement
-#   (-q * valuePerKwh) y take (-energy * pricePerEnergy). El cobro de un give llega como transfer, no
-#   se suma dos veces. Lo de ciclos posteriores no entra: el orden lo da el validUntil del
-#   status-statement (el cycleId es opaco). En el ciclo vigente es todo el ledger.
+# budget: acumulado entre ciclos ("el budget se traspasa entre ciclos"). Es la suma del ledger y de
+#   swaps liquidados hasta el cierre del ciclo. El cobro de un give llega como transfer, no se suma
+#   dos veces. Lo de ciclos posteriores no entra: el orden lo da el validUntil del status-statement.
 # energy: solo del ciclo (la energía no se almacena): generationCapacity - consumption del
-#   status-statement, más demand-statement (+q), take (+energy) y give (-energy). Un give cuenta solo
-#   si llegó su pago: sin transfer "no hubo operación real" (§ Pago).
+#   status-statement, los movimientos del ledger y swaps liquidados (buy +quantity, sell -quantity).
+#   Un give cuenta solo si llegó su pago: sin transfer "no hubo operación real" (§ Pago).
 class CycleBalanceService
   def self.call(cycle)
     { budget: budget(cycle), energy: energy(cycle) }
@@ -16,7 +14,11 @@ class CycleBalanceService
   def self.budget(cycle)
     later = Cycle.where("(COALESCE(valid_until, created_at), id) > (?, ?)",
                         cycle.valid_until || cycle.created_at, cycle.id)
-    Transaction.where.not(cycle_id: later.select(:cycle_id)).sum(:budget_change)
+    ledger_budget = Transaction.where.not(cycle_id: later.select(:cycle_id)).sum(:budget_change)
+    swap_budget = MarketBid.where(status: "settled")
+                           .where.not(cycle_id: later.select(:cycle_id))
+                           .sum("CASE WHEN side = 'sell' THEN amount ELSE -amount END")
+    ledger_budget + swap_budget
   end
 
   def self.energy(cycle)
@@ -28,7 +30,9 @@ class CycleBalanceService
           AND payment.raw_data -> 'data' ->> 'becauseOf' = transactions.raw_data ->> 'msgId'
       )
     SQL
-    own + moves
+    swaps = MarketBid.where(cycle_id: cycle.cycle_id, status: "settled")
+                     .sum("CASE WHEN side = 'buy' THEN quantity ELSE -quantity END")
+    own + moves + swaps
   end
 
   private_class_method :budget, :energy

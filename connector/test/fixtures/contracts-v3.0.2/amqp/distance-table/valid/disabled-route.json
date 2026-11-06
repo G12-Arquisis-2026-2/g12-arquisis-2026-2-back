@@ -1,0 +1,23 @@
+{
+  "idpk": "ede458c0-bcd0-4c90-bd06-7d31590dfea0",
+  "msgId": "263f6ff1-1fa9-43d6-8eeb-6683bf7e3bef",
+  "type": "distance-table",
+  "timestamp": "2026-10-20T14:00:12Z",
+  "sender": "central",
+  "cycleId": "cycle-9431",
+  "data": {
+    "distances": {
+      "HGW": {
+        "distance": 62763183,
+        "transportCost": 0.0034,
+        "enabled": true
+      },
+      "TAR": {
+        "distance": 94306517,
+        "transportCost": 0.0013,
+        "enabled": false
+      }
+    },
+    "disabledRouteTransportCost": 0.034
+  }
+}

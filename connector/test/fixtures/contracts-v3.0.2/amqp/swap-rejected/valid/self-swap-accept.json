@@ -1,0 +1,15 @@
+{
+  "idpk": "9f1c6b3e-2d8a-4c45-a0f7-4b9e2d6c1a78",
+  "msgId": "5c7a2e9d-3f1b-4e86-9b4c-0a8d5f2e7c19",
+  "type": "swap-rejected",
+  "timestamp": "2026-10-20T14:08:17Z",
+  "sender": "central",
+  "reason": "SELF_SWAP",
+  "code": 422,
+  "data": {
+    "swapId": "swp-77",
+    "operation": "accept",
+    "message": "El proponente no puede aceptar su propio swap.",
+    "idpk": "3a9d6f1c-8e2b-4b47-9f5a-0c4e7b2d8f63"
+  }
+}

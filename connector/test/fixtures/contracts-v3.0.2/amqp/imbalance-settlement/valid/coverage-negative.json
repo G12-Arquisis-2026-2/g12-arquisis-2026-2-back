@@ -1,0 +1,17 @@
+{
+  "idpk": "7a4c1e9b-2d6f-4b83-9e0a-5c8d3f1b7e26",
+  "msgId": "d2f8b5a1-9e3c-4c70-b6d4-1a7e9c2f5b83",
+  "type": "imbalance-settlement",
+  "timestamp": "2026-10-20T14:15:03Z",
+  "sender": "central",
+  "cycleId": "cycle-9431",
+  "data": {
+    "kwhHeld": 7300,
+    "deficit": 12000,
+    "coverage": -4700,
+    "pricePerEnergy": 735,
+    "total": -3454500,
+    "balanceAfter": 394450.25,
+    "settlementId": "5c9e2a7d-3b1f-4e68-a4d0-8f6b1c3e9a27"
+  }
+}

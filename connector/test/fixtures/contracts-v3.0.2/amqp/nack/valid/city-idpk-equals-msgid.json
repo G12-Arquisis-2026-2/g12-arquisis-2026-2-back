@@ -1,0 +1,13 @@
+{
+  "idpk": "c4add95a-05a3-4285-8a48-e29a897229df",
+  "msgId": "95da5fd2-8b18-4516-8589-97ecbeae208d",
+  "type": "nack",
+  "timestamp": "2026-10-20T14:03:41Z",
+  "cityId": "HGW",
+  "reason": "IDPK_EQUALS_MSGID",
+  "code": 422,
+  "data": {
+    "target": "a26a60e2-2eae-4bc2-8e68-826607aa2c5e",
+    "message": "idpk must differ from msgId"
+  }
+}

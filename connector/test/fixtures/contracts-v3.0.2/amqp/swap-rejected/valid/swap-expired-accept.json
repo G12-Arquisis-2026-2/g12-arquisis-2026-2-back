@@ -1,0 +1,15 @@
+{
+  "idpk": "7b2e5a8c-4f1d-4d69-b3a6-8e0c2f5d9b31",
+  "msgId": "2d9f4b7a-1c6e-4b58-8a2d-5f3c9e1b7d40",
+  "type": "swap-rejected",
+  "timestamp": "2026-10-20T14:06:15Z",
+  "sender": "central",
+  "reason": "SWAP_EXPIRED",
+  "code": 410,
+  "data": {
+    "swapId": "swp-77",
+    "operation": "accept",
+    "message": "El swap venció en 2026-10-20T14:06:42Z.",
+    "idpk": "b1e6a3d9-2c7f-4f15-a9b4-8e3c0d6f2a74"
+  }
+}

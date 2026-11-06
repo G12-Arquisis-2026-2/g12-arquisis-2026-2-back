@@ -1,0 +1,13 @@
+{
+  "idpk": "2e19ba5d-0c21-4e3f-8f3c-8841d3ff67c6",
+  "msgId": "618f6519-76a2-433f-8fcb-1e2a04cd578b",
+  "type": "nack",
+  "timestamp": "2026-10-20T14:03:41Z",
+  "sender": "central",
+  "reason": "IDPK_EQUALS_MSGID",
+  "code": 422,
+  "data": {
+    "target": "a26a60e2-2eae-4bc2-8e68-826607aa2c5e",
+    "message": "idpk must differ from msgId"
+  }
+}

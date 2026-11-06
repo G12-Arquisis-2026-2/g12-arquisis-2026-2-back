@@ -1,0 +1,10 @@
+{
+  "base": "../valid/funding.json",
+  "unset": [
+    "/data/creditLine"
+  ],
+  "expect": {
+    "keyword": "required",
+    "instancePath": "/data"
+  }
+}

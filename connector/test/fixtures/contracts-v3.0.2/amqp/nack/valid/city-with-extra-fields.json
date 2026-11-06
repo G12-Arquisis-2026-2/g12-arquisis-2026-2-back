@@ -1,0 +1,15 @@
+{
+  "idpk": "7832a2ed-d1bd-4b1c-873d-070ae0a52188",
+  "msgId": "77da30c8-f60c-41f7-84d8-966313e37546",
+  "type": "nack",
+  "timestamp": "2026-10-20T14:03:41Z",
+  "cityId": "HGW",
+  "reason": "MALFORMED_MESSAGE",
+  "code": 422,
+  "traceId": "hgw-7f3a",
+  "data": {
+    "target": "a26a60e2-2eae-4bc2-8e68-826607aa2c5e",
+    "message": "quantity must be an integer",
+    "field": "quantity"
+  }
+}

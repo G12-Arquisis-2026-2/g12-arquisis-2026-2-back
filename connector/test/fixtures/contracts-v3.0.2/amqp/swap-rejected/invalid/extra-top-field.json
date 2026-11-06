@@ -1,0 +1,10 @@
+{
+  "base": "../valid/insufficient-asset-propose.json",
+  "set": {
+    "/cityId": "HGW"
+  },
+  "expect": {
+    "keyword": "unevaluatedProperties",
+    "instancePath": ""
+  }
+}

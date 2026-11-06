@@ -1,0 +1,10 @@
+{
+  "base": "../valid/sellable-positive.json",
+  "set": {
+    "/data/energy/sellable": 12712.11
+  },
+  "expect": {
+    "keyword": "type",
+    "instancePath": "/data/energy/sellable"
+  }
+}

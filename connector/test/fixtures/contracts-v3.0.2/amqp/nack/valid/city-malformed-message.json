@@ -1,0 +1,13 @@
+{
+  "idpk": "00ffbeec-81fb-4332-8bbe-91bd6bc45219",
+  "msgId": "69a449de-dade-4091-81eb-6a1aef670a21",
+  "type": "nack",
+  "timestamp": "2026-10-20T14:03:41Z",
+  "cityId": "HGW",
+  "reason": "MALFORMED_MESSAGE",
+  "code": 422,
+  "data": {
+    "target": "a26a60e2-2eae-4bc2-8e68-826607aa2c5e",
+    "message": "quantity must be a positive number"
+  }
+}

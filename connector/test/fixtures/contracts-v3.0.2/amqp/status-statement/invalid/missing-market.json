@@ -1,0 +1,10 @@
+{
+  "base": "../valid/sellable-zero.json",
+  "unset": [
+    "/data/market"
+  ],
+  "expect": {
+    "keyword": "required",
+    "instancePath": "/data"
+  }
+}

@@ -1,0 +1,10 @@
+{
+  "base": "../valid/settled.json",
+  "set": {
+    "/data/token": "eyJhbGciOiJFUzI1NiIs..."
+  },
+  "expect": {
+    "keyword": "additionalProperties",
+    "instancePath": "/data"
+  }
+}

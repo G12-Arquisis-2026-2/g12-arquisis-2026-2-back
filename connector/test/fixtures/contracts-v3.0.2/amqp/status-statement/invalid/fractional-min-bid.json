@@ -1,0 +1,10 @@
+{
+  "base": "../valid/sellable-zero.json",
+  "set": {
+    "/data/market/minBid": 500.5
+  },
+  "expect": {
+    "keyword": "type",
+    "instancePath": "/data/market/minBid"
+  }
+}

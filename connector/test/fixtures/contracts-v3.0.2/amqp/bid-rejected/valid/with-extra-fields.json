@@ -1,0 +1,18 @@
+{
+  "idpk": "f663467e-bcab-429e-b9d5-6d233cf8db10",
+  "msgId": "4fb80dac-98ff-47b1-898b-84b07b1758a1",
+  "type": "bid-rejected",
+  "timestamp": "2026-10-20T14:06:07Z",
+  "cityId": "HGW",
+  "cycleId": "cycle-9431",
+  "reason": "QUANTITY_UNAVAILABLE",
+  "code": 409,
+  "data": {
+    "target": "01256c1d-3a8d-4146-8a61-14b1270af094",
+    "offerId": "HGW-9431",
+    "requested": 7300,
+    "available": 4200,
+    "retryAfterMs": 0
+  },
+  "nodeVersion": "2.4.1"
+}

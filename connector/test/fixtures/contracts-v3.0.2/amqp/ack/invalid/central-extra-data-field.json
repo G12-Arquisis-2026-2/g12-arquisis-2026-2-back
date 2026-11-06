@@ -1,0 +1,10 @@
+{
+  "base": "../valid/central.json",
+  "set": {
+    "/data/message": "recibido"
+  },
+  "expect": {
+    "keyword": "additionalProperties",
+    "instancePath": "/data"
+  }
+}

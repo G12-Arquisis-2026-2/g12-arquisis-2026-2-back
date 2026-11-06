@@ -1,0 +1,10 @@
+{
+  "base": "../valid/cancelled.json",
+  "set": {
+    "/data/reason": "MARKET_CLOSED"
+  },
+  "expect": {
+    "keyword": "additionalProperties",
+    "instancePath": "/data"
+  }
+}

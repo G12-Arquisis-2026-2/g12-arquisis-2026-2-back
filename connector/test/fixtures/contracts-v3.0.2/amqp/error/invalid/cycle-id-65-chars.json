@@ -1,0 +1,10 @@
+{
+  "base": "../valid/cycle-expired.json",
+  "set": {
+    "/data/cycleId": "ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc"
+  },
+  "expect": {
+    "keyword": "maxLength",
+    "instancePath": "/data/cycleId"
+  }
+}
