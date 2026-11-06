@@ -6,7 +6,8 @@ class AuditedEventService
     # prefijo para no confundirlos con los NACK que publicamos nosotros (AuditLog.log_nack)
     "ack" => "CENTRAL_ACK",
     "nack" => "CENTRAL_NACK",
-    "error" => "CENTRAL_ERROR"
+    "error" => "CENTRAL_ERROR",
+    "imbalance-settlement" => "IMBALANCE_SETTLEMENT"
   }.freeze
 
   def self.call(payload)

@@ -14,6 +14,7 @@ class DistanceTableProcessorServiceTest < ActiveSupport::TestCase
     destination = DistanceTable.find_by!(destination_code: "HGW")
     assert_equal 62_763_183, destination.distance
     assert_equal BigDecimal("0.0034"), destination.transport_cost
+    assert_equal BigDecimal("0.034"), destination.disabled_route_transport_cost
     assert destination.enabled
 
     DistanceTableProcessorService.call(payload("HGW" => {
@@ -26,6 +27,7 @@ class DistanceTableProcessorServiceTest < ActiveSupport::TestCase
     destination.reload
     assert_equal 100, destination.distance
     assert_equal BigDecimal("2.5"), destination.transport_cost
+    assert_equal BigDecimal("0.034"), destination.disabled_route_transport_cost
     assert_not destination.enabled
   end
 
@@ -47,6 +49,10 @@ class DistanceTableProcessorServiceTest < ActiveSupport::TestCase
   private
 
   def payload(distances, idpk = SecureRandom.uuid)
-    { "type" => "distance-table", "idpk" => idpk, "data" => { "distances" => distances } }
+    {
+      "type" => "distance-table",
+      "idpk" => idpk,
+      "data" => { "distances" => distances, "disabledRouteTransportCost" => 0.034 }
+    }
   end
 end

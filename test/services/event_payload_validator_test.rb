@@ -31,6 +31,35 @@ class EventPayloadValidatorTest < ActiveSupport::TestCase
     end
   end
 
+  test "market bids require a cycle, an offer and a numeric quantity" do
+    valid = {
+      "type" => "bid",
+      "idpk" => "bid-id",
+      "cycleId" => "cycle-1",
+      "data" => { "offerId" => "HGW-cycle-1", "quantity" => 25 }
+    }
+    assert_nothing_raised { validate(valid) }
+
+    error = assert_raises(EventPayloadValidator::MalformedMessage) do
+      validate(valid.merge("data" => { "offerId" => "HGW-cycle-1", "quantity" => "many" }))
+    end
+    assert_equal "data.quantity must be a number", error.message
+  end
+
+  test "swap-proposed requires its idempotency key and token" do
+    valid = {
+      "type" => "swap-proposed",
+      "idpk" => "event-id",
+      "data" => { "idpk" => "proposal-id", "swapId" => "swap-1", "token" => "signed", "expiresAt" => "2030-01-01T00:00:00Z" }
+    }
+    assert_nothing_raised { validate(valid) }
+
+    error = assert_raises(EventPayloadValidator::MalformedMessage) do
+      validate(valid.merge("data" => valid["data"].except("token")))
+    end
+    assert_equal "missing field data.token", error.message
+  end
+
   test "demand statement accepts the three formats the ledger reads" do
     [
       { "balance" => { "quantity" => -40, "valuePerKwh" => 200 } },
