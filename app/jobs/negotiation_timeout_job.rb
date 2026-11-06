@@ -32,12 +32,11 @@ class NegotiationTimeoutJob < ApplicationJob
     end
 
     # 3. Si sigue en PENDING y el ciclo sigue activo, reintentar (ADR3)
-    Rails.logger.warn "[ADR3 Timeout] Propuesta #{proposal_idpk} sin respuesta tras 30s. Reintentando..."
-
-    RabbitMQPublisher.publish(retry_payload(proposal)) if defined?(RabbitMQPublisher)
-
-    # Reagendar comprobación en 30 segundos
-    NegotiationTimeoutJob.set(wait: 30.seconds).perform_later(proposal.idpk)
+    Rails.logger.warn(
+      "[ADR3 Timeout] Propuesta #{proposal_idpk} sin respuesta tras 30s; " \
+      "negotiation-proposal está retirado y no se volverá a publicar"
+    )
+    proposal.close!(:failed, "Propuesta no retirada a tiempo; negotiation-proposal está retirado")
   rescue *RETRY_BUILD_ERRORS => e
     Rails.logger.error "[ADR3 Timeout] No se pudo reintentar la propuesta #{proposal_idpk}: #{e.message}"
     proposal&.close!(:failed, "Reintento fallido (#{e.class.name.demodulize}): #{e.message}")
@@ -77,8 +76,10 @@ class NegotiationTimeoutJob < ApplicationJob
         next
       end
 
-      Rails.logger.warn "[Pago] Give #{proposal_idpk} sin transfer tras 30s. Reintentando con el mismo idpk..."
-      RabbitMQPublisher.publish(retry_payload(proposal))
+      Rails.logger.warn(
+        "[Pago] Give #{proposal_idpk} sin transfer tras 30s; " \
+        "negotiation-proposal está retirado, no se reenviará"
+      )
       proposal.update!(transfer_retries: attempt + 1, last_transfer_retry_at: Time.current)
       proposal.transfer_due_at
     end
@@ -96,15 +97,6 @@ class NegotiationTimeoutJob < ApplicationJob
   def close_unpaid!(proposal, reason)
     Rails.logger.warn "[Pago] Give #{proposal.idpk} cerrado: #{reason}"
     proposal.close!(:failed, reason, from: :confirmed)
-  end
-
-  def retry_payload(proposal)
-    NegotiationService.build_proposal(
-      cycle_id: proposal.cycle_id,
-      direction: proposal.direction,
-      energy: proposal.quantity, # quantity guarda la energía: el reintento pide la misma
-      existing_idpk: proposal.idpk # Reutiliza idpk según ADR3 (msgId nuevo)
-    )
   end
 
   def cycle_expired?(cycle)
