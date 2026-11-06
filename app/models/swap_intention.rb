@@ -7,5 +7,5 @@ class SwapIntention < ApplicationRecord
     expired: 4
   }, default: :pending
 
-  validates :idpk, :give_amount, :take_amount, presence: true
+  validates :idpk, :give_amount, :take_amount, presence: true, unless: -> { status.to_s.in?(%w[rejected cancelled expired]) }
 end

@@ -1,7 +1,5 @@
 class CreateAutonomousMarketFlow < ActiveRecord::Migration[8.1]
   def change
-    add_column :cycles, :market_opens_at, :datetime unless column_exists?(:cycles, :market_opens_at)
-
     create_table :market_offers do |t|
       t.string :cycle_id, null: false
       t.string :offer_id, null: false

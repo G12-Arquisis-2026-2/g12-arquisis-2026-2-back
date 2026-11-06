@@ -23,7 +23,13 @@ class MarketSwapEventService
     bid = MarketBid.find_by(proposal_idpk: @data.fetch("idpk"))
     return true unless bid
 
-    claims = WalletTokenValidator.verify!(@data.fetch("token"))
+    claims = begin
+      WalletTokenValidator.verify!(@data.fetch("token"))
+    rescue JWT::DecodeError, JWT::InvalidIatError, JWT::ExpiredSignature => error
+      Rails.logger.warn("[MarketSwapEventService] Token JWT inválido en swap-proposed para bid #{bid.bid_idpk}: #{error.message}")
+      return true
+    end
+
     unless valid_proposal_token?(claims, bid)
       Rails.logger.warn("[MarketSwapEventService] Token inválido en swap-proposed para bid #{bid.bid_idpk}")
       return true
@@ -38,7 +44,11 @@ class MarketSwapEventService
       publish_bid_accepted(bid, @data.fetch("token"), expires_at)
       publish_offer_update(bid)
     end
-    SwapIntention.find_by(idpk: bid.proposal_idpk)&.update!(swap_id: bid.swap_id, expires_at: expires_at)
+    SwapIntention.find_by(idpk: bid.proposal_idpk)&.update!(
+      swap_id: bid.swap_id,
+      cycle_id: bid.cycle_id,
+      expires_at: expires_at
+    )
     true
   end
 
@@ -194,6 +204,25 @@ class MarketSwapEventService
     else
       SwapIntention.find_by(swap_id: @data["swapId"])
     end
-    intention&.update!(status: status)
+
+    if intention.nil?
+      intention = SwapIntention.new(
+        idpk: idpk.presence || @data["idpk"] || "resolved-#{@data['swapId'] || SecureRandom.uuid}",
+        swap_id: @data["swapId"],
+        cycle_id: @event["cycleId"],
+        give_amount: nested_amount(@data["give"]),
+        take_amount: nested_amount(@data["take"])
+      )
+    end
+
+    return true if %w[settled rejected cancelled expired].include?(intention.status)
+
+    intention.update!(status: status)
+  end
+
+  def nested_amount(value)
+    return 0.to_d unless value.is_a?(Hash)
+
+    (value["quantity"] || value["amount"] || 0).to_d
   end
 end
