@@ -8,9 +8,9 @@ class CycleReconciliationJob < ApplicationJob
     wallet_balance = WalletClient.new.get_balance
     return unless wallet_balance.is_a?(Hash)
 
-    balances = wallet_balance["balances"] || wallet_balance
-    actual_cr = decimal_value(balances["CR"] || balances["cr"])
-    actual_kwh = decimal_value(balances["KWH"] || balances["kwh"])
+    balances = wallet_balance["assets"] || wallet_balance["balances"] || wallet_balance
+    actual_cr = asset_total(balances["CR"] || balances["cr"])
+    actual_kwh = asset_total(balances["KWH"] || balances["kwh"])
 
     settled = SwapIntention.settled.where(cycle_id: cycle_id)
     expected_cr = settled.sum(:take_amount).to_d - settled.sum(:give_amount).to_d
@@ -24,6 +24,12 @@ class CycleReconciliationJob < ApplicationJob
   end
 
   private
+
+  def asset_total(asset)
+    return decimal_value(asset) unless asset.is_a?(Hash)
+
+    decimal_value(asset["available"]) + decimal_value(asset["held"])
+  end
 
   def decimal_value(value)
     return 0.to_d if value.nil?

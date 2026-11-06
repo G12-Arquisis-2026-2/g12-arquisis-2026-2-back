@@ -121,8 +121,8 @@ class MarketCycleJob < ApplicationJob
 
   def available_wallet_kwh
     balance = WalletClient.new.get_balance
-    available = balance&.dig("balances", "KWH", "available")
-    raise WalletClient::RetryableFailure, "GET /balance no entregó balances.KWH.available" if available.nil?
+    available = balance&.dig("assets", "KWH", "available")
+    raise WalletClient::RetryableFailure, "GET /balance no entregó assets.KWH.available" if available.nil?
 
     available.to_i
   end
