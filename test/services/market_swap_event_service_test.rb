@@ -88,19 +88,17 @@ class MarketSwapEventServiceTest < ActiveSupport::TestCase
     assert_equal "proposed", @bid.reload.status
   end
 
-  test "does not acknowledge a wallet proposal with claims that do not match the bid" do
+  test "logs and acknowledges a wallet proposal with claims that do not match the bid" do
     with_singleton_stub(WalletTokenValidator, :verify!, false) do
-      assert_raises(MarketSwapEventService::InvalidWalletEvent) do
-        MarketSwapEventService.call(
-          "type" => "swap-proposed",
-          "data" => {
-            "idpk" => @proposal_idpk,
-            "swapId" => "swap-1",
-            "expiresAt" => 1.minute.from_now.iso8601,
-            "token" => "invalid-token"
-          }
-        )
-      end
+      assert MarketSwapEventService.call(
+        "type" => "swap-proposed",
+        "data" => {
+          "idpk" => @proposal_idpk,
+          "swapId" => "swap-1",
+          "expiresAt" => 1.minute.from_now.iso8601,
+          "token" => "invalid-token"
+        }
+      )
     end
 
     assert_equal "proposing", @bid.reload.status

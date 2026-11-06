@@ -97,10 +97,7 @@ class WalletClient
     request["Content-Type"] = "application/json"
     request["Idempotency-Key"] = idempotency_key
 
-    # Bug fix: Convertir BigDecimal a Float explícitamente para que JSON no lo mande como string
-    formatted_payload = payload.transform_values do |value|
-      value.is_a?(BigDecimal) ? value.to_f.round(2) : value
-    end
+    formatted_payload = normalize_json_numbers(payload)
 
     request.body = JSON.generate(formatted_payload)
     response = http_client(uri).request(request)
@@ -134,6 +131,19 @@ class WalletClient
     http.open_timeout = 5
     http.read_timeout = 10
     http
+  end
+
+  def normalize_json_numbers(value)
+    case value
+    when BigDecimal
+      value.to_f.round(2)
+    when Hash
+      value.transform_values { |nested_value| normalize_json_numbers(nested_value) }
+    when Array
+      value.map { |nested_value| normalize_json_numbers(nested_value) }
+    else
+      value
+    end
   end
 
   def retry_required(cause, idempotency_key, path, payload, enqueue_retry, retry_after: nil)

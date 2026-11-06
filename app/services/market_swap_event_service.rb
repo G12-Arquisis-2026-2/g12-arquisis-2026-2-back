@@ -1,6 +1,4 @@
 class MarketSwapEventService
-  class InvalidWalletEvent < StandardError; end
-
   def self.call(event)
     new(event).call
   end
@@ -27,7 +25,8 @@ class MarketSwapEventService
 
     claims = WalletTokenValidator.verify!(@data.fetch("token"))
     unless valid_proposal_token?(claims, bid)
-      raise InvalidWalletEvent, "Token inválido en swap-proposed para bid #{bid.bid_idpk}"
+      Rails.logger.warn("[MarketSwapEventService] Token inválido en swap-proposed para bid #{bid.bid_idpk}")
+      return true
     end
 
     expires_at = Time.iso8601(@data.fetch("expiresAt"))

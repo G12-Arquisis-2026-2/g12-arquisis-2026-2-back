@@ -84,6 +84,15 @@ class CycleBalanceServiceTest < ActiveSupport::TestCase
     assert_equal BigDecimal("-330.80"), CycleBalanceService.call(@cycle1)[:budget]
   end
 
+  test "settled market swaps add energy and budget according to their side" do
+    market_bid("buy", cycle_id: @cycle1.cycle_id, quantity: 50, amount: 10_500, status: "settled")
+    market_bid("sell", cycle_id: @cycle1.cycle_id, quantity: 20, amount: 4_200, status: "settled")
+    market_bid("buy", cycle_id: @cycle1.cycle_id, quantity: 30, amount: 6_300, status: "proposed")
+
+    # 200 de excedente + 50 comprados - 20 vendidos; -10500 pagados + 4200 recibidos.
+    assert_balances({ budget: -6300, energy: 230 }, @cycle1)
+  end
+
   test "a repeated give or take (same idpk) moves the ledger once" do
     2.times { ledger("take", "cycle-1", { "target" => "p1", "energy" => 50, "pricePerEnergy" => 210 }, SecureRandom.uuid, "take-1") }
 
@@ -96,6 +105,21 @@ class CycleBalanceServiceTest < ActiveSupport::TestCase
   def ledger(type, cycle_id, data, msg_id = SecureRandom.uuid, idpk = SecureRandom.uuid)
     LedgerProcessorService.call(
       "type" => type, "idpk" => idpk, "msgId" => msg_id, "cycleId" => cycle_id, "data" => data
+    )
+  end
+
+  def market_bid(side, cycle_id:, quantity:, amount:, status:)
+    MarketBid.create!(
+      cycle_id: cycle_id,
+      offer_id: SecureRandom.uuid,
+      bid_idpk: SecureRandom.uuid,
+      bid_msg_id: SecureRandom.uuid,
+      side: side,
+      buyer_city: "COR",
+      seller_city: "TK3",
+      quantity: quantity,
+      amount: amount,
+      status: status
     )
   end
 
