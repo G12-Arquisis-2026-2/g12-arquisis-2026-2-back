@@ -59,6 +59,7 @@ Incluye los contract tests (`contract_examples_test.rb`), que validan los mensaj
 | [docs/guia-local.md](docs/guia-local.md) | Cómo correr la aplicación en local |
 | [docs/deploy-e2.md](docs/deploy-e2.md) | Pasos de deploy en EC2 y ECR, con rollback |
 | [docs/documentacion_ia/](docs/documentacion_ia/) | Logs de uso de AI por integrante |
+ | [docs/monitoreo-e2.md](docs/monitoreo-e2.md) | Cómo replicar el monitoreo (New Relic APM e infraestructura, logs) |
 
 ## Configuración
 
