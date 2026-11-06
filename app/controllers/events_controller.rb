@@ -28,6 +28,12 @@ class EventsController < ApplicationController
     'take' => LedgerProcessorService,
     'status-statement' => StatusStatementProcessorService,
     'distance-table' => DistanceTableProcessorService,
+    'imbalance-settlement' => AuditedEventService,
+    'swap-proposed' => WalletEventWorker,
+    'swap-settled' => WalletEventWorker,
+    'swap-rejected' => WalletEventWorker,
+    'swap-cancelled' => WalletEventWorker,
+    'swap-expired' => WalletEventWorker,
     'error' => ErrorProcessorService
   }.reverse_merge(AuditedEventService::EVENT_TYPES.keys.index_with(AuditedEventService))
    .reverse_merge(

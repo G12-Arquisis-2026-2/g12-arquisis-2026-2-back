@@ -76,11 +76,18 @@ class EventPayloadValidator
       require_number!(data, "available", "data.") if data.key?("available")
     when "swap-proposed"
       %w[idpk swapId token expiresAt].each { |key| require_value!(data, key, "data.") }
-    when "swap-settled", "swap-cancelled", "swap-expired"
+    when "swap-settled", "swap-expired"
       require_value!(data, "swapId", "data.")
+    when "swap-cancelled"
+      require_value!(data, "swapId", "data.")
+      require_value!(data, "idpk", "data.")
     when "swap-rejected"
       require_value!(data, "idpk", "data.")
-    when "market-closed", "trade-recorded", "imbalance-settlement"
+    when "imbalance-settlement"
+      %w[kwhHeld deficit coverage pricePerEnergy total balanceAfter settlementId].each do |key|
+        require_value!(data, key, "data.")
+      end
+    when "market-closed", "trade-recorded"
       true
     end
   end
@@ -100,8 +107,6 @@ class EventPayloadValidator
     value
   end
 
-  # Mismos formatos que lee LedgerProcessorService: data.quantity / data.valuePerKwh,
-  # data.balance como objeto { quantity, valuePerKwh } o data.balance como número.
   def self.validate_demand_statement!(data)
     balance = data["balance"]
     if data["quantity"].nil? && balance.is_a?(Hash)
@@ -126,5 +131,6 @@ class EventPayloadValidator
     value
   end
 
-  private_class_method :require_value!, :require_number!, :require_hash!, :validate_demand_statement!
+  private_class_method :require_value!, :require_number!, :require_hash!,
+                       :validate_demand_statement!
 end

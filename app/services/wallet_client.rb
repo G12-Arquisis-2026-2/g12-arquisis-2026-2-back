@@ -19,7 +19,9 @@ class WalletClient
     Net::WriteTimeout,
     EOFError,
     Errno::ECONNRESET,
-    Errno::ETIMEDOUT
+    Errno::ETIMEDOUT,
+    SocketError,
+    Errno::ECONNREFUSED
   ].freeze
 
   class RetryableFailure < StandardError; end
@@ -75,6 +77,7 @@ class WalletClient
     request["X-Api-Key"] = @api_key
 
     response = http_client(uri).request(request)
+    return retry_read("HTTP #{response.code}", path) if response.is_a?(Net::HTTPTooManyRequests)
     return retry_read("HTTP #{response.code}", path) if RETRYABLE_HTTP_STATUSES.include?(response.code.to_i)
 
     Result.new(
@@ -93,18 +96,23 @@ class WalletClient
     request["X-Api-Key"] = @api_key
     request["Content-Type"] = "application/json"
     request["Idempotency-Key"] = idempotency_key
-    request.body = JSON.generate(payload)
 
+    # Bug fix: Convertir BigDecimal a Float explícitamente para que JSON no lo mande como string
+    formatted_payload = payload.transform_values do |value|
+      value.is_a?(BigDecimal) ? value.to_f.round(2) : value
+    end
+
+    request.body = JSON.generate(formatted_payload)
     response = http_client(uri).request(request)
 
-    if RETRYABLE_HTTP_STATUSES.include?(response.code.to_i)
+    if response.is_a?(Net::HTTPTooManyRequests) || RETRYABLE_HTTP_STATUSES.include?(response.code.to_i)
       retry_required(
-        "HTTP #{response.code}",
-        idempotency_key,
-        path,
-        payload,
+        "HTTP #{response.code}", 
+        idempotency_key, 
+        path, 
+        formatted_payload, 
         enqueue_retry,
-        retry_after: response.code.to_i == 429 ? response["Retry-After"] : nil
+        retry_after: response["Retry-After"]
       )
       return Result.new(success?: false, status: response.code.to_i, body: response.body, retry_required?: true)
     end
@@ -116,7 +124,7 @@ class WalletClient
       retry_required?: false
     )
   rescue *NETWORK_ERRORS => error
-    retry_required(error.class.name, idempotency_key, path, payload, enqueue_retry)
+    retry_required(error.class.name, idempotency_key, path, formatted_payload, enqueue_retry)
     Result.new(success?: false, status: nil, body: nil, retry_required?: true)
   end
 
@@ -138,12 +146,15 @@ class WalletClient
     job = WalletRetryJob
     delay = retry_after_delay(retry_after)
     job = job.set(wait: delay) if delay
-    job.perform_later(
-      operation: "wallet_http",
-      path: path,
-      payload: payload,
-      idempotency_key: idempotency_key
-    ) if defined?(WalletRetryJob)
+    
+    if defined?(WalletRetryJob)
+      job.perform_later(
+        operation: "wallet_http",
+        path: path,
+        payload: payload,
+        idempotency_key: idempotency_key
+      )
+    end
   end
 
   def retry_after_delay(value)
