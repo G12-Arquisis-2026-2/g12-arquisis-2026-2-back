@@ -1,0 +1,35 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main, development]
+
+jobs:
+  connector-tests:
+    name: Tests y contract tests del connector
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: connector
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: "3.3"
+
+      - name: Instalar gemas
+        run: bundle install
+
+      # Incluye contract_examples_test.rb, que valida los mensajes contra los ejemplos
+      # oficiales del curso (test/fixtures/contracts-v3.0.2)
+      - name: Correr tests
+        run: |
+          status=0
+          for f in test/*_test.rb; do
+            echo "::group::$f"
+            ruby -Itest "$f" || status=1
+            echo "::endgroup::"
+          done
+          exit $status
