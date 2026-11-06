@@ -198,4 +198,53 @@ class CentralPublisherTest < Minitest::Test
 
     assert_equal 1, @channel.published.size
   end
+
+  # --- canal cerrado por el broker (outbox) ---
+
+  class ClosableChannel < FakeChannel
+    def initialize(open: true, error: nil)
+      super()
+      @open = open
+      @last_channel_error = error
+    end
+
+    def open?
+      @open
+    end
+  end
+
+  def outbox_publisher(channel, open_channel: nil)
+    CentralPublisher.new(channel, exchange: 'energy.x', routing_key: 'central', user_id: 'city.12', city_id: '12',
+                                  open_channel: open_channel)
+  end
+
+  def test_an_open_channel_was_not_closed_by_the_broker
+    assert_nil outbox_publisher(ClosableChannel.new).closed_by_broker
+  end
+
+  def test_a_channel_closed_by_a_network_failure_has_no_broker_reason
+    assert_nil outbox_publisher(ClosableChannel.new(open: false)).closed_by_broker
+  end
+
+  def test_a_channel_closed_by_the_broker_gives_its_reason
+    error = StandardError.new("ACCESS_REFUSED - access to exchange 'market' refused")
+    publisher = outbox_publisher(ClosableChannel.new(open: false, error: error))
+
+    assert_equal error.message, publisher.closed_by_broker
+    refute publisher.channel_open?
+  end
+
+  def test_reopen_channel_publishes_on_the_new_one
+    fresh = ClosableChannel.new
+    closed = ClosableChannel.new(open: false, error: StandardError.new('x'))
+    publisher = outbox_publisher(closed, open_channel: -> { fresh })
+
+    publisher.reopen_channel
+    publisher.publish_confirmed(ORIGINAL)
+
+    assert publisher.channel_open?
+    assert_nil publisher.closed_by_broker
+    assert_equal 1, fresh.published.size
+    assert_empty closed.published
+  end
 end

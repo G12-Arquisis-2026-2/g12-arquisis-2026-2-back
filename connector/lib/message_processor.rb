@@ -19,11 +19,13 @@ class MessageProcessor
   # no se pudo publicar el ack o el nack: es problema de la conexion con el broker, no del mensaje
   class PublishError < StandardError; end
 
+  # offers: OfferMemory donde se anota cada status-statement guardado (nil = no se anota)
   def initialize(master:, publisher:, queue: :city, log: ->(text) { puts "[Connector] #{text}" },
-                 sleeper: ->(s) { sleep s })
+                 sleeper: ->(s) { sleep s }, offers: nil)
     @master = master
     @publisher = publisher
     @queue = queue
+    @offers = offers
     @log = log
     @sleeper = sleeper
     # fallos por msgId. en memoria: con prefetch(1) el requeue vuelve altiro a este mismo consumer
@@ -31,8 +33,9 @@ class MessageProcessor
   end
 
   # user_id: la propiedad AMQP user_id del mensaje (properties.user_id de Bunny)
-  def process(raw_body, user_id = nil)
-    decision = validate(raw_body, user_id)
+  # routing_key: con la que llego (delivery_info.routing_key). la cola del mercado la exige
+  def process(raw_body, user_id = nil, routing_key = nil)
+    decision = validate(raw_body, user_id, routing_key)
     key = retry_key(decision, raw_body)
     outcome = handle(decision, raw_body)
     return wait_and_requeue if outcome == :wait
@@ -102,8 +105,8 @@ class MessageProcessor
   end
 
   # si el validador se cae se descarta. reintentarlo seria fallar igual para siempre y trabar la cola
-  def validate(raw_body, user_id)
-    MessageValidator.check(raw_body, user_id, queue: @queue)
+  def validate(raw_body, user_id, routing_key)
+    MessageValidator.check(raw_body, user_id, queue: @queue, routing_key: routing_key)
   rescue StandardError => e
     MessageValidator.discard("el validador falló (#{e.class})")
   end
@@ -144,6 +147,7 @@ class MessageProcessor
     if result.saved?
       # ojo: primero guardar y despues el ack, si no podemos perder el mensaje
       publish { @publisher.ack(message, to_city: decision.reply_to) } if decision.send_ack
+      @offers&.status_received(message)
       @log.call("Mensaje #{message['msgId']} (#{message['type']}) guardado.")
       :done
     elsif result.invalid?

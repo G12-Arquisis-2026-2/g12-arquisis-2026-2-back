@@ -28,6 +28,11 @@ module Samples
     message['type'] == 'market-closed' ? nil : 'central'
   end
 
+  # la routing key con que el broker entrega cada mensaje del mercado
+  def self.market_routing_key(message)
+    message['type'] == 'market-closed' ? 'market.closed' : "market.offer.#{message['cityId']}"
+  end
+
   def self.without(field, message)
     message.reject { |key, _| key == field }
   end

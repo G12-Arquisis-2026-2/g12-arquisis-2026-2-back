@@ -82,7 +82,112 @@ class MarketMessageProcessorTest < ActiveSupport::TestCase
     assert_equal 0, MarketOffer.first.remaining
   end
 
+  # --- anomalía 1: bid repetido ---
+
+  test "a new bid is processed as before and resends nothing" do
+    calls = with_resend_bid_reply(->(payload) { payload }) do
+      assert_equal true, MarketMessageProcessor.call(incoming_bid)
+    end
+
+    assert_empty calls
+    assert_equal 1, MarketBid.count
+    assert_equal 0, OutboxMessage.count
+  end
+
+  test "a repeated bid with a reply already saved enqueues a copy for the new msgId" do
+    with_city("TK3") do
+      bid = incoming_bid
+      MarketMessageProcessor.call(bid)
+      original = OutboxMessage.find_by!(msg_id: accept(bid))
+      repeated = bid.merge("msgId" => SecureRandom.uuid)
+
+      assert_equal false, MarketMessageProcessor.call(repeated)
+
+      copy = OutboxMessage.where.not(id: original.id).sole
+      assert_equal original.idpk, copy.idpk
+      assert_not_equal original.msg_id, copy.msg_id
+      assert_equal repeated["msgId"], copy.payload["data"]["target"]
+      assert_equal "bid-accepted", copy.message_type
+    end
+  end
+
+  test "a repeated bid without a reply yet enqueues nothing" do
+    bid = incoming_bid
+    MarketMessageProcessor.call(bid)
+
+    assert_no_difference -> { OutboxMessage.count } do
+      assert_equal false, MarketMessageProcessor.call(bid.merge("msgId" => SecureRandom.uuid))
+    end
+  end
+
+  test "a repeated offer does not call resend_bid_reply" do
+    offer = build_event("offer", { "cityId" => "HGW", "cycleId" => "cycle-market",
+                                   "data" => { "offerId" => "HGW-market", "quantity" => 100, "pricePerEnergy" => 220 } })
+    MarketMessageProcessor.call(offer)
+
+    calls = with_resend_bid_reply(->(payload) { payload }) do
+      assert_equal false, MarketMessageProcessor.call(offer)
+    end
+
+    assert_empty calls
+  end
+
+  test "if resend_bid_reply raises, call returns the same and the error is only logged" do
+    bid = incoming_bid
+    MarketMessageProcessor.call(bid)
+    log = StringIO.new
+    previous_logger = Rails.logger
+    Rails.logger = ActiveSupport::Logger.new(log)
+
+    calls = with_resend_bid_reply(->(_payload) { raise ActiveRecord::ConnectionNotEstablished, "db down" }) do
+      assert_nothing_raised do
+        assert_equal false, MarketMessageProcessor.call(bid.merge("msgId" => SecureRandom.uuid))
+      end
+    end
+
+    assert_equal 1, calls.size
+    assert_includes log.string, "No se pudo reenviar la respuesta al bid #{bid['idpk']}"
+  ensure
+    Rails.logger = previous_logger
+  end
+
   private
+
+  def incoming_bid
+    build_event("bid", { "cityId" => "COR", "cycleId" => "cycle-market",
+                         "data" => { "offerId" => "TK3-market", "quantity" => 50 } })
+  end
+
+  def accept(bid)
+    RabbitMQPublisher.publish(
+      { type: "bid-accepted", cycleId: bid["cycleId"],
+        data: { target: bid["msgId"], offerId: "TK3-market", quantity: 50, pricePerEnergy: 0.2, amount: 10.0,
+                swapId: "swap-1", swapToken: "token", expiresAt: "2026-11-06T15:00:00Z" } },
+      to_city: bid["cityId"]
+    )
+  end
+
+  def with_city(code)
+    previous = ENV["CITY_ID"]
+    ENV["CITY_ID"] = code
+    yield
+  ensure
+    ENV["CITY_ID"] = previous
+  end
+
+  # reemplaza RabbitMQPublisher.resend_bid_reply mientras corre el bloque; devuelve los payloads recibidos
+  def with_resend_bid_reply(behavior)
+    calls = []
+    original = RabbitMQPublisher.method(:resend_bid_reply)
+    RabbitMQPublisher.define_singleton_method(:resend_bid_reply) do |payload|
+      calls << payload
+      behavior.call(payload)
+    end
+    yield
+    calls
+  ensure
+    RabbitMQPublisher.define_singleton_method(:resend_bid_reply, original)
+  end
 
   def build_event(type, attributes)
     attributes = attributes.deep_stringify_keys

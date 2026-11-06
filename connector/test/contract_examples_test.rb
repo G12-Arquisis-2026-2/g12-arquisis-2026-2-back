@@ -1,6 +1,7 @@
 require 'minitest/autorun'
 require 'json'
 require_relative '../lib/message_validator'
+require_relative 'support/samples'
 
 # recorre los ejemplos oficiales del curso (test/fixtures/contracts-v3.0.2, ver su README)
 # correr desde /connector: ruby test/contract_examples_test.rb
@@ -25,9 +26,11 @@ class ContractExamplesTest < Minitest::Test
     message['type'] == 'market-closed' ? nil : 'central'
   end
 
+  # los del mercado llegan con la routing key con que el broker los entregaria
   def check(message, user_id)
     queue = MessageValidator::MARKET_TYPES.include?(message['type']) ? :market : :city
-    MessageValidator.check(JSON.generate(message), user_id, queue: queue)
+    MessageValidator.check(JSON.generate(message), user_id, queue: queue,
+                                                            routing_key: Samples.market_routing_key(message))
   end
 
   # aplica set y unset (rutas JSON pointer) sobre una copia del ejemplo base

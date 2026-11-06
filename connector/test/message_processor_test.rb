@@ -2,6 +2,7 @@ require 'minitest/autorun'
 require 'json'
 require_relative '../lib/master_client'
 require_relative '../lib/message_processor'
+require_relative '../lib/offer_memory'
 require_relative 'support/samples'
 
 # correr desde /connector: ruby test/message_processor_test.rb
@@ -52,7 +53,7 @@ class MessageProcessorTest < Minitest::Test
     end
   end
 
-  def build(queue: :city, **master_options)
+  def build(queue: :city, offers: nil, **master_options)
     @calls = []
     @logs = []
     @sleeps = []
@@ -60,10 +61,13 @@ class MessageProcessorTest < Minitest::Test
     @publisher = FakePublisher.new(@calls)
     # en la cola del mercado no hay publisher: si se intentara responder, revienta
     processor = MessageProcessor.new(master: @master, publisher: queue == :market ? nil : @publisher, queue: queue,
-                                     log: ->(text) { @logs << text }, sleeper: ->(seconds) { @sleeps << seconds })
+                                     log: ->(text) { @logs << text }, sleeper: ->(seconds) { @sleeps << seconds },
+                                     offers: offers)
     # por omision los mensajes de prueba llegan como los publica la central: con user_id "central"
     original = processor.method(:process)
-    processor.define_singleton_method(:process) { |body, user_id = 'central'| original.call(body, user_id) }
+    processor.define_singleton_method(:process) do |body, user_id = 'central', routing_key = nil|
+      original.call(body, user_id, routing_key)
+    end
     processor
   end
 
@@ -82,6 +86,28 @@ class MessageProcessorTest < Minitest::Test
     assert_equal valid_message, @master.delivered.first
     assert_equal valid_message['msgId'], @publisher.acks.first['msgId']
     assert_nil @publisher.acks.first['respondidoA']
+  end
+
+  # anomalia 5: el connector necesita el ciclo y el lastOfferAt vigentes para republicar la oferta
+  def test_saved_status_statement_is_remembered_for_the_offer
+    offers = OfferMemory.new
+    status = Samples.message('status-statement')
+    offer = Samples.message('offer', 'cycleId' => status['cycleId'], 'cityId' => 'TK3')
+    offers.offer_published(offer, 'market', 'market.offer.TK3')
+    before_close = Time.iso8601(status['data']['market']['lastOfferAt']) - 1
+
+    assert_nil offers.offer_to_republish(before_close)
+    assert_equal :done, build(offers: offers).process(JSON.generate(status))
+    assert_equal offer, offers.offer_to_republish(before_close).message
+  end
+
+  def test_status_statement_the_api_did_not_save_is_not_remembered
+    offers = OfferMemory.new
+    status = Samples.message('status-statement')
+    offers.offer_published(Samples.message('offer', 'cycleId' => status['cycleId']), 'market', 'market.offer.TK3')
+
+    build(offers: offers, status: 503).process(JSON.generate(status))
+    assert_nil offers.offer_to_republish(Time.iso8601(status['data']['market']['lastOfferAt']) - 1)
   end
 
   def test_master_down_means_no_reply_and_retry
@@ -545,6 +571,8 @@ class MessageProcessorTest < Minitest::Test
 
   # --- cola del mercado ---
 
+  OFFER_KEY = 'market.offer.HGW'.freeze
+
   # la oferta oficial, de HGW
   def offer(changes = {})
     Samples.message('offer', changes)
@@ -553,7 +581,7 @@ class MessageProcessorTest < Minitest::Test
   def test_market_offer_is_saved_and_nothing_is_published
     processor = build(queue: :market)
 
-    assert_equal :done, processor.process(JSON.generate(offer), 'city.HGW')
+    assert_equal :done, processor.process(JSON.generate(offer), 'city.HGW', OFFER_KEY)
     assert_equal %i[deliver], @calls
     assert_empty @publisher.acks + @publisher.nacks
   end
@@ -562,7 +590,7 @@ class MessageProcessorTest < Minitest::Test
     [[offer('data' => 'x'), 'city.HGW'], [offer, 'city.XXX'], [offer, nil], [bid, 'city.HGW']].each do |message, user_id|
       processor = build(queue: :market)
 
-      assert_equal :done, processor.process(JSON.generate(message), user_id)
+      assert_equal :done, processor.process(JSON.generate(message), user_id, OFFER_KEY)
       assert_equal %i[report_rejected], @calls
       assert_equal 'discard', @master.rejected.first[:kind]
       assert_empty @publisher.acks + @publisher.nacks
@@ -573,14 +601,37 @@ class MessageProcessorTest < Minitest::Test
   def test_market_closed_without_user_id_is_saved_and_nothing_is_published
     processor = build(queue: :market)
 
-    assert_equal :done, processor.process(JSON.generate(Samples.message('market-closed')), nil)
+    assert_equal :done, processor.process(JSON.generate(Samples.message('market-closed')), nil, 'market.closed')
     assert_equal %i[deliver], @calls
+  end
+
+  # anomalia: un market-closed sin user_id que no llego por market.closed no lo publico la central
+  def test_market_closed_with_another_routing_key_is_discarded_and_reported
+    [OFFER_KEY, 'market.offer.TK3', nil].each do |routing_key|
+      processor = build(queue: :market)
+
+      assert_equal :done, processor.process(JSON.generate(Samples.message('market-closed')), nil, routing_key)
+      assert_equal %i[report_rejected], @calls
+      assert_equal 'discard', @master.rejected.first[:kind]
+      assert_includes @master.rejected.first[:reason], 'routing key'
+    end
+  end
+
+  def test_offer_from_another_city_routing_key_is_discarded_and_reported
+    [['market.offer.TK3', offer], ['market.closed', offer], [nil, offer],
+     ['market.offer.TK3', Samples.message('offer-withdrawn')]].each do |routing_key, message|
+      processor = build(queue: :market)
+
+      assert_equal :done, processor.process(JSON.generate(message), "city.#{message['cityId']}", routing_key)
+      assert_equal %i[report_rejected], @calls
+      assert_empty @master.delivered
+    end
   end
 
   def test_market_message_rejected_by_the_api_is_not_answered
     processor = build(queue: :market, status: 422, body: '{"error":"UNKNOWN_TYPE"}')
 
-    assert_equal :done, processor.process(JSON.generate(offer), 'city.HGW')
+    assert_equal :done, processor.process(JSON.generate(offer), 'city.HGW', OFFER_KEY)
     assert_equal %i[deliver], @calls
   end
 
@@ -588,12 +639,12 @@ class MessageProcessorTest < Minitest::Test
     processor = build(queue: :market, status: 503)
     body = JSON.generate(offer)
 
-    5.times { assert_equal :retry, processor.process(body, 'city.HGW') }
+    5.times { assert_equal :retry, processor.process(body, 'city.HGW', OFFER_KEY) }
     assert_equal [MessageProcessor::WAIT_DELAY] * 5, @sleeps
 
     @master.status = 500
-    3.times { assert_equal :retry, processor.process(body, 'city.HGW') }
-    assert_equal :reject, processor.process(body, 'city.HGW')
+    3.times { assert_equal :retry, processor.process(body, 'city.HGW', OFFER_KEY) }
+    assert_equal :reject, processor.process(body, 'city.HGW', OFFER_KEY)
     assert_equal 'MAX_RETRIES_EXCEEDED', @master.rejected.first[:reason]
   end
 

@@ -19,15 +19,46 @@ class RabbitMQPublisher
     message = build_envelope((payload || fields).to_h.deep_stringify_keys, idpk)
     exchange, routing_key = destination(to_city, to_market)
 
+    enqueue(message, exchange, routing_key, replied_bid_idpk(message))
+  end
+
+  # Bid repetido (mismo idpk): se vuelve a enviar la respuesta que ya dimos (anomalía 1).
+  # bid: el payload del bid repetido. La copia lleva el mismo idpk de la respuesta original
+  # (es la misma operación), un msgId nuevo y data.target igual al msgId del bid repetido.
+  # Si todavía no hay respuesta (se está decidiendo) no se encola nada: la original saldrá sola.
+  # Devuelve el msgId de la copia, o nil si no había respuesta.
+  def self.resend_bid_reply(bid)
+    bid = bid.to_h.deep_stringify_keys
+    original = OutboxMessage.reply_to_bid(bid.fetch("idpk"))
+    return unless original
+
+    copy = original.payload.merge(
+      "msgId" => SecureRandom.uuid,
+      "timestamp" => Time.now.utc.iso8601,
+      "data" => original.payload["data"].merge("target" => bid.fetch("msgId"))
+    )
+    enqueue(copy, original.exchange, original.routing_key, original.reply_to_idpk)
+  end
+
+  def self.enqueue(message, exchange, routing_key, reply_to_idpk)
     OutboxMessage.create!(
       msg_id: message["msgId"],
       idpk: message["idpk"],
       message_type: message["type"],
       payload: message,
       exchange: exchange,
-      routing_key: routing_key
+      routing_key: routing_key,
+      reply_to_idpk: reply_to_idpk
     )
     message["msgId"]
+  end
+
+  # bid-accepted y bid-rejected apuntan al bid por su msgId (data.target); se guarda su idpk,
+  # que es lo que se repite cuando el bid llega duplicado.
+  def self.replied_bid_idpk(message)
+    return unless OutboxMessage::BID_REPLY_TYPES.include?(message["type"])
+
+    MarketBid.find_by(bid_msg_id: message.dig("data", "target"))&.bid_idpk
   end
 
   # [exchange, routing_key]. exchange nil = el de siempre (RABBITMQ_EXCHANGE del connector).

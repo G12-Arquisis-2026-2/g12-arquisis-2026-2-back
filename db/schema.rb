@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_11_05_000004) do
+ActiveRecord::Schema[8.1].define(version: 2026_11_06_000001) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
 
@@ -139,7 +139,9 @@ ActiveRecord::Schema[8.1].define(version: 2026_11_05_000004) do
     t.datetime "updated_at", null: false
     t.string "exchange"
     t.string "routing_key"
+    t.string "reply_to_idpk"
     t.index ["msg_id"], name: "index_outbox_messages_on_msg_id", unique: true
+    t.index ["reply_to_idpk"], name: "index_outbox_messages_on_reply_to_idpk"
     t.index ["status"], name: "index_outbox_messages_on_status"
   end
 

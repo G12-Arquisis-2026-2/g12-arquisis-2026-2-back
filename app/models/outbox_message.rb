@@ -2,6 +2,7 @@
 # La API solo lo deja guardado aquí; el que lo publica en el broker es el connector.
 class OutboxMessage < ApplicationRecord
   STATUSES = %w[pending sent failed].freeze
+  BID_REPLY_TYPES = %w[bid-accepted bid-rejected].freeze
 
   validates :msg_id, presence: true, uniqueness: true
   validates :idpk, :message_type, :payload, presence: true
@@ -20,6 +21,11 @@ class OutboxMessage < ApplicationRecord
 
       message.mark_failed!("CYCLE_WINDOW_CLOSED: la ventana de negociación cerró antes de publicarlo")
     end
+  end
+
+  # La última respuesta que dimos a ese bid. Una fallida no se repite: el connector no la publicó.
+  def self.reply_to_bid(bid_idpk)
+    where(reply_to_idpk: bid_idpk, message_type: BID_REPLY_TYPES).where.not(status: "failed").order(:id).last
   end
 
   def mark_sent!

@@ -3,6 +3,7 @@ require 'fileutils'
 require_relative 'lib/central_publisher'
 require_relative 'lib/master_client'
 require_relative 'lib/message_processor'
+require_relative 'lib/offer_memory'
 require_relative 'lib/outbox_sender'
 
 # esto para que no los logs no tengar atraso.
@@ -53,7 +54,7 @@ rescue StandardError => e
   log "No se pudo confirmar al broker (#{e.class})."
 end
 
-def central_publisher(channel)
+def central_publisher(channel, open_channel: nil)
   CentralPublisher.new(
     channel,
     exchange: ENV.fetch('RABBITMQ_EXCHANGE'),
@@ -62,7 +63,8 @@ def central_publisher(channel)
     city_id: ENV.fetch('CITY_ID'),
     peer_routing_key_format: PEER_ROUTING_KEY_FORMAT,
     enabled: PUBLISHER_ENABLED,
-    log: method(:log)
+    log: method(:log),
+    open_channel: open_channel
   )
 end
 
@@ -78,7 +80,8 @@ end
 def subscribe(channel, queue_name, processor)
   queue = channel.queue(queue_name, passive: true)
   queue.subscribe(manual_ack: true) do |delivery, properties, body|
-    settle(channel, delivery.delivery_tag, processor.process(body, properties.user_id))
+    outcome = processor.process(body, properties.user_id, delivery.routing_key)
+    settle(channel, delivery.delivery_tag, outcome)
   end
   log "Escuchando en '#{queue_name}'..."
 end
@@ -96,13 +99,20 @@ rescue Bunny::NotFound, Bunny::AccessRefused => e
   nil
 end
 
+# canal aparte para el hilo que publica: en bunny un canal no se puede compartir entre hilos
+def outbox_channel(connection)
+  channel = connection.create_channel
+  channel.confirm_select
+  channel
+end
+
 # cada 2 segundos publica lo que la API dejo pendiente. si algo falla se loguea y se sigue en la otra vuelta
-def start_outbox_thread(sender, connection, channel)
+def start_outbox_thread(sender, connection)
   Thread.new do
     loop do
       begin
         # sin conexion ni se intenta, asi no se llena el log mientras el broker esta caido
-        sender.run_once if connection.open? && channel.open?
+        sender.run_once if connection.open?
       rescue StandardError => e
         log "Error publicando pendientes (#{e.class}: #{e.message})."
       end
@@ -119,23 +129,31 @@ end
 
 connection = connect(ENV.fetch('RABBITMQ_URL'))
 master = MasterClient.new(ENV.fetch('MASTER_URL'))
+# nuestra oferta vigente y el ultimo status-statement, para republicarla tras un corte
+offers = OfferMemory.new
 
 # city.TK3: central, otras ciudades y wallet. aca si se responde ack/nack
 city_channel = consumer_channel(connection)
-city_processor = MessageProcessor.new(master: master, publisher: central_publisher(city_channel))
+city_processor = MessageProcessor.new(master: master, publisher: central_publisher(city_channel), offers: offers)
 subscribe(city_channel, ENV.fetch('QUEUE_NAME'), city_processor)
 
 # market.TK3: canal y consumidor propios, misma politica de reintentos
 market_channel = subscribe_market(connection, master)
 
-# canal aparte para el hilo que publica: en bunny un canal no se puede compartir entre hilos
-outbox_channel = connection.create_channel
-outbox_channel.confirm_select
-sender = OutboxSender.new(master: master, publisher: central_publisher(outbox_channel),
+outbox_publisher = central_publisher(outbox_channel(connection), open_channel: -> { outbox_channel(connection) })
+sender = OutboxSender.new(master: master, publisher: outbox_publisher,
                           city_id: ENV.fetch('CITY_ID'), log: method(:log), enabled: PUBLISHER_ENABLED,
-                          peer_routing_key_format: PEER_ROUTING_KEY_FORMAT)
-start_outbox_thread(sender, connection, outbox_channel)
-channels = [city_channel, market_channel, outbox_channel].compact
+                          peer_routing_key_format: PEER_ROUTING_KEY_FORMAT, offers: offers)
+start_outbox_thread(sender, connection)
+
+# bunny ya reabrio los canales y volvio a suscribir los consumidores
+connection.after_recovery_completed do
+  log 'Bunny recuperó la conexión y los consumidores.'
+  sender.connection_recovered!
+end
+
+# solo los canales de consumo: si el broker cierra el del outbox, el hilo del outbox abre otro
+channels = [city_channel, market_channel].compact
 
 offline_since = nil
 channel_was_closed = false

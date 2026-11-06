@@ -8,9 +8,11 @@ require_relative 'message_validator'
 class CentralPublisher
   # enabled: false es ENABLE_PUBLISHER apagado: no se manda nada al broker, solo se loguea
   # peer_routing_key_format: routing key de otra ciudad, "city.%s" -> city.HGW (PEER_ROUTING_KEY_FORMAT)
+  # open_channel: como abrir un canal nuevo si el broker cierra este (solo lo usa el outbox)
   def initialize(channel, exchange:, routing_key:, user_id:, city_id:, peer_routing_key_format: 'city.%s',
-                 enabled: true, log: ->(text) { puts "[Connector] #{text}" })
+                 enabled: true, log: ->(text) { puts "[Connector] #{text}" }, open_channel: nil)
     @channel = channel
+    @open_channel = open_channel
     @exchange = exchange
     @routing_key = routing_key
     @user_id = user_id
@@ -41,6 +43,23 @@ class CentralPublisher
     return false unless publish(message, exchange || @exchange, routing_key || @routing_key)
 
     @channel.wait_for_confirms
+  end
+
+  def channel_open?
+    @channel.open?
+  end
+
+  # motivo con que el broker cerro el canal (ej: "ACCESS_REFUSED - ..."), o nil si sigue abierto o si
+  # se cerro por un corte de red. bunny no expone el motivo, pero lo guarda al recibir el channel.close
+  def closed_by_broker
+    return nil if @channel.open?
+
+    @channel.instance_variable_get(:@last_channel_error)&.message
+  end
+
+  # un canal que cerro el broker bunny no lo recupera: hay que abrir otro
+  def reopen_channel
+    @channel = @open_channel.call
   end
 
   private
