@@ -54,7 +54,7 @@ class NegotiationStrategyService
         Rails.logger.warn("[NegotiationStrategyService] Omitiendo ruta #{city_id}: falta #{transport_cost_key}")
         next
       end
-      transport = (route_value(route, :distance).to_d * transport_cost).round(2)
+      transport = (route_value(route, :distance).to_d / 1000 * transport_cost).round(2)
       effective_price = offer_price.to_d + transport
       next if effective_price > price_limit
 
