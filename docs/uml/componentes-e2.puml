@@ -1,0 +1,123 @@
+@startuml componentes-e2
+' Diagrama de componentes UML · EnergyShark E2 · Tokyo-3 (TK3)
+' Interfaz provista: lollipop (componente -- ()).  Interfaz requerida: socket (componente --( ()).
+' Cuando un componente provee y otro requiere la misma interfaz, se dibuja el ensamble ball-and-socket.
+
+top to bottom direction
+skinparam componentStyle uml2
+skinparam shadowing false
+skinparam defaultFontName Arial
+skinparam defaultFontSize 12
+skinparam linetype polyline
+skinparam nodesep 30
+skinparam ranksep 45
+skinparam ArrowColor #333333
+skinparam component {
+  BackgroundColor #FFFFFF
+  BorderColor #333333
+}
+skinparam interface {
+  BackgroundColor #FFFFFF
+  BorderColor #333333
+}
+skinparam node {
+  BackgroundColor #F7F7F7
+  BorderColor #888888
+}
+
+' ================= Fila 1: cliente =================
+node "S3 + CloudFront" {
+  component "SPA React" as SPA
+}
+node "Auth0 (SaaS)" {
+  component "Auth0" as AUTH0
+}
+() "OAuth2 / JWKS" as I_AUTH
+AUTH0 -- I_AUTH
+
+' ================= Fila 2: borde AWS =================
+component "API Gateway\n(authorizer JWT)" as APIGW
+() "API pública HTTPS\napi.sofiaguerrero.me" as I_PUBAPI
+APIGW -up- I_PUBAPI
+SPA --( I_PUBAPI
+SPA --( I_AUTH
+APIGW --( I_AUTH
+
+' ================= Fila 3: EC2 =================
+node "EC2 · docker compose" as EC2 {
+
+  component "Nginx" as NGINX
+
+  component "web (Rails 8 + Solid Queue)" as WEB {
+    component "API JSON\n/cycles, /market-strategy,\n/audit-logs" as W_API
+    component "EventsController\nMarketMessageProcessor" as W_EVENTS
+    component "OutboxController" as W_OUTBOX
+    component "Estrategia de mercado\nMarketCycleJob\nNegotiationStrategyService\nSell/AcceptMarketBidJob" as W_STRAT
+    component "MarketSwapEventService" as W_SWAPS
+    component "WalletClient\nWalletTokenValidator" as W_WALLET
+  }
+
+  component "connector (Ruby + Bunny)" as CONN {
+    component "Consumidor\ncity.TK3.q" as C_CITY
+    component "Consumidor\nmarket.TK3" as C_MKT
+    component "Outbox sender" as C_OUT
+  }
+
+  component "PostgreSQL" as DB
+
+  () "API JSON" as I_API
+  () "POST /events" as I_EVENTS
+  () "/events/outbox" as I_OUTBOX
+  () "SQL" as I_SQL
+}
+
+
+W_API -- I_API
+NGINX --( I_API
+APIGW ..> NGINX : HTTP +\nX-Origin-Verify
+
+W_EVENTS -- I_EVENTS
+W_OUTBOX -- I_OUTBOX
+C_CITY --( I_EVENTS
+C_MKT --( I_EVENTS
+C_OUT --( I_OUTBOX
+
+W_EVENTS ..> W_SWAPS : swap-*
+W_EVENTS ..> W_STRAT : bid, offer,\nmarket-closed
+W_STRAT ..> W_WALLET
+W_SWAPS ..> W_WALLET
+
+DB -- I_SQL
+WEB --( I_SQL
+
+' ================= Fila 4: servicios externos =================
+node "Servicios del curso" {
+  component "Broker RabbitMQ" as BROKER
+  component "Wallet" as WALLET
+}
+node "New Relic (SaaS)" {
+  component "New Relic" as NR
+}
+
+() "AMQP city.TK3.q" as I_CITYQ
+() "AMQP market.TK3" as I_MKTQ
+() "AMQP publicar\nenergy.x / market" as I_PUB
+() "Wallet REST /v1" as I_WALLET
+() "JWKS" as I_WJWKS
+() "APM" as I_APM
+
+BROKER -up- I_CITYQ
+BROKER -up- I_MKTQ
+BROKER -up- I_PUB
+WALLET -up- I_WALLET
+WALLET -up- I_WJWKS
+NR -up- I_APM
+
+C_CITY --( I_CITYQ
+C_MKT --( I_MKTQ
+C_OUT --( I_PUB
+W_WALLET --( I_WALLET
+W_WALLET --( I_WJWKS
+WEB --( I_APM
+
+@enduml
