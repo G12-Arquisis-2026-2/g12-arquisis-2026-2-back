@@ -165,6 +165,45 @@ class EventsControllerTest < ActionDispatch::IntegrationTest
     assert_equal "saved", response.parsed_body["status"]
   end
 
+  test "swap proposed with invalid jwt is acknowledged successfully" do
+    original = WalletTokenValidator.method(:verify!)
+    WalletTokenValidator.define_singleton_method(:verify!) do |_token|
+      raise JWT::DecodeError, "invalid token"
+    end
+
+    MarketBid.create!(
+      cycle_id: "cycle-swap-invalid-token",
+      offer_id: "offer-invalid-token",
+      bid_idpk: "bid-invalid-token",
+      bid_msg_id: "bid-msg-invalid-token",
+      side: "buy",
+      buyer_city: "TK3",
+      seller_city: "TK3",
+      quantity: 10,
+      status: "proposing",
+      proposal_idpk: "unknown-market-proposal"
+    )
+
+    post_event(
+      "type" => "swap-proposed",
+      "idpk" => "event-invalid-swap-token",
+      "cycleId" => "cycle-swap-invalid-token",
+      "data" => {
+        "idpk" => "unknown-market-proposal",
+        "swapId" => "swap-invalid-token",
+        "give" => { "asset" => "KWH", "amount" => 10 },
+        "take" => { "asset" => "CR", "amount" => 100 },
+        "token" => "invalid-token",
+        "expiresAt" => 1.minute.from_now.iso8601
+      }
+    )
+
+    assert_response :success
+    assert_equal "saved", response.parsed_body["status"]
+  ensure
+    WalletTokenValidator.define_singleton_method(:verify!, original) if original
+  end
+
   test "give and take are saved in the ledger" do
     post_event give_take_payload("give", "idpk-give")
     assert_response :created

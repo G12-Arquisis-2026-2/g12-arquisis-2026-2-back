@@ -16,6 +16,3 @@ production:
   stuck_swaps_cleanup:
     class: StuckSwapsCleanupJob
     schedule: every minute
-  cycle_reconciliation:
-    class: CycleReconciliationJob
-    schedule: "10 * * * *"
