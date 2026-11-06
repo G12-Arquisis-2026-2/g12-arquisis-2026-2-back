@@ -1,0 +1,7 @@
+{
+  "name": "energyshark-tk3-contract-tests",
+  "private": true,
+  "description": "Valida con el validador oficial del curso los mensajes que emite TK3. Solo para el CI (contract-tests.yml); no va en las imagenes de Docker. El paquete del curso se instala sin guardarlo: npm install --no-save \"github:iic2173/energyshark-contracts#v3.0.2\"",
+  "type": "module",
+  "engines": { "node": ">=20" }
+}
