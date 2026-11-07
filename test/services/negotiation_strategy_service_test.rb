@@ -71,8 +71,8 @@ class NegotiationStrategyServiceTest < ActiveSupport::TestCase
       { cityId: "BBB", offerId: "bbb", remaining: 100, pricePerEnergy: 215 }
     ]
     distances = {
-      "AAA" => { distance: 2, transportCost: 2, enabled: true },
-      "BBB" => { distance: 10, transportCost: 0.5, enabled: true }
+      "AAA" => { distance: 2_000, transportCost: 2, enabled: true },
+      "BBB" => { distance: 10_000, transportCost: 0.5, enabled: true }
     }
 
     bid = NegotiationStrategyService.best_buy_bid(
@@ -88,7 +88,7 @@ class NegotiationStrategyServiceTest < ActiveSupport::TestCase
 
   test "uses the punitive transport rate for a disabled route" do
     offer = { cityId: "AAA", offerId: "aaa", remaining: 100, pricePerEnergy: 220 }
-    route = { distance: 2, transportCost: 1, disabledRouteTransportCost: 3, enabled: false }
+    route = { distance: 2_000, transportCost: 1, disabledRouteTransportCost: 3, enabled: false }
 
     bid = NegotiationStrategyService.best_buy_bid(
       cycle: @cycle, offers: [offer], distances: { "AAA" => route }, energy_needed: 50, strategy: @strategy
