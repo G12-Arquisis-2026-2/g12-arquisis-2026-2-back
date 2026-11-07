@@ -47,15 +47,10 @@ class NegotiationStrategyService
       route = distance_for(distances, city_id)
       next unless route
 
-      transport_cost_key = route_enabled?(route) ? :transportCost : :disabledRouteTransportCost
-      begin
-        transport_cost = route_value(route, transport_cost_key)
-      rescue KeyError
-        Rails.logger.warn("[NegotiationStrategyService] Omitiendo ruta #{city_id}: falta #{transport_cost_key}")
-        next
-      end
-      transport = (route_value(route, :distance).to_d / 1000 * transport_cost).round(2)
-      effective_price = offer_price.to_d + transport
+      pricing = route_pricing(route: route, city_id: city_id, price_per_energy: offer_price)
+      next unless pricing && pricing[:effective_price]
+
+      effective_price = pricing[:effective_price]
       next if effective_price > price_limit
 
       {
@@ -71,6 +66,33 @@ class NegotiationStrategyService
         }
       }
     end.min_by { |candidate| [candidate[:effective_price_per_energy], -candidate[:quantity]] }
+  end
+
+  def self.route_pricing(route:, city_id:, price_per_energy:)
+    route_enabled = route_value(route, :enabled) == true
+    distance_km = route_value(route, :distance).to_d / 1000
+    transport_cost_key = route_enabled ? :transportCost : :disabledRouteTransportCost
+    transport_cost = begin
+      route_value(route, transport_cost_key).to_d
+    rescue KeyError
+      Rails.logger.warn("[NegotiationStrategyService] Omitiendo ruta #{city_id}: falta #{transport_cost_key}")
+      return {
+        distance_km: distance_km,
+        transport_cost_per_kwh: nil,
+        effective_price: nil,
+        route_enabled: route_enabled
+      }
+    end
+
+    {
+      distance_km: distance_km,
+      transport_cost_per_kwh: transport_cost,
+      effective_price: (price_per_energy.to_d + (distance_km * transport_cost).round(2)).round(2),
+      route_enabled: route_enabled
+    }
+  rescue KeyError
+    Rails.logger.warn("[NegotiationStrategyService] Omitiendo ruta #{city_id}: falta un campo de ruta")
+    nil
   end
 
   def self.bid_rejection_reason(cycle:, offer_id:, bid:, remaining:, now: Time.current)
