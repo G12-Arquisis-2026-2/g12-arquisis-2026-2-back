@@ -33,11 +33,13 @@ class CyclesControllerTest < ActionDispatch::IntegrationTest
     assert_number 1000, cycle["statusStatement"]["energy"]["generationCapacity"]
     # solo el transfer de fondos: el pago del give (26460) no se mezcla
     assert_number 500_000, cycle["fundsReceived"]
-    assert_equal 1, cycle["demandStatements"].size
-    assert_number 100, cycle["demandStatements"].first["quantity"]
-    assert_number 215, cycle["demandStatements"].first["valuePerKwh"]
-    assert_equal [["prop-1", "give", "paid"]],
-                 cycle["voluntaryNegotiations"].map { |item| item.values_at("proposalId", "direction", "status") }
+    assert_not cycle.key?("demandStatements")
+    assert_not cycle.key?("voluntaryNegotiations")
+    assert_equal [], cycle["bidsSent"]
+    assert_equal [], cycle["bidsReceived"]
+    assert_equal [], cycle["swaps"]
+    assert_number 0, cycle["transportCharges"]
+    assert_nil cycle["imbalanceSettlement"]
     assert_nil cycle["negotiationReport"]
     # budget: 500000 - 21500 (100*215) - 10500 (50*210) + 26460 (pago del give) = 494460
     # energía: 200 + 100 (demand) + 50 (take) - 120 (give) = 230
@@ -80,8 +82,12 @@ class CyclesControllerTest < ActionDispatch::IntegrationTest
     cycle = response.parsed_body["cycle"]
     assert_equal "cycle-1", cycle["cycleId"]
     assert_number 0, cycle["fundsReceived"]
-    assert_equal [], cycle["demandStatements"]
-    assert_equal [], cycle["voluntaryNegotiations"]
+    assert_not cycle.key?("demandStatements")
+    assert_not cycle.key?("voluntaryNegotiations")
+    assert_nil cycle["ownOffer"]
+    assert_equal [], cycle["bidsSent"]
+    assert_equal [], cycle["bidsReceived"]
+    assert_equal [], cycle["swaps"]
     assert_nil cycle["negotiationReport"]
     assert_equal({ "missedAt" => nil, "tooEarly" => false, "notBefore" => nil }, cycle["reportTracking"])
     assert_number 0, cycle["finalBalances"]["budget"]

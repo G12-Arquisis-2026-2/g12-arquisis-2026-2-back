@@ -1,0 +1,83 @@
+name: Contract tests
+
+# RDOC04: los mensajes que emite nuestro código (connector y outbox) cumplen los schemas
+# oficiales del curso (iic2173/energyshark-contracts, tag v3.0.2). Lo que aceptamos al recibir
+# lo prueba connector/test/contract_examples_test.rb, que corre en ci.yml.
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+env:
+  CONTRACTS_PACKAGE: "github:iic2173/energyshark-contracts#v3.0.2"
+  MESSAGE_TYPES: ack,nack,bid,bid-accepted,bid-rejected,offer,offer-updated,offer-withdrawn
+
+jobs:
+  emitted-messages:
+    name: Mensajes emitidos vs contratos v3.0.2
+    runs-on: ubuntu-latest
+
+    # el outbox guarda los mensajes en Postgres (la misma versión que docker-compose.yml)
+    services:
+      postgres:
+        image: postgres:15-alpine
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Carpeta de los mensajes emitidos
+        run: echo "EMITTED_MESSAGES_DIR=$RUNNER_TEMP/emitted-messages" >> "$GITHUB_ENV"
+
+      - uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: "3.3"
+          bundler-cache: true
+
+      # ack y nack, con el flujo real del connector (no necesita gemas)
+      - name: Generar ack y nack (connector)
+        working-directory: connector
+        run: ruby -Itest test/emitted_messages_test.rb
+
+      # bid, bid-accepted, bid-rejected y los del mercado, tal como quedan en el outbox
+      - name: Generar mensajes del outbox (Rails)
+        env:
+          RAILS_ENV: test
+          DATABASE_URL: postgres://postgres:postgres@localhost:5432/e0_test
+        run: |
+          bin/rails db:create db:schema:load
+          bin/rails test test/contracts/emitted_outbox_messages_test.rb
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      # sin guardarlo en package.json ni crear lockfile: solo vive en el runner
+      - name: Instalar los contratos del curso
+        working-directory: connector/contract-tests
+        run: npm install --no-save --no-audit --no-fund "$CONTRACTS_PACKAGE"
+
+      - name: Validar con el validador oficial
+        working-directory: connector/contract-tests
+        shell: bash
+        run: node validate-contracts.mjs "$EMITTED_MESSAGES_DIR" --types "$MESSAGE_TYPES" | tee -a "$GITHUB_STEP_SUMMARY"
+
+      - name: Guardar los mensajes emitidos
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: emitted-messages
+          path: ${{ runner.temp }}/emitted-messages
+          if-no-files-found: ignore

@@ -41,3 +41,12 @@ Se opta por la Alternativa 2 (Worker Desacoplado) bajo el estilo de Arquitectura
 2. **Reconexión automática:** Exitoso en pruebas locales. Al volver el broker de prueba, el connector reconectó solo en unos 20 segundos y volvió a consumir, y en los logs quedaron los avisos de conexión perdida y recuperada. Los casos de espera sin límite están cubiertos por tests (94 del connector, todos en verde).
 3. **No se pierden mensajes ya recibidos:** Parcial. Se cumple ante caídas del connector, del broker y de la API, porque el mensaje solo se confirma al broker después de guardado, está cubierto por tests y por la prueba local con la API detenida. No se cumple en un caso: si la API responde un error 500 de forma repetida para un mensaje, se descarta tras 4 intentos. Fue una decisión consciente para no bloquear la cola.
 4. **Mensajes inválidos sin caída del servicio:** Exitoso en pruebas locales. Un mensaje sin idpk recibió nack MALFORMED_MESSAGE, y un texto que no es JSON y un mensaje sin msgId se descartaron sin respuesta, los tres quedaron en la auditoría y el connector siguió sano. Incluye el caso de bytes inválidos, que en una versión anterior dejaba al connector reintentando el mismo mensaje.
+
+## Reexamen E2
+
+La decisión se mantiene. En la E2 el protocolo v3 agrega una segunda cola (`market.TK3`), mensajes directos entre ciudades y la verificación de identidad en el receptor. Se evaluó si el connector debía seguir siendo la única puerta al broker, y el ADR7 decide que sí: el mismo connector abre un canal y un consumidor por cola, responde a la ciudad que envió cada mensaje, y el outbox publica también a otras ciudades y al mercado. Todas las tácticas de este ADR (confirmación manual, reconexión de Bunny, vigilancia, healthcheck y outbox) se reutilizan sin cambios de fondo.
+
+Cambios respecto de lo evaluado en la E1:
+1. **La vigilancia ya no reinicia por el canal del outbox:** si el broker lo cierra, se reabre ese canal y el mensaje queda fallido; el proceso solo termina por los canales de consumo.
+2. **La regla de los 4 reintentos sigue siendo el punto débil:** un mensaje que la API rechaza con 500 de forma repetida frena la cola unos 65 segundos antes de descartarse. Se observó con un `swap-proposed` con token inválido, y la solución es que la API no responda 500 en ese caso.
+3. **Evidencia:** las pruebas de reconexión y de aislamiento de la E2 están en el post-mortem del ADR7.

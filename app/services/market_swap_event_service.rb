@@ -80,12 +80,21 @@ class MarketSwapEventService
   def rejected
     idpk = @data["idpk"]
     bid = MarketBid.find_by(proposal_idpk: idpk) || MarketBid.find_by(accept_idpk: idpk)
+    counterparty_accept_failed = false
+    # Si falló el accept del comprador, el idpk es suyo y no lo tenemos: buscamos por swapId,
+    # solo para operation "accept" y solo si el bid sigue en "proposed" (evita liberar dos veces
+    # la reserva cuando llega después el rechazo de nuestro propio cancel).
+    if bid.nil? && @data["operation"] == "accept" && @data["swapId"].present?
+      bid = MarketBid.find_by(swap_id: @data["swapId"], side: "sell", status: "proposed")
+      counterparty_accept_failed = bid.present?
+    end
     update_intention(:rejected, idpk:)
     return true unless bid
 
     if bid.side == "sell"
-      release_seller_reservation(bid)
-      publish_bid_rejected(bid)
+      release_seller_reservation(bid) # libera la reserva y deja el bid en "rejected"
+      # Al comprador ya le enviamos bid-accepted: si falló su accept, no corresponde bid-rejected
+      publish_bid_rejected(bid) unless counterparty_accept_failed
       publish_offer_update(bid)
     else
       bid.update!(status: "rejected")

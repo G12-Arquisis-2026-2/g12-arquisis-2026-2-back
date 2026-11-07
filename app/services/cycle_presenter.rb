@@ -14,12 +14,16 @@ class CyclePresenter
       statusStatement: status_statement_data,
       marketStrategy: market_strategy_data,
       fundsReceived: funds_received,
-      demandStatements: demand_statements,
-      voluntaryNegotiations: voluntary_negotiations,
       negotiationReport: negotiation_report_data,
       reportTracking: report_tracking,
       finalBalances: final_balances,
-      lastOperation: last_operation
+      lastOperation: last_operation,
+      ownOffer: own_offer,
+      bidsSent: bids_sent,
+      bidsReceived: bids_received,
+      swaps: swaps,
+      transportCharges: transport_charges,
+      imbalanceSettlement: imbalance_settlement
     }
   end
 
@@ -31,9 +35,9 @@ class CyclePresenter
 
     statement = {
       energy: {
-        generationCapacity: @cycle.generation_capacity || 0,
-        consumption: @cycle.consumption || 0,
-        generationCost: @cycle.generation_cost || 0.0
+        generationCapacity: numeric(@cycle.generation_capacity),
+        consumption: numeric(@cycle.consumption),
+        generationCost: numeric(@cycle.generation_cost)
       },
       validUntil: @cycle.valid_until.iso8601
     }
@@ -46,8 +50,8 @@ class CyclePresenter
     return nil if @cycle.buyback_price.blank? && @cycle.imbalance_price.blank?
 
     {
-      buybackPrice: @cycle.buyback_price,
-      imbalancePrice: @cycle.imbalance_price,
+      buybackPrice: numeric(@cycle.buyback_price),
+      imbalancePrice: numeric(@cycle.imbalance_price),
       minBid: @cycle.min_bid,
       opensAt: @cycle.market_opens_at&.iso8601,
       lastOfferAt: @cycle.last_offer_at&.iso8601,
@@ -63,9 +67,9 @@ class CyclePresenter
 
     {
       id: strategy.id,
-      sellPriceMultiplier: strategy.sell_price_multiplier,
-      maxBuyEffectivePriceRatio: strategy.max_buy_effective_price_ratio,
-      spanSeconds: strategy.span_seconds
+      sellPriceMultiplier: numeric(strategy.sell_price_multiplier),
+      maxBuyEffectivePriceRatio: numeric(strategy.max_buy_effective_price_ratio),
+      spanSeconds: strategy.span_seconds.to_i
     }
   end
 
@@ -111,8 +115,8 @@ class CyclePresenter
     return nil unless @cycle.report_sent?
 
     {
-      budgetBalance: @cycle.reported_budget,
-      energyBalance: @cycle.reported_energy,
+      budgetBalance: numeric(@cycle.reported_budget),
+      energyBalance: numeric(@cycle.reported_energy),
       sentAt: report_sent_at&.iso8601
     }
   end
@@ -139,9 +143,95 @@ class CyclePresenter
   def final_balances
     balances = CycleBalanceService.call(@cycle)
     {
-      budget: balances[:budget],
-      energy: balances[:energy]
+      budget: numeric(balances[:budget]),
+      energy: numeric(balances[:energy])
     }
+  end
+
+  def own_offer
+    offer = MarketOffer.find_by(cycle_id: @cycle_id, city_id: ENV.fetch("CITY_ID", "TK3"))
+    return nil unless offer
+
+    {
+      id: offer.id,
+      offerId: offer.offer_id,
+      quantity: offer.quantity.to_i,
+      remaining: offer.remaining.to_i,
+      reservedQuantity: offer.reserved_quantity.to_i,
+      pricePerEnergy: numeric(offer.price_per_energy),
+      active: offer.active
+    }
+  end
+
+  def bids_sent
+    MarketBid.where(cycle_id: @cycle_id, side: "buy").order(created_at: :desc).map { |bid| bid_json(bid) }
+  end
+
+  def bids_received
+    MarketBid.where(cycle_id: @cycle_id, side: "sell").order(created_at: :desc).map { |bid| bid_json(bid) }
+  end
+
+  def bid_json(bid)
+    {
+      id: bid.id,
+      bidIdpk: bid.bid_idpk,
+      offerId: bid.offer_id,
+      sellerCity: bid.seller_city,
+      buyerCity: bid.buyer_city,
+      quantity: bid.quantity.to_i,
+      pricePerEnergy: numeric(bid.price_per_energy),
+      amount: numeric(bid.amount),
+      status: bid.status,
+      swapId: bid.swap_id,
+      expiresAt: bid.expires_at&.iso8601,
+      createdAt: bid.created_at.iso8601
+    }
+  end
+
+  def swaps
+    SwapIntention.where(cycle_id: @cycle_id).order(created_at: :desc).map do |swap|
+      {
+        id: swap.id,
+        idpk: swap.idpk,
+        swapId: swap.swap_id,
+        status: swap.status,
+        giveAmount: numeric(swap.give_amount),
+        takeAmount: numeric(swap.take_amount),
+        expiresAt: swap.expires_at&.iso8601,
+        createdAt: swap.created_at.iso8601
+      }
+    end
+  end
+
+  def transport_charges
+    MarketBid.where(cycle_id: @cycle_id, side: "buy", status: "settled").sum do |bid|
+      route = DistanceTable.find_by(destination_code: bid.seller_city)
+      bid.quantity.to_d * (route&.transport_cost || 0).to_d
+    end.to_f
+  end
+
+  def imbalance_settlement
+    audit = AuditLog.where(event_type: "IMBALANCE_SETTLEMENT")
+                    .where("raw_payload ->> 'cycleId' = ?", @cycle_id)
+                    .order(created_at: :desc)
+                    .first
+    return nil unless audit&.raw_payload.is_a?(Hash)
+
+    data = audit.raw_payload.fetch("data", {})
+    {
+      kwhHeld: numeric(data["kwhHeld"]),
+      deficit: numeric(data["deficit"]),
+      coverage: numeric(data["coverage"]),
+      pricePerEnergy: numeric(data["pricePerEnergy"]),
+      total: numeric(data["total"]),
+      balanceAfter: numeric(data["balanceAfter"]),
+      settlementId: data["settlementId"],
+      recordedAt: audit.created_at.iso8601
+    }
+  end
+
+  def numeric(value)
+    value.present? ? value.to_f : 0.0
   end
 
   # 7. Identifica el tipo de la última operación de dominio efectuada en el ciclo

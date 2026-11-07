@@ -17,3 +17,19 @@ Optamos por **Generar y persistir la `Idempotency-Key` en Base de Datos**. Intro
 ## Consecuencias
 * **Positivas:** Prevención total de transacciones financieras duplicadas, crucial para no quedar con balance negativo no deseado.
 * **Negativas:** Desacopla la lógica de negocio; el ledger interno queda en un estado temporal "retenido" que debe ser limpiado/conciliado posteriormente usando los eventos `swap-settled` o `swap-rejected` recibidos por RabbitMQ.
+
+## Análisis Postmortem
+
+### Modificaciones y Adaptaciones durante Implementación
+1. **Intención persistida antes del POST:** los jobs crean `SwapIntention` con `idpk`, montos, vencimiento y estado pending, reutilizando el mismo valor en HTTP y reintentos.
+2. **HTTP transitorio y 429:** `WalletClient` conserva la Idempotency-Key, respeta `Retry-After` y encola `WalletRetryJob` sin generar una clave nueva.
+3. **Reconciliación por ciclo:** el job separa CR y KWH, suma available + held y persiste ambos deltas junto con la fecha de conciliación.
+4. **Eventos fuera de orden:** el servicio de mercado localiza una intención por `idpk` o `swap_id`; si no existe, crea una fila mínima para no perder resoluciones adelantadas.
+5. **Estados terminales:** el worker impide volver de settled/rejected/cancelled/expired a pending.
+
+### Evaluación de Resultados
+1. **Idempotencia:** exitoso. La clave persiste entre timeouts, reintentos y reinicios del proceso.
+2. **Rate limiting:** exitoso en código; el delay de 429 se deriva de la respuesta HTTP sin cambiar la operación ni la clave.
+3. **Conciliación:** exitoso con una dependencia crítica: cada intención debe quedar asociada a su ciclo para filtrar correctamente los swaps settled.
+4. **Orden de eventos:** exitoso parcialmente. Las resoluciones adelantadas pueden crear o completar la intención, pero los montos pueden quedar incompletos si el evento de resolución no los incluye.
+5. **Cleanup:** exitoso. El job reutiliza una clave de cancelación persistida en vez de crear otra en cada minuto.

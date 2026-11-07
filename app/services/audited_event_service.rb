@@ -11,20 +11,24 @@ class AuditedEventService
   }.freeze
 
   def self.call(payload)
+    ProcessedMessage.process_once(payload) { record!(payload) }
+  end
+
+  # Sin control de idpk: lo usan también procesadores que ya corren dentro de process_once
+  # (ImbalanceSettlementProcessorService), para no marcar su propio mensaje como DUPLICATE.
+  def self.record!(payload)
     type = payload.fetch("type")
     data = payload["data"].is_a?(Hash) ? payload["data"] : {}
 
-    ProcessedMessage.process_once(payload) do
-      AuditLog.create!(
-        idpk: payload.fetch("idpk"),
-        event_type: EVENT_TYPES.fetch(type),
-        reason: reason_for(type, payload, data),
-        raw_payload: payload
-      )
-      # el reporte llegó antes del periodo de cierre: se reenvía desde data.opensAt
-      if type == "error" && payload["reason"] == "REPORT_TOO_EARLY"
-        CycleService.report_too_early!(data["target"], data["opensAt"])
-      end
+    AuditLog.create!(
+      idpk: payload.fetch("idpk"),
+      event_type: EVENT_TYPES.fetch(type),
+      reason: reason_for(type, payload, data),
+      raw_payload: payload
+    )
+    # el reporte llegó antes del periodo de cierre: se reenvía desde data.opensAt
+    if type == "error" && payload["reason"] == "REPORT_TOO_EARLY"
+      CycleService.report_too_early!(data["target"], data["opensAt"])
     end
   end
 

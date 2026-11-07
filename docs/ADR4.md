@@ -21,3 +21,15 @@ La configuración se lee y actualiza mediante `GET /market-strategy` y `PUT /mar
 ## Consecuencias
 * **Positivas:** Cumplimos con el requisito de cambio dinámico y aseguramos la trazabilidad exacta de los experimentos por ciclo .
 * **Negativas:** Requerirá migraciones adicionales y un endpoint CRUD para que el frontend pueda interactuar con las configuraciones.
+
+## Análisis Postmortem
+
+### Modificaciones y Adaptaciones durante Implementación
+1. **Versionado activo en vez de historial explícito:** se agregó una versión activa y se guarda su ID en el ciclo, conservando trazabilidad sin duplicar toda la configuración anterior.
+2. **Configuración vinculada al status-statement:** al registrar el ciclo se fija la estrategia, y el presentador expone sus parámetros al frontend.
+3. **Métricas de experimento:** el endpoint de span usa el mismo `span_seconds`, el déficit cubierto, el costo efectivo y los bids rechazados del ciclo.
+
+### Evaluación de Resultados
+1. **Cambio dinámico sin redespliegue:** exitoso. La API permite leer y actualizar el multiplicador, el límite comprador y el span.
+2. **Precios controlados:** exitoso en implementación; las rutas deshabilitadas usan su costo específico y no el costo normal.
+3. **Trazabilidad:** exitoso. El ciclo conserva la estrategia usada, aunque conviene seguir probando cambios concurrentes entre el status-statement y una actualización de estrategia.

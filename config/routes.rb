@@ -44,6 +44,7 @@ Rails.application.routes.draw do
   get  '/proposals', to: 'proposals#index'
 
   get '/market/live', to: 'market_api#live'
+  get '/market/swaps', to: 'market_api#swaps'
   get '/experiments/span', to: 'market_api#span'
 
   # RF05: Auditoría de anomalías (duplicados, descartes y NACKs)
