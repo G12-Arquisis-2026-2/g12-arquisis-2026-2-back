@@ -7,7 +7,7 @@ Backend del nodo de la ciudad **Tokyo-3 (TK3)** para EnergyShark (IIC2173, 2026-
 
 ## Repositorio de contratos
 
-Los schemas de los mensajes y el OpenAPI de la API viven en el repositorio de contratos: [https://github.com/<org>/energyshark-e1-contracts](https://github.com/G12-Arquisis-2026-2/IIC2173-2026-2-G12-contratos/blob/main/agents.md)
+Los schemas de los mensajes y el OpenAPI de la API viven en el repositorio de contratos: [G12-Arquisis-2026-2/IIC2173-2026-2-G12-contratos](https://github.com/G12-Arquisis-2026-2/IIC2173-2026-2-G12-contratos)
 
 Contexto compartido para agentes: ver [`agents.md`](https://github.com/G12-Arquisis-2026-2/IIC2173-2026-2-G12-contratos/blob/main/agents.md) en ese repositorio.
 
@@ -21,7 +21,7 @@ Contexto compartido para agentes: ver [`agents.md`](https://github.com/G12-Arqui
 
 En producción: API Gateway (HTTP API, authorizer JWT de Auth0) → Nginx en EC2 → contenedores `web` y `connector`. Imágenes en Amazon ECR (`us-east-2`). Monitoreo con New Relic (APM en `web` y agente de infraestructura en la EC2).
 
-El detalle está en el [diagrama UML de componentes](docs/diagrama_UML.md).
+  El detalle está en el [diagrama UML de componentes](docs/diagrama_UML_E2.md).
 
 ## Correr en local
 
@@ -53,7 +53,7 @@ Incluye los contract tests (`contract_examples_test.rb`), que validan los mensaj
 | Documento | Contenido |
 | --- | --- |
 | [docs/e2-spec-milestones.md](docs/e2-spec-milestones.md) | Spec de la entrega, plan de milestones y roles |
-| [docs/indices_ADRs.md](docs/indices_ADRs.md) | Índice de decisiones de arquitectura (AD1 a AD6) y su correspondencia con los archivos ADR |
+| [docs/indices_ADRs.md](docs/indices_ADRs.md) | Índice de decisiones de arquitectura (AD1 a AD7) y su correspondencia con los archivos ADR |
 | [docs/diagrama_UML_E1.md](docs/diagrama_UML_E1.md) | Diagrama de componentes de la entrega anterior |
 | [docs/diagrama_UML_E2.md](docs/diagrama_UML_E2.md) | Diagrama de componentes actualizado para la entrega 2 |
 | [docs/guia-local.md](docs/guia-local.md) | Cómo correr la aplicación en local |

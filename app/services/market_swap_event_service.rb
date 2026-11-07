@@ -85,7 +85,8 @@ class MarketSwapEventService
 
     if bid.side == "sell"
       release_seller_reservation(bid)
-      publish_bid_rejected(bid)
+      bid.update!(status: "rejected") if counterparty_accept_failed && bid.status == "proposed"
+      publish_bid_rejected(bid) unless counterparty_accept_failed
       publish_offer_update(bid)
     else
       bid.update!(status: "rejected")
