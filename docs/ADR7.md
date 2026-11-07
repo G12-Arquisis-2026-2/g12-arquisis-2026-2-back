@@ -46,3 +46,19 @@ Se opta por la Alternativa 1. El connector sigue siendo la única puerta: abre u
 - El `ack` de un `bid` real enviado a `city.{otra ciudad}`, visible en el log y en la auditoría.
 - Ningún `nack` `UNKNOWN_TYPE` a mensajes v3 válidos durante el período de evaluación.
 - Ningún bloqueo por superar el límite de operaciones de mercado.
+
+## Análisis Postmortem
+
+### Modificaciones y Adaptaciones durante Implementación
+1. **Dos canales reales:** el connector abrió consumidores separados para `city.TK3.q` y `market.TK3`, ambos con confirmación manual y políticas de watchdog independientes por canal.
+2. **Validación y autorización antes de API:** el validator separó tipos centrales, wallet y mercado; además comprobó `user_id`, routing key, `cityId` e identidad.
+3. **Respuestas privadas y difusiones:** los mensajes directos se enviaron por `city.{destino}` y las publicaciones propias al mercado por `market.offer.{CIUDAD}` desde el outbox. Los mensajes de `market` nunca obtienen ack/nack de protocolo.
+4. **Límite de publicaciones:** el outbox compartió un RateLimiter de mercado y ciudades externas, con margen para respetar el máximo de 60 operaciones por minuto.
+5. **Protección ante desconexión:** si una publicación hacia otra ciudad o el mercado falla, el mensaje no se pierde silenciosamente; queda sujeto al mecanismo de reintento/fallo del canal de outbox.
+
+### Evaluación de Resultados
+1. **Aislamiento de colas:** exitoso en implementación. Una ráfaga de ofertas o bids solo ocupa el canal de mercado; los mensajes de la central siguen en su propio canal.
+2. **API sin conexión a RabbitMQ:** exitoso. Sigue cumpliendo el ADR1 y se comunican todos los eventos a través de HTTP después de validación.
+3. **ACK/nack correctos:** exitoso en las pruebas del connector para validaciones, routing y respuestas de ciudad. Los mensajes market se confirman sin respuesta de protocolo.
+4. **Recuperación de canales:** parcial. RabbitMQ recupera consumidores y canales, pero una caída prolongada puede hacer que `market.TK3` descarte ofertas antiguas por su política de cola limitada.
+5. **Identidad y permisos:** exitoso dentro del protocolo definido. Los casos de mensaje central sin identidad correcta se descartan y los mensajes de otra ciudad siguen el nack hacia su ciudad real.

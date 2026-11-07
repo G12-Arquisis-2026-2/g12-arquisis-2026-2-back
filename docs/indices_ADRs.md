@@ -15,8 +15,8 @@ Los archivos ADR se numeran en el orden en que se escribieron, que no coincide c
 | Decisión | Archivo | Qué cambió en la E2 | Commit |
 | --- | --- | --- | --- |
 | AD1: consumo de mensajes | [ADR1](ADR1.md) (E1) y [ADR7](ADR7.md) (E2) | Dos colas (city.TK3.q y market.TK3) en el mismo connector, un canal por cola, y respuestas a otras ciudades | 2c4a107 (E1), 5d7603c (2026-11-04) |
-| AD2: ledger local | [ADR2](ADR2.md) | Pendiente: re-examen E2 (el ledger pierde autoridad frente a la wallet) | 2c4a107 (E1) |
-| AD3: negociación con timeout | [ADR3](ADR3.md) | Pendiente: re-examen E2 (el flujo se retira; la disciplina de timeout y reintento con el mismo idpk se reutiliza con la wallet y con otras ciudades) | 2c4a107 (E1) |
+| AD2: ledger local | [ADR2](ADR2.md) | (el ledger pierde autoridad frente a la wallet) | 2c4a107 (E1) |
+| AD3: negociación con timeout | [ADR3](ADR3.md) | (el flujo se retira; la disciplina de timeout y reintento con el mismo idpk se reutiliza con la wallet y con otras ciudades) | 2c4a107 (E1) |
 
 ## Verificar el orden en el historial
 
