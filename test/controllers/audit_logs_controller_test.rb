@@ -68,6 +68,20 @@ class AuditLogsControllerTest < ActionDispatch::IntegrationTest
     assert_equal "transfer idpk idpk-bad", rejected["message"]
   end
 
+  # RF05, anomalía 2: user_id que no corresponde a la ciudad que dice ser
+  test "an IDENTITY_MISMATCH NACK shows up with code 403" do
+    message = transfer_payload("idpk-spoof", "msg-spoof")
+    report_rejected("nack", message, "IDENTITY_MISMATCH")
+
+    get "/audit-logs"
+
+    rejected = response.parsed_body["rejectedMessages"].sole
+    assert_equal "nack", rejected["type"]
+    assert_equal "msg-spoof", rejected["msgId"]
+    assert_equal "IDENTITY_MISMATCH", rejected["reason"]
+    assert_equal 403, rejected["code"]
+  end
+
   test "a message discarded by the connector shows up without msgId" do
     report_rejected("discard", "{no es json", "el cuerpo no es un objeto JSON")
 

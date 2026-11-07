@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_11_06_000002) do
+ActiveRecord::Schema[8.1].define(version: 2026_11_06_000004) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
 
@@ -75,6 +75,25 @@ ActiveRecord::Schema[8.1].define(version: 2026_11_06_000002) do
     t.boolean "enabled", null: false
     t.decimal "disabled_route_transport_cost", precision: 15, scale: 6
     t.index ["destination_code"], name: "index_distance_tables_on_destination_code", unique: true
+  end
+
+  create_table "imbalance_settlements", force: :cascade do |t|
+    t.string "idpk", null: false
+    t.string "msg_id", null: false
+    t.string "cycle_id", null: false
+    t.string "settlement_id", null: false
+    t.integer "kwh_held", null: false
+    t.integer "deficit", null: false
+    t.integer "coverage", null: false
+    t.decimal "price_per_energy", null: false
+    t.decimal "total", null: false
+    t.decimal "balance_after", null: false
+    t.datetime "settled_at"
+    t.jsonb "raw_payload", default: {}, null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["cycle_id"], name: "index_imbalance_settlements_on_cycle_id"
+    t.index ["idpk"], name: "index_imbalance_settlements_on_idpk", unique: true
   end
 
   create_table "market_bids", force: :cascade do |t|
@@ -188,6 +207,28 @@ ActiveRecord::Schema[8.1].define(version: 2026_11_06_000002) do
     t.index ["cancel_idempotency_key"], name: "index_swap_intentions_on_cancel_idempotency_key", unique: true
     t.index ["cycle_id"], name: "index_swap_intentions_on_cycle_id"
     t.index ["idpk"], name: "index_swap_intentions_on_idpk", unique: true
+  end
+
+  create_table "trade_records", force: :cascade do |t|
+    t.string "idpk", null: false
+    t.string "msg_id", null: false
+    t.string "cycle_id", null: false
+    t.string "swap_id", null: false
+    t.string "offer_id", null: false
+    t.string "seller", null: false
+    t.string "buyer", null: false
+    t.integer "quantity", null: false
+    t.decimal "price_per_energy", null: false
+    t.decimal "energy_total", null: false
+    t.decimal "transport_per_energy", null: false
+    t.decimal "transport_total", null: false
+    t.boolean "route_enabled", null: false
+    t.datetime "recorded_at"
+    t.jsonb "raw_payload", default: {}, null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["cycle_id"], name: "index_trade_records_on_cycle_id"
+    t.index ["idpk"], name: "index_trade_records_on_idpk", unique: true
   end
 
   create_table "transactions", force: :cascade do |t|
