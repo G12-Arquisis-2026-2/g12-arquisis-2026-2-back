@@ -16,12 +16,12 @@ db/migrate, app/controllers
 ## E2
 
 > - **Modelo:** 
-Gemini 3.1
+Gemini 3.1 y copilot de vscode
 > - **Plataforma:** 
 Gemini de navegador: https://share.gemini.google/96fId28yW6xY
 
 > - **Cómo se usó:** 
-Usé Gemini para estructurar el proyecto y sus componentes. También se uso para generar código el cual fuimos modificando. Al principio, la IA me ayudó a definir la estructura del proyecto, dándome ideas sobre cómo organizar los componentes antes de programar. Durante las revisiones, me apoyé en la herramienta para entender los errores. También la usé para generar código inicial que modifiqué y adapté para que encajaran con las necesidades del proyecto, siempre revisando.
+Usé Gemini para estructurar el proyecto y sus componentes. Al principio, la IA me ayudó a definir la estructura del proyecto, dándome ideas sobre cómo organizar los componentes antes de programar. Durante las revisiones, use Gemini en la herramienta para entender los errores. También usé el copilot de vscode para generar código inicial que modifiqué para que funcionara el proyecto, siempre revisando y monitoreando su uso.
 
 > - **Archivos/partes afectadas:** 
 db/migrate, app/controllers, app/services, app/models, app/jobs, app/workers
