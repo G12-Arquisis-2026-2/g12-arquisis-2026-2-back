@@ -18,7 +18,8 @@ class AuditLogsController < ApplicationController
   NACK_CODES = {
     "MALFORMED_MESSAGE" => 422,
     "IDPK_EQUALS_MSGID" => 422,
-    "UNKNOWN_TYPE" => 400
+    "UNKNOWN_TYPE" => 400,
+    "IDENTITY_MISMATCH" => 403
   }.freeze
 
   def index
