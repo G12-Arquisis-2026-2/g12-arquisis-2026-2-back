@@ -1,5 +1,5 @@
 # 1. Especificación de la Entrega
-Entrega: martes 3 de noviembre de 2026.
+Entrega: viernes 6 de noviembre de 2026.
 
 ### Objetivo General: 
 Evolucionar el nodo de Tokyo-3 (TK3) desde la negociación con la Central hacia un mercado entre ciudades (protocolo v3). El nodo publica ofertas, compra y vende energía directamente con otras ciudades mediante swaps custodiados por la wallet de la Central, y opera de forma autónoma ciclo a ciclo, tolerando una wallet lenta que a veces falla. La interfaz gráfica permite observar el mercado, administrar la estrategia sin redeploy y auditar cada ciclo.
@@ -107,7 +107,7 @@ Condición de salida: Todos los documentos en /docs y un ensayo completo de demo
 Tareas:
 - Post-mortems de AD1, AD2 y AD3.
 
-- Contract tests en CI contra los schemas v3.0.1 del curso, y OpenAPI actualizado.
+- Contract tests en CI contra los schemas v3.0.2 del curso, y OpenAPI actualizado.
 
 - Informe del experimento de span (RDOC05).
 

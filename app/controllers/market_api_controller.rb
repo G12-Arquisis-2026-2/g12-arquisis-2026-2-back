@@ -68,25 +68,34 @@ class MarketApiController < ApplicationController
     }, status: :ok
   end
 
-  def span
-    cycles = Cycle.where.not(valid_until: nil).order(valid_until: :desc)
+    def span
+    routes = DistanceTable.all.index_by(&:destination_code)
+    cycles = Cycle.where.not(valid_until: nil).order(valid_until: :desc).limit(300)
     experiments = cycles.map do |cycle|
-      settled_buys = MarketBid.where(cycle_id: cycle.cycle_id, side: "buy", status: "settled")
-      purchased_kwh = settled_buys.sum(:quantity).to_i
-      purchased_cr = settled_buys.sum(:amount).to_d
-      deficit = [cycle.consumption.to_d - cycle.generation_capacity.to_d, 0].max
-      baseline = (deficit * cycle.imbalance_price.to_d) - (cycle.sellable.to_d * cycle.buyback_price.to_d)
-
+      settled_buys = MarketBid.where(cycle_id: cycle.cycle_id, side: "buy", status: "settled").to_a
+      purchased_kwh = settled_buys.sum { |b| b.quantity.to_d }
+      purchased_cr  = settled_buys.sum { |b| b.amount.to_d }
+      transport = settled_buys.sum do |b|
+        route = routes[b.seller_city]
+        route ? b.quantity.to_d * route.distance.to_d / 1000 * route.transport_cost.to_d : 0
+      end
+      imbalance = cycle.imbalance_price.to_d
+      deficit   = [cycle.consumption.to_d - cycle.generation_capacity.to_d, 0].max
+      uncovered = [deficit - purchased_kwh, 0].max
+      baseline  = deficit * imbalance
+      paid      = purchased_cr + transport + uncovered * imbalance  
+      rejected  = MarketBid.where(cycle_id: cycle.cycle_id, status: %w[rejected timed_out]).count
       {
         cycleId: cycle.cycle_id,
-        span: cycle.market_strategy&.span_seconds,
-        deficitCovered: purchased_kwh,
-        effectiveCost: purchased_kwh.zero? ? 0.0 : (purchased_cr / purchased_kwh).to_f,
-        baseline: baseline.to_f,
-        rejectedBids: MarketBid.where(cycle_id: cycle.cycle_id, status: %w[rejected timed_out]).count
+        configuredSpanSeconds: cycle.market_strategy&.span_seconds,
+        initialDeficitKwh: deficit.to_f,
+        coveredDeficitKwh: purchased_kwh.to_f,
+        effectiveCostPaid: paid.to_f,
+        baselineCost: baseline.to_f,
+        bidsRejectedCount: rejected,
+        completedAt: cycle.valid_until&.iso8601
       }
     end
-
     render json: experiments, status: :ok
   end
 
