@@ -1,4 +1,4 @@
-# ADR7: Consumo de dos colas y respuestas a otras ciudades
+# ADR1.1: Consumo de dos colas y respuestas a otras ciudades
 
 ## Contexto
 
