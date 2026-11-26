@@ -3,8 +3,10 @@ require 'time'
 require 'timeout'
 require_relative 'message_validator'
 require_relative 'rate_limiter'
+require_relative 'saga_starter'
 
-# publica los mensajes que la API dejo pendientes (outbox): a la central, a otra ciudad o al mercado
+# publica los mensajes que la API dejo pendientes (outbox): a la central, a otra ciudad o al mercado.
+# las filas step_functions no van al broker: las inicia SagaStarter
 class OutboxSender
   REQUIRED_FIELDS = %w[msgId idpk type timestamp].freeze
   MARKET_EXCHANGE = 'market'.freeze
@@ -13,13 +15,15 @@ class OutboxSender
   # no inundar a otra ciudad, y dejamos margen: los ack/nack que respondemos no pasan por aca
   MARKET_LIMIT_PER_MINUTE = 50
 
-  # kind: :central, :city, :market o :unknown. exchange/routing_key nil = los de la central
+  # kind: :central, :city, :market, :saga o :unknown. exchange/routing_key nil = los de la central
   Destination = Struct.new(:kind, :exchange, :routing_key)
 
   # enabled: false es el modo de ENABLE_PUBLISHER apagado (ver dry_run)
   # claim_as: nombre de este relay para reservar las filas (OUTBOX_CLAIM_ENABLED). nil = el GET de siempre
+  # sagas: SagaStarter. por omision uno apagado: las filas step_functions quedan pendientes
   def initialize(master:, publisher:, city_id:, log:, enabled: true, peer_routing_key_format: 'city.%s',
-                 limiter: RateLimiter.new(limit: MARKET_LIMIT_PER_MINUTE, window: 60), claim_as: nil)
+                 limiter: RateLimiter.new(limit: MARKET_LIMIT_PER_MINUTE, window: 60), claim_as: nil,
+                 sagas: SagaStarter.new(client: nil, arns: {}, log: log))
     @master = master
     @publisher = publisher
     @city_id = city_id
@@ -28,6 +32,7 @@ class OutboxSender
     @peer_format = peer_routing_key_format
     @limiter = limiter
     @claim_as = claim_as
+    @sagas = sagas
     @dry_run_logged = {}
     @republish_pending = false
   end
@@ -115,8 +120,9 @@ class OutboxSender
     id = item['id']
     message = item['payload']
     destination = destination_for(item)
-    problem = problem_in(message) || destination_problem(destination)
+    problem = problem_in(message) || destination_problem(destination, message)
     return reject(id, message, problem) if problem
+    return start_saga(id, message) if destination.kind == :saga
     return dry_run(id, message) unless @enabled
     return hold unless quota_for?(destination)
 
@@ -129,14 +135,17 @@ class OutboxSender
     routing_key = item['routing_key'].to_s
     return Destination.new(:central, nil, nil) if exchange.empty? && routing_key.empty?
     return Destination.new(:market, exchange, routing_key) if exchange == MARKET_EXCHANGE
+    return Destination.new(:saga, exchange, routing_key) if exchange == SagaStarter::EXCHANGE
     return Destination.new(:city, nil, routing_key) if exchange.empty?
 
     Destination.new(:unknown, exchange, routing_key)
   end
 
   # al mercado solo podemos publicar nuestra propia oferta: market.offer.TK3 y nada mas
-  def destination_problem(destination)
+  def destination_problem(destination, message)
     case destination.kind
+    when :saga
+      @sagas.problem(message['data'], destination.routing_key)
     when :market
       own_key = "market.offer.#{@city_id}"
       "al mercado solo se publica con #{own_key}, no con #{destination.routing_key}" if destination.routing_key != own_key
@@ -162,6 +171,15 @@ class OutboxSender
 
     @limited ||= !@limiter.take
     !@limited
+  end
+
+  # no depende de ENABLE_PUBLISHER (la controla SAGA_START_ENABLED) ni usa el cupo del mercado.
+  # una saga que espera no frena la vuelta: siguen los mensajes de atras, que no dependen de ella
+  def start_saga(id, message)
+    result = @sagas.start(id, message['data'])
+    mark_sent(id) if result == :sent
+    @master.mark_outbox(id, 'failed', result[1]) if result.is_a?(Array)
+    true
   end
 
   def hold

@@ -1,4 +1,8 @@
 source 'https://rubygems.org'
 
-gem 'bunny', '~> 2.22'
+# fijada a 2.24.x: BrokerSession y CentralPublisher usan recovering_from_network_failure? y @last_channel_error,
+# que son internos de bunny 2.24 (ver Gemfile.lock)
+gem 'bunny', '~> 2.24.0'
 gem 'json'
+# solo el cliente de Step Functions (StartExecution de las sagas, ADR8), no todo aws-sdk
+gem 'aws-sdk-states', '~> 1.0'

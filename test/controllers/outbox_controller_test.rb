@@ -152,6 +152,22 @@ class OutboxControllerTest < ActionDispatch::IntegrationTest
     assert_nil pending.locked_until
   end
 
+  test "claim and the usual list hand out saga rows with what the relay needs" do
+    name = SecureRandom.uuid
+    ApplicationRecord.transaction { RabbitMQPublisher.start_saga(role: :buyer, name: name, input: { swapId: "s-1" }) }
+    row = OutboxMessage.find_by!(idpk: name)
+
+    claimed = (post("/events/outbox/claim", params: { relay: "relay-a" }.to_json,
+                    headers: { "CONTENT_TYPE" => "application/json" }) && response.parsed_body)
+    get "/events/outbox"
+
+    [claimed, response.parsed_body].each do |items|
+      item = items.find { |entry| entry["id"] == row.id }
+      assert_equal ["step_functions", "buyer"], item.values_at("exchange", "routing_key")
+      assert_equal({ "role" => "buyer", "name" => name, "input" => { "swapId" => "s-1" } }, item["payload"]["data"])
+    end
+  end
+
   test "claim needs the relay name" do
     publish("negotiation-report")
 

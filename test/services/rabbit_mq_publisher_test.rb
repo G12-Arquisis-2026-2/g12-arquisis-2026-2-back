@@ -285,4 +285,59 @@ class RabbitMQPublisherTest < ActiveSupport::TestCase
 
     assert resend_bid_reply_outbox(bid.merge("msgId" => SecureRandom.uuid).symbolize_keys)
   end
+  # --- inicio de sagas (AD7 / ADR8) ---
+
+  def start_saga(**args)
+    ApplicationRecord.transaction { RabbitMQPublisher.start_saga(**args) }
+  end
+
+  test "start_saga without a transaction fails and leaves no row" do
+    assert_raises(RabbitMQPublisher::NoTransactionError) do
+      RabbitMQPublisher.start_saga(role: :seller, name: SecureRandom.uuid, input: {})
+    end
+    assert_equal 0, OutboxMessage.count
+  end
+
+  test "start_saga leaves a step_functions row with the machine, the execution name and the input" do
+    name = SecureRandom.uuid
+
+    assert_equal name, start_saga(role: :seller, name: name, input: { bidIdpk: name, quantity: 40, amount: BigDecimal("80.5") })
+
+    row = OutboxMessage.find_by!(idpk: name)
+    assert_equal "pending", row.status
+    assert_equal "saga-start", row.message_type
+    assert_equal ["step_functions", "seller"], [row.exchange, row.routing_key]
+    assert_equal({ "role" => "seller", "name" => name, "input" => { "bidIdpk" => name, "quantity" => 40, "amount" => 80.5 } },
+                 row.payload["data"])
+    assert_match UUID, row.msg_id
+    assert_not_equal row.msg_id, row.idpk
+    assert_equal "12", row.payload["cityId"]
+  end
+
+  test "an error later in the transaction removes the saga row too" do
+    assert_raises(RuntimeError) do
+      ApplicationRecord.transaction do
+        RabbitMQPublisher.start_saga(role: :buyer, name: SecureRandom.uuid, input: {})
+        raise "falla el cambio de estado"
+      end
+    end
+    assert_equal 0, OutboxMessage.count
+  end
+
+  test "start_saga validates role, name and input" do
+    ok = SecureRandom.uuid
+    [
+      { role: :admin, name: ok, input: {} },
+      { role: :seller, name: "", input: {} },
+      { role: :seller, name: "a" * 81, input: {} },
+      { role: :seller, name: "con espacio", input: {} },
+      { role: :seller, name: ok, input: "texto" },
+      { role: :seller, name: ok, input: { big: "x" * (256 * 1024) } }
+    ].each do |args|
+      assert_raises(ArgumentError, args.inspect.truncate(80)) { start_saga(**args) }
+    end
+
+    assert start_saga(role: "buyer", name: "a" * 80, input: {})
+    assert_equal 1, OutboxMessage.count
+  end
 end

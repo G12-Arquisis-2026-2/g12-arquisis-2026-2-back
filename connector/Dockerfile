@@ -4,8 +4,9 @@ WORKDIR /app
 
 RUN apt-get update -qq && apt-get install -y procps build-essential
 
-COPY Gemfile ./
-RUN bundle install
+# con el lock, la imagen instala las mismas versiones que los tests (bunny 2.24.0, aws-sdk-states)
+COPY Gemfile Gemfile.lock ./
+RUN bundle config set --local frozen true && bundle install
 
 COPY consumer.rb ./
 COPY lib/ ./lib/

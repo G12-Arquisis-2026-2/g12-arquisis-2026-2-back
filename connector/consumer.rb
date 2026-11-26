@@ -7,6 +7,7 @@ require_relative 'lib/central_publisher'
 require_relative 'lib/master_client'
 require_relative 'lib/message_processor'
 require_relative 'lib/outbox_sender'
+require_relative 'lib/saga_starter'
 
 # esto para que no los logs no tengar atraso.
 $stdout.sync = true
@@ -18,6 +19,8 @@ ALIVE_FILE = '/tmp/connector_alive'.freeze
 PUBLISHER_ENABLED = ENV.fetch('ENABLE_PUBLISHER', 'false') == 'true'
 # apagado por defecto: con "true" el relay reserva las filas (POST /events/outbox/claim) en vez del GET (ADR8)
 OUTBOX_CLAIM_ENABLED = ENV.fetch('OUTBOX_CLAIM_ENABLED', 'false') == 'true'
+# apagado por defecto: con "true" el relay inicia las sagas (StartExecution) de las filas step_functions (ADR8)
+SAGA_START_ENABLED = ENV.fetch('SAGA_START_ENABLED', 'false') == 'true'
 # routing key para responderle a otra ciudad: city.{CODE} (contratos v3.0.2, tabla "Mensajes AMQP")
 PEER_ROUTING_KEY_FORMAT = ENV.fetch('PEER_ROUTING_KEY_FORMAT', 'city.%s')
 
@@ -153,13 +156,25 @@ unless ENV.fetch('RABBITMQ_USER') == "city.#{ENV.fetch('CITY_ID')}"
 end
 
 master = MasterClient.new(ENV.fetch('MASTER_URL'))
+
+# credenciales: la cadena por omision del SDK, que en la EC2 toma las del rol (IMDSv2). no se pasan llaves
+def saga_client
+  require 'aws-sdk-states'
+  log 'OJO: hay AWS_ACCESS_KEY_ID en el entorno; las sagas deberían usar el rol de la EC2.' if ENV['AWS_ACCESS_KEY_ID']
+  Aws::States::Client.new(region: ENV.fetch('AWS_REGION'))
+end
+
+sagas = SagaStarter.new(client: SAGA_START_ENABLED ? saga_client : nil, log: method(:log), enabled: SAGA_START_ENABLED,
+                        arns: { 'seller' => ENV['SAGA_SELLER_ARN'], 'buyer' => ENV['SAGA_BUYER_ARN'] })
+log 'SAGA_START_ENABLED apagado: las sagas quedan pendientes en el outbox.' unless SAGA_START_ENABLED
 supervisor = nil
 # sin canal al partir: el hilo del outbox lo abre en la conexion vigente (connection_replaced!)
 outbox_publisher = central_publisher(nil, open_channel: -> { outbox_channel(supervisor.session.connection) })
 sender = OutboxSender.new(master: master, publisher: outbox_publisher,
                           city_id: ENV.fetch('CITY_ID'), log: method(:log), enabled: PUBLISHER_ENABLED,
                           peer_routing_key_format: PEER_ROUTING_KEY_FORMAT,
-                          claim_as: OUTBOX_CLAIM_ENABLED ? "connector-#{Socket.gethostname}" : nil)
+                          claim_as: OUTBOX_CLAIM_ENABLED ? "connector-#{Socket.gethostname}" : nil,
+                          sagas: sagas)
 
 supervisor = BrokerSupervisor.new(
   open_session: -> { open_session(master, sender) },
