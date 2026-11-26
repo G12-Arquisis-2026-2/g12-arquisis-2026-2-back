@@ -369,6 +369,37 @@ class OutboxSenderTest < Minitest::Test
     assert_equal 0, @publisher.reopened
   end
 
+  # --- conexion nueva abierta por el supervisor ---
+
+  def test_after_a_new_connection_the_outbox_opens_its_channel_before_publishing
+    sender = build_sender([outgoing])
+    sender.connection_replaced!
+    sender.run_once
+
+    assert_equal 1, @publisher.reopened
+    assert_equal [outgoing], @publisher.published
+    assert(@logs.any? { |line| line.include?('Canal del outbox abierto en la conexión nueva') })
+
+    sender.run_once
+    assert_equal 1, @publisher.reopened, 'una sola vez por conexion nueva'
+  end
+
+  def test_if_the_new_channel_cannot_be_opened_it_tries_again_in_the_next_round
+    publisher = FakePublisher.new
+    calls = 0
+    publisher.define_singleton_method(:reopen_channel) do
+      calls += 1
+      raise IOError, 'conexion cortada' if calls == 1
+    end
+    sender = build_sender([], publisher: publisher)
+    sender.connection_replaced!
+    sender.run_once
+    sender.run_once
+
+    assert_equal 2, calls
+    assert(@logs.any? { |line| line.include?('No se pudo abrir el canal del outbox (IOError)') })
+  end
+
   # --- reserva de filas (OUTBOX_CLAIM_ENABLED) ---
 
   def test_with_claim_it_asks_for_rows_reserved_for_this_relay

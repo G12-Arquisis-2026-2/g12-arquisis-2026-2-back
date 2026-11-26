@@ -38,7 +38,15 @@ class OutboxSender
     @republish_pending = true
   end
 
+  # conexion nueva (el supervisor reemplazo la que bunny no pudo recuperar): el canal viejo murio con ella.
+  # se abre el nuevo desde este hilo, en la proxima vuelta
+  def connection_replaced!
+    @channel_replace_pending = true
+    @republish_pending = true
+  end
+
   def run_once
+    replace_channel if @channel_replace_pending
     return unless channel_ready?
 
     @limited = false
@@ -66,6 +74,15 @@ class OutboxSender
   def reopen_channel
     @publisher.reopen_channel
     @log.call('Canal del outbox reabierto.')
+  end
+
+  # si falla (la conexion nueva ya se corto) se intenta en la otra vuelta
+  def replace_channel
+    @publisher.reopen_channel
+    @channel_replace_pending = false
+    @log.call('Canal del outbox abierto en la conexión nueva.')
+  rescue StandardError => e
+    @log.call("No se pudo abrir el canal del outbox (#{e.class}), se intenta en la otra vuelta.")
   end
 
   # va antes que los pendientes: si hay un offer-updated nuevo en el outbox, tiene que salir despues.

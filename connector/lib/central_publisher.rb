@@ -55,14 +55,15 @@ class CentralPublisher
     raise
   end
 
+  # sin canal todavia (nil): el outbox lo abre cuando hay conexion
   def channel_open?
-    @channel.open?
+    !@channel.nil? && @channel.open?
   end
 
   # motivo con que el broker cerro el canal (ej: "ACCESS_REFUSED - ..."), o nil si sigue abierto o si
   # se cerro por un corte de red. bunny no expone el motivo, pero lo guarda al recibir el channel.close
   def closed_by_broker
-    return nil if @channel.open?
+    return nil if @channel.nil? || @channel.open?
 
     @channel.instance_variable_get(:@last_channel_error)&.message
   end

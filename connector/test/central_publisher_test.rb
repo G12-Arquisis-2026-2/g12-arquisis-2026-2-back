@@ -273,4 +273,18 @@ class CentralPublisherTest < Minitest::Test
   def test_the_default_confirm_timeout_is_5_seconds
     assert_equal 5, CentralPublisher::CONFIRM_TIMEOUT
   end
+  # --- sin canal al partir (lo abre el outbox cuando hay conexion) ---
+
+  def test_without_a_channel_yet_it_is_not_open_and_was_not_closed_by_the_broker
+    fresh = FakeChannel.new
+    publisher = CentralPublisher.new(nil, exchange: 'energy.x', routing_key: 'central', user_id: 'city.12',
+                                          city_id: '12', open_channel: -> { fresh })
+
+    refute publisher.channel_open?
+    assert_nil publisher.closed_by_broker
+
+    publisher.reopen_channel
+    publisher.publish_confirmed({ 'msgId' => 'a', 'idpk' => 'b', 'type' => 'negotiation-report', 'cityId' => '12' })
+    assert_equal 1, fresh.published.size
+  end
 end
