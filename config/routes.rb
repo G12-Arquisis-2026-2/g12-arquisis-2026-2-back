@@ -20,6 +20,7 @@ Rails.application.routes.draw do
   get  '/events/outbox',               to: 'outbox#pending'
   post '/events/outbox/claim',         to: 'outbox#claim'
   get  '/events/outbox/current-offer', to: 'outbox#current_offer'
+  get  '/events/outbox/lag',           to: 'outbox#lag'
   post '/events/outbox/:id',           to: 'outbox#result'
 
   # Endpoints requeridos (RF1, RF2, RF3, RF4)

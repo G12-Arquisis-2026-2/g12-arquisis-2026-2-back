@@ -16,3 +16,6 @@ production:
   stuck_swaps_cleanup:
     class: StuckSwapsCleanupJob
     schedule: every minute
+  outbox_lag:
+    class: OutboxLagJob
+    schedule: every 15 seconds

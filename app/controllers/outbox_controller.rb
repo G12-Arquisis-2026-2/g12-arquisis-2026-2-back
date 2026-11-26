@@ -18,6 +18,11 @@ class OutboxController < ApplicationController
     render json: OutboxMessage.claim!(relay: relay, limit: BATCH_SIZE).map { |message| item(message) }
   end
 
+  # GET /events/outbox/lag: lo mismo que se envía a New Relic, para verlo sin New Relic
+  def lag
+    render json: OutboxMessage.lag
+  end
+
   # GET /events/outbox/current-offer: nuestra última oferta enviada del ciclo vigente, o 204 si no hay
   def current_offer
     cycle = Cycle.where.not(valid_until: nil).order(valid_until: :desc).first

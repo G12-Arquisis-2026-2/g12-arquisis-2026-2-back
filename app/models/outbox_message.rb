@@ -20,6 +20,17 @@ class OutboxMessage < ApplicationRecord
     where(status: "pending").where("locked_until IS NULL OR locked_until <= ? OR locked_by = ?", now, relay)
   }
 
+  # Atraso del outbox (ADR8, alerta "Outbox con atraso"). La edad usa el índice (status, created_at).
+  def self.lag(now = Time.current)
+    pending = where(status: "pending")
+    oldest = pending.minimum(:created_at)
+    {
+      outbox_oldest_pending_age_seconds: oldest ? (now - oldest).round : 0,
+      outbox_pending_count: pending.count,
+      outbox_failed_last_hour: where(status: "failed", updated_at: (now - 1.hour)..).count
+    }
+  end
+
   # Reserva hasta `limit` filas para `relay`. SKIP LOCKED: dos relays a la vez nunca toman la misma.
   # Primero las de la central (sin routing key), después el resto, cada grupo en orden de creación.
   def self.claim!(relay:, limit:, now: Time.current)

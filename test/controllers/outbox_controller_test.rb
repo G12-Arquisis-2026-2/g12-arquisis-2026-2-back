@@ -161,6 +161,22 @@ class OutboxControllerTest < ActionDispatch::IntegrationTest
     assert_nil OutboxMessage.first.locked_by
   end
 
+  # --- atraso del outbox ---
+
+  test "lag answers the three numbers" do
+    travel_to(30.seconds.ago) { publish("negotiation-report") }
+    publish("request").mark_failed!("prueba")
+
+    get "/events/outbox/lag"
+
+    assert_response :ok
+    body = response.parsed_body
+    assert_equal %w[outbox_failed_last_hour outbox_oldest_pending_age_seconds outbox_pending_count], body.keys.sort
+    assert_in_delta 30, body["outbox_oldest_pending_age_seconds"], 1
+    assert_equal 1, body["outbox_pending_count"]
+    assert_equal 1, body["outbox_failed_last_hour"]
+  end
+
   # --- oferta vigente para republicar tras una reconexión ---
 
   def offer_row(type, status: "sent", cycle: "cycle-7")
