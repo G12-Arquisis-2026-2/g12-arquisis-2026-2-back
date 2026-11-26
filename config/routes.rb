@@ -57,4 +57,9 @@ Rails.application.routes.draw do
       get "audit-logs", to: "audit_logs#index", as: :audit_logs
     end
   end
+
+  # RF01 - Feed de eventos en tiempo real (E3)
+  post '/events/ticket', to: 'event_feed#ticket'
+  get  '/events/feed',   to: 'event_feed#index'
+  get  '/events/stream', to: 'event_feed#stream'
 end

@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_11_06_000004) do
+ActiveRecord::Schema[8.1].define(version: 2026_11_26_000001) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
 
@@ -58,11 +58,11 @@ ActiveRecord::Schema[8.1].define(version: 2026_11_06_000004) do
   end
 
   create_table "demand_events", force: :cascade do |t|
-    t.datetime "created_at", null: false
-    t.string "event_type", null: false
     t.string "idpk", null: false
+    t.string "event_type", null: false
     t.jsonb "package_body", default: {}, null: false
     t.datetime "received_at", null: false
+    t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
     t.index ["idpk"], name: "index_demand_events_on_idpk", unique: true
     t.index ["received_at"], name: "index_demand_events_on_received_at"
@@ -75,6 +75,19 @@ ActiveRecord::Schema[8.1].define(version: 2026_11_06_000004) do
     t.boolean "enabled", null: false
     t.decimal "disabled_route_transport_cost", precision: 15, scale: 6
     t.index ["destination_code"], name: "index_distance_tables_on_destination_code", unique: true
+  end
+
+  create_table "feed_events", force: :cascade do |t|
+    t.string "event_type", null: false
+    t.string "cycle_id"
+    t.string "swap_id"
+    t.string "idpk"
+    t.jsonb "payload", default: {}, null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["created_at"], name: "index_feed_events_on_created_at"
+    t.index ["cycle_id"], name: "index_feed_events_on_cycle_id"
+    t.index ["swap_id"], name: "index_feed_events_on_swap_id"
   end
 
   create_table "imbalance_settlements", force: :cascade do |t|
