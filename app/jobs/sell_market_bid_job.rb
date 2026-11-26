@@ -44,9 +44,10 @@ class SellMarketBidJob < ApplicationJob
           bid.update!(status: "rejected")
         end
       end
+      publish_rejection(bid, rejection, offer) if rejection
     end
 
-    return publish_rejection(bid, rejection, offer) if rejection
+    return if rejection
 
     result = WalletClient.new.propose_swap(
       give: { asset: "KWH", amount: bid.quantity },
@@ -57,8 +58,10 @@ class SellMarketBidJob < ApplicationJob
     )
     return if result.success? || result.retry_required?
 
-    release_reservation!(bid)
-    publish_rejection(bid, "QUANTITY_UNAVAILABLE", offer)
+    MarketBid.transaction do
+      release_reservation!(bid)
+      publish_rejection(bid, "QUANTITY_UNAVAILABLE", offer)
+    end
   end
 
   private
@@ -110,8 +113,8 @@ class SellMarketBidJob < ApplicationJob
       end
       bid.update!(status: "rejected")
       SwapIntention.find_by(idpk: bid.proposal_idpk)&.update!(status: :rejected)
+      publish_offer_update(bid)
     end
-    publish_offer_update(bid)
   end
 
   def publish_rejection(bid, reason, offer)

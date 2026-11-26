@@ -159,7 +159,7 @@ class MarketMessageProcessorTest < ActiveSupport::TestCase
   end
 
   def accept(bid)
-    RabbitMQPublisher.publish(
+    publish_outbox(
       { type: "bid-accepted", cycleId: bid["cycleId"],
         data: { target: bid["msgId"], offerId: "TK3-market", quantity: 50, pricePerEnergy: 0.2, amount: 10.0,
                 swapId: "swap-1", swapToken: "token", expiresAt: "2026-11-06T15:00:00Z" } },

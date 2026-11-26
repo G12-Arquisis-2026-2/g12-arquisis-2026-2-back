@@ -1,17 +1,30 @@
 require 'minitest/autorun'
 require_relative '../lib/master_client'
-require_relative '../lib/offer_memory'
 require_relative '../lib/outbox_sender'
 
 # correr desde /connector: ruby test/outbox_sender_test.rb
 class OutboxSenderTest < Minitest::Test
   class FakeMaster
-    attr_reader :marks
+    attr_reader :marks, :claims
+    attr_accessor :offer
 
     def initialize(pending, mark_status: 200)
       @pending = pending
       @mark_status = mark_status
       @marks = []
+      @claims = []
+    end
+
+    def claim_outbox(relay)
+      @claims << relay
+      pending_outbox
+    end
+
+    # :down = la API no responde
+    def current_offer
+      raise 'GET /outbox/current-offer respondio nil' if @offer == :down
+
+      @offer
     end
 
     # como la API: lo que ya se marco (enviado o fallido) deja de estar pendiente
@@ -87,7 +100,7 @@ class OutboxSenderTest < Minitest::Test
   end
 
   # cada payload puede ir solo (a la central) o como [payload, exchange, routing_key]
-  def build_sender(payloads, publisher: FakePublisher.new, mark_status: 200, enabled: true, limiter: nil, offers: nil)
+  def build_sender(payloads, publisher: FakePublisher.new, mark_status: 200, enabled: true, limiter: nil, claim_as: nil)
     pending = payloads.each_with_index.map do |item, index|
       payload, exchange, routing_key = item.is_a?(Array) ? item : [item]
       { 'id' => index + 1, 'payload' => payload, 'exchange' => exchange, 'routing_key' => routing_key }
@@ -96,7 +109,7 @@ class OutboxSenderTest < Minitest::Test
     @publisher = publisher
     @logs = []
     options = { master: @master, publisher: publisher, city_id: '12', log: ->(text) { @logs << text },
-                enabled: enabled, offers: offers }
+                enabled: enabled, claim_as: claim_as }
     options[:limiter] = limiter if limiter
     OutboxSender.new(**options)
   end
@@ -356,93 +369,100 @@ class OutboxSenderTest < Minitest::Test
     assert_equal 0, @publisher.reopened
   end
 
-  # --- anomalia 5: republicar la oferta vigente tras la reconexion ---
+  # --- reserva de filas (OUTBOX_CLAIM_ENABLED) ---
+
+  def test_with_claim_it_asks_for_rows_reserved_for_this_relay
+    run_sender([outgoing], claim_as: 'connector-a')
+
+    assert_equal ['connector-a'], @master.claims
+    assert_equal [outgoing], @publisher.published
+    assert_equal [[1, 'sent', nil]], @master.marks
+  end
+
+  def test_without_claim_it_uses_the_usual_list
+    run_sender([outgoing])
+
+    assert_empty @master.claims
+    assert_equal [outgoing], @publisher.published
+  end
+
+  def test_a_confirmation_that_times_out_leaves_it_pending_and_is_logged
+    run_sender([outgoing, outgoing], publisher: FakePublisher.new(error: Timeout::Error), claim_as: 'connector-a')
+
+    assert_empty @master.marks
+    assert_equal 1, @logs.count { |line| line.include?('no confirmó') && line.include?('a tiempo, queda pendiente') }
+  end
+
+  # --- anomalia 5: republicar la oferta vigente tras la reconexion (la entrega la API) ---
 
   OUR_OFFER_ID = '12-cycle-7'.freeze
 
-  OFFER_DATA = {
-    'offer' => { 'offerId' => OUR_OFFER_ID, 'quantity' => 50, 'pricePerEnergy' => 0.2 },
-    'offer-updated' => { 'offerId' => OUR_OFFER_ID, 'remaining' => 30, 'pricePerEnergy' => 0.2 },
-    'offer-withdrawn' => { 'offerId' => OUR_OFFER_ID }
-  }.freeze
-
-  def offer_message(type = 'offer', changes = {})
-    outgoing({ 'type' => type, 'data' => OFFER_DATA.fetch(type) }.merge(changes))
+  def offer_item(type = 'offer', data = { 'offerId' => OUR_OFFER_ID, 'quantity' => 50, 'pricePerEnergy' => 0.2 })
+    { 'id' => 9, 'payload' => outgoing('type' => type, 'data' => data),
+      'exchange' => 'market', 'routing_key' => 'market.offer.12' }
   end
 
-  def status(cycle_id: 'cycle-7', last_offer_at: Time.now + 600)
-    { 'type' => 'status-statement', 'cycleId' => cycle_id,
-      'data' => { 'market' => { 'lastOfferAt' => last_offer_at.utc.iso8601 } } }
-  end
-
-  # publica la oferta por el outbox como siempre, y despues hay un corte
-  def offer_sender_after_outage(published, status_message: status, limiter: nil)
-    @offers = OfferMemory.new
-    @offers.status_received(status_message)
-    sender = build_sender(published.map { |message| [message, 'market', 'market.offer.12'] },
-                          offers: @offers, limiter: limiter)
-    sender.run_once
-    @master = FakeMaster.new([])
-    sender.instance_variable_set(:@master, @master)
-    @publisher.published.clear
+  def sender_after_outage(offer, limiter: nil, enabled: true)
+    sender = build_sender([], limiter: limiter, enabled: enabled)
+    @master.offer = offer
     sender.connection_recovered!
     sender
   end
 
   def test_after_the_recovery_the_current_offer_is_republished_with_the_same_idpk
-    offer_sender_after_outage([offer_message]).run_once
+    sender_after_outage(offer_item).run_once
 
     copy = @publisher.published.last
     assert_equal 1, @publisher.published.size
-    assert_equal offer_message['idpk'], copy['idpk']
-    refute_equal offer_message['msgId'], copy['msgId']
-    assert_equal offer_message['data'], copy['data']
+    assert_equal offer_item['payload']['idpk'], copy['idpk']
+    refute_equal offer_item['payload']['msgId'], copy['msgId']
+    assert_equal offer_item['payload']['data'], copy['data']
     assert_equal ['market', 'market.offer.12'], @publisher.destinations.last
     assert(@logs.any? { |line| line.include?('Oferta del ciclo cycle-7 republicada tras reconexión') })
     assert_empty @master.marks
   end
 
-  def test_republishes_the_last_offer_updated
-    updated = offer_message('offer-updated', 'msgId' => '44444444-4444-4444-8444-444444444444',
-                                             'idpk' => '55555555-5555-4555-8555-555555555555')
-    offer_sender_after_outage([offer_message, updated]).run_once
+  def test_republishes_the_offer_updated_the_api_hands_out
+    updated = offer_item('offer-updated', 'offerId' => OUR_OFFER_ID, 'remaining' => 30, 'pricePerEnergy' => 0.2)
+    sender_after_outage(updated).run_once
 
-    assert_equal [updated['idpk']], @publisher.published.map { |message| message['idpk'] }
     assert_equal 'offer-updated', @publisher.published.last['type']
   end
 
   def test_republishes_only_once_per_recovery
-    sender = offer_sender_after_outage([offer_message])
+    sender = sender_after_outage(offer_item)
     3.times { sender.run_once }
 
     assert_equal 1, @publisher.published.size
   end
 
-  def test_a_withdrawn_offer_is_not_republished
-    withdrawn = offer_message('offer-withdrawn', 'msgId' => '44444444-4444-4444-8444-444444444444',
-                                                 'idpk' => '55555555-5555-4555-8555-555555555555')
-    offer_sender_after_outage([offer_message, withdrawn]).run_once
+  def test_without_a_current_offer_nothing_is_republished
+    sender_after_outage(nil).run_once
 
     assert_empty @publisher.published
     assert(@logs.any? { |line| line.include?('No hay oferta vigente') })
   end
 
-  def test_an_offer_from_a_past_cycle_is_not_republished
-    offer_sender_after_outage([offer_message]).tap { @offers.status_received(status(cycle_id: 'cycle-8')) }.run_once
-
-    assert_empty @publisher.published
-  end
-
-  def test_an_offer_after_last_offer_at_is_not_republished
-    offer_sender_after_outage([offer_message], status_message: status(last_offer_at: Time.now - 1)).run_once
-
-    assert_empty @publisher.published
-  end
-
   def test_without_a_recovery_nothing_is_republished
-    sender = offer_sender_after_outage([offer_message])
-    sender.instance_variable_set(:@republish_pending, false)
+    build_sender([])
+    @master.offer = offer_item
+    OutboxSender.new(master: @master, publisher: @publisher, city_id: '12', log: ->(_) {}).run_once
+
+    assert_empty @publisher.published
+  end
+
+  def test_if_the_api_does_not_answer_it_tries_again_in_the_next_round
+    sender = sender_after_outage(:down)
     sender.run_once
+    assert_empty @publisher.published
+
+    @master.offer = offer_item
+    sender.run_once
+    assert_equal 1, @publisher.published.size
+  end
+
+  def test_disabled_does_not_republish
+    sender_after_outage(offer_item, enabled: false).run_once
 
     assert_empty @publisher.published
   end
@@ -450,17 +470,18 @@ class OutboxSenderTest < Minitest::Test
   def test_the_republished_offer_respects_the_limit_and_waits_for_quota
     clock = FakeClock.new
     limiter = RateLimiter.new(limit: 1, window: 60, clock: clock)
-    sender = offer_sender_after_outage([offer_message], limiter: limiter)
+    limiter.take
+    sender = sender_after_outage(offer_item, limiter: limiter)
     sender.run_once
     assert_empty @publisher.published
 
     clock.now = 60.0
     sender.run_once
-    assert_equal [offer_message['idpk']], @publisher.published.map { |message| message['idpk'] }
+    assert_equal [offer_item['payload']['idpk']], @publisher.published.map { |message| message['idpk'] }
   end
 
   def test_an_unconfirmed_republication_is_retried_in_the_next_round
-    sender = offer_sender_after_outage([offer_message])
+    sender = sender_after_outage(offer_item)
     @publisher.instance_variable_set(:@confirm, false)
     sender.run_once
     @publisher.instance_variable_set(:@confirm, true)

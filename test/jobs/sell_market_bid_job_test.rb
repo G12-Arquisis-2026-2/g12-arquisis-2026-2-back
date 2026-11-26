@@ -73,6 +73,19 @@ class SellMarketBidJobTest < ActiveSupport::TestCase
     assert_equal 70, @offer.reload.reserved_quantity
   end
 
+  test "if the bid-rejected cannot be written, the bid is not rejected either" do
+    @offer.update!(reserved_quantity: 70)
+    bid = incoming_bid(quantity: 40)
+
+    with_singleton_stub(RabbitMQPublisher, :publish, nil) do
+      RabbitMQPublisher.singleton_class.define_method(:publish) { |*| raise "no se pudo escribir el outbox" }
+      assert_raises(RuntimeError) { SellMarketBidJob.perform_now(bid.bid_idpk) }
+    end
+
+    assert_equal "pending", bid.reload.status
+    assert_equal 0, OutboxMessage.count
+  end
+
   private
 
   def with_singleton_stub(owner, name, replacement)

@@ -104,7 +104,7 @@ class EmittedOutboxMessagesTest < ActiveSupport::TestCase
 
   # publica en el outbox, lo lee de la base y lo escribe en OUT_DIR. devuelve el payload guardado
   def emit(payload, label, **destination)
-    msg_id = RabbitMQPublisher.publish(payload, **destination)
+    msg_id = publish_outbox(payload, **destination)
     record = OutboxMessage.find_by!(msg_id: msg_id)
     # exchange/routing key nil = los del connector (RABBITMQ_EXCHANGE y CENTRAL_ROUTING_KEY)
     @exchange = record.exchange || "energy.x"

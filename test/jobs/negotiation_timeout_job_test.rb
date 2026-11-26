@@ -81,7 +81,7 @@ class NegotiationTimeoutJobTest < ActiveJob::TestCase
   test "the retry publishes the same idpk and the same energy with a new msgId" do
     first = NegotiationService.build_proposal(cycle_id: CYCLE_ID, direction: "give", energy: 100,
                                               existing_idpk: @proposal.idpk)
-    first_msg_id = RabbitMQPublisher.publish(first)
+    first_msg_id = publish_outbox(first)
 
     assert_difference -> { OutboxMessage.where(message_type: "negotiation-proposal").count }, 1 do
       NegotiationTimeoutJob.perform_now(@proposal.idpk)

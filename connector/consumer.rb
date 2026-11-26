@@ -1,9 +1,9 @@
 require 'bunny'
 require 'fileutils'
+require 'socket'
 require_relative 'lib/central_publisher'
 require_relative 'lib/master_client'
 require_relative 'lib/message_processor'
-require_relative 'lib/offer_memory'
 require_relative 'lib/outbox_sender'
 
 # esto para que no los logs no tengar atraso.
@@ -15,6 +15,8 @@ MAX_SECONDS_OFFLINE = 120
 ALIVE_FILE = '/tmp/connector_alive'.freeze
 # apagado por defecto: solo publica hacia la central si ENABLE_PUBLISHER es exactamente "true"
 PUBLISHER_ENABLED = ENV.fetch('ENABLE_PUBLISHER', 'false') == 'true'
+# apagado por defecto: con "true" el relay reserva las filas (POST /events/outbox/claim) en vez del GET (ADR8)
+OUTBOX_CLAIM_ENABLED = ENV.fetch('OUTBOX_CLAIM_ENABLED', 'false') == 'true'
 # routing key para responderle a otra ciudad: city.{CODE} (contratos v3.0.2, tabla "Mensajes AMQP")
 PEER_ROUTING_KEY_FORMAT = ENV.fetch('PEER_ROUTING_KEY_FORMAT', 'city.%s')
 
@@ -129,12 +131,10 @@ end
 
 connection = connect(ENV.fetch('RABBITMQ_URL'))
 master = MasterClient.new(ENV.fetch('MASTER_URL'))
-# nuestra oferta vigente y el ultimo status-statement, para republicarla tras un corte
-offers = OfferMemory.new
 
 # city.TK3: central, otras ciudades y wallet. aca si se responde ack/nack
 city_channel = consumer_channel(connection)
-city_processor = MessageProcessor.new(master: master, publisher: central_publisher(city_channel), offers: offers)
+city_processor = MessageProcessor.new(master: master, publisher: central_publisher(city_channel))
 subscribe(city_channel, ENV.fetch('QUEUE_NAME'), city_processor)
 
 # market.TK3: canal y consumidor propios, misma politica de reintentos
@@ -143,7 +143,10 @@ market_channel = subscribe_market(connection, master)
 outbox_publisher = central_publisher(outbox_channel(connection), open_channel: -> { outbox_channel(connection) })
 sender = OutboxSender.new(master: master, publisher: outbox_publisher,
                           city_id: ENV.fetch('CITY_ID'), log: method(:log), enabled: PUBLISHER_ENABLED,
-                          peer_routing_key_format: PEER_ROUTING_KEY_FORMAT, offers: offers)
+                          peer_routing_key_format: PEER_ROUTING_KEY_FORMAT,
+                          claim_as: OUTBOX_CLAIM_ENABLED ? "connector-#{Socket.gethostname}" : nil)
+# un arranque es como una reconexion: si el ciclo tiene una oferta vigente, se vuelve a publicar
+sender.connection_recovered!
 start_outbox_thread(sender, connection)
 
 # bunny ya reabrio los canales y volvio a suscribir los consumidores

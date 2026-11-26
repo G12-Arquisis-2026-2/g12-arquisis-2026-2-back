@@ -115,7 +115,7 @@ class CentralErrorEventsTest < ActionDispatch::IntegrationTest
   private
 
   def publish_proposal
-    RabbitMQPublisher.publish(
+    publish_outbox(
       { type: "negotiation-proposal", cycleId: CYCLE_ID,
         data: { direction: "give", quantity: 100, pricePerEnergy: 10.5 } },
       idpk: PROPOSAL_IDPK

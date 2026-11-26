@@ -1,5 +1,6 @@
 require 'securerandom'
 require 'time'
+require 'timeout'
 require_relative 'message_validator'
 require_relative 'rate_limiter'
 
@@ -16,9 +17,9 @@ class OutboxSender
   Destination = Struct.new(:kind, :exchange, :routing_key)
 
   # enabled: false es el modo de ENABLE_PUBLISHER apagado (ver dry_run)
-  # offers: OfferMemory donde se anota cada oferta que sale al mercado (nil = no se recuerda nada)
+  # claim_as: nombre de este relay para reservar las filas (OUTBOX_CLAIM_ENABLED). nil = el GET de siempre
   def initialize(master:, publisher:, city_id:, log:, enabled: true, peer_routing_key_format: 'city.%s',
-                 limiter: RateLimiter.new(limit: MARKET_LIMIT_PER_MINUTE, window: 60), offers: nil)
+                 limiter: RateLimiter.new(limit: MARKET_LIMIT_PER_MINUTE, window: 60), claim_as: nil)
     @master = master
     @publisher = publisher
     @city_id = city_id
@@ -26,7 +27,7 @@ class OutboxSender
     @enabled = enabled
     @peer_format = peer_routing_key_format
     @limiter = limiter
-    @offers = offers
+    @claim_as = claim_as
     @dry_run_logged = {}
     @republish_pending = false
   end
@@ -42,8 +43,8 @@ class OutboxSender
 
     @limited = false
     @held = 0
-    republish_offer if @republish_pending
-    @master.pending_outbox.each do |item|
+    republish_offer if @republish_pending && @enabled
+    pending_items.each do |item|
       # si uno no se pudo publicar se corta la vuelta, asi no salen desordenados
       break unless handle(item)
     end
@@ -51,6 +52,10 @@ class OutboxSender
   end
 
   private
+
+  def pending_items
+    @claim_as ? @master.claim_outbox(@claim_as) : @master.pending_outbox
+  end
 
   # un canal que cerro el broker se reemplaza. uno que se cerro por un corte lo recupera bunny solo
   def channel_ready?
@@ -63,16 +68,17 @@ class OutboxSender
     @log.call('Canal del outbox reabierto.')
   end
 
-  # va antes que los pendientes: si hay un offer-updated nuevo en el outbox, tiene que salir despues
+  # va antes que los pendientes: si hay un offer-updated nuevo en el outbox, tiene que salir despues.
+  # la oferta la entrega la API (ultima fila enviada), asi sobrevive a un reinicio del connector
   def republish_offer
-    offer = @offers&.offer_to_republish
+    offer = @master.current_offer
     return finish_republish('No hay oferta vigente que republicar tras la reconexión.') unless offer
 
-    destination = Destination.new(:market, offer.exchange, offer.routing_key)
+    destination = destination_for(offer)
     return hold unless quota_for?(destination)
 
-    copy = offer.message.merge('msgId' => SecureRandom.uuid, 'timestamp' => Time.now.utc.iso8601)
-    unless @publisher.publish_confirmed(copy, exchange: offer.exchange, routing_key: offer.routing_key)
+    copy = offer['payload'].merge('msgId' => SecureRandom.uuid, 'timestamp' => Time.now.utc.iso8601)
+    unless @publisher.publish_confirmed(copy, exchange: destination.exchange, routing_key: destination.routing_key)
       return @log.call('El broker no confirmó la oferta republicada, se intenta en la otra vuelta.')
     end
 
@@ -181,9 +187,10 @@ class OutboxSender
     return not_published(id, "El broker no confirmó #{message['msgId']}") unless confirmed
 
     @log.call("Publicado #{message['type']} #{message['msgId']} hacia #{destination.routing_key || 'la central'}.")
-    @offers&.offer_published(message, destination.exchange, destination.routing_key)
     mark_sent(id)
     true
+  rescue Timeout::Error
+    not_published(id, "El broker no confirmó #{message['msgId']} a tiempo")
   rescue StandardError => e
     not_published(id, "No se pudo publicar #{message['msgId']} (#{e.class})")
   end

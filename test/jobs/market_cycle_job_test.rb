@@ -9,6 +9,13 @@ class MarketCycleJobTest < ActiveSupport::TestCase
     end
   end
 
+  # con la forma que lee el job (assets.KWH.available)
+  class WalletWithAssets
+    def get_balance
+      { "assets" => { "KWH" => { "available" => 200 } } }
+    end
+  end
+
   setup do
     @old_city = ENV["CITY_ID"]
     ENV["CITY_ID"] = "TK3"
@@ -86,5 +93,60 @@ class MarketCycleJobTest < ActiveSupport::TestCase
     bid = MarketBid.find_by!(bid_msg_id: bid_message.msg_id)
     assert_equal 220.to_d, bid.price_per_energy
     assert_equal 44_000.to_d, bid.amount
+  end
+  test "if the offer message cannot be written, the offer is not saved either" do
+    with_singleton_stub(WalletClient, :new, WalletWithAssets.new) do
+      with_failing_publisher do
+        assert_raises(RuntimeError) { MarketCycleJob.perform_now(@cycle.cycle_id) }
+      end
+    end
+
+    assert_equal 0, MarketOffer.count
+    assert_equal 0, OutboxMessage.count
+  end
+
+  test "if the offer-updated message cannot be written, the offer keeps its old remaining" do
+    offer = MarketOffer.create!(cycle_id: @cycle.cycle_id, city_id: "TK3", offer_id: "TK3-#{@cycle.cycle_id}",
+                                quantity: 150, remaining: 150, reserved_quantity: 0, price_per_energy: 231, active: true)
+
+    with_singleton_stub(WalletClient, :new, WalletWithAssets.new) do
+      with_failing_publisher do
+        assert_raises(RuntimeError) { MarketCycleJob.perform_now(@cycle.cycle_id) }
+      end
+    end
+
+    assert_equal 150, offer.reload.remaining
+    assert_equal 0, OutboxMessage.count
+  end
+
+  test "the bid is saved before it is published, and neither stays if the message fails" do
+    @cycle.update!(generation_capacity: 800, consumption: 1_000, sellable: 0)
+    MarketOffer.create!(cycle_id: @cycle.cycle_id, offer_id: "HGW-offer", city_id: "HGW",
+                        quantity: 200, remaining: 200, price_per_energy: 220, active: true)
+    DistanceTable.create!(destination_code: "HGW", distance: 100, transport_cost: 0.1, enabled: true)
+    bids_when_published = nil
+
+    with_failing_publisher(-> { bids_when_published = MarketBid.count }) do
+      assert_raises(RuntimeError) { MarketCycleJob.perform_now(@cycle.cycle_id) }
+    end
+
+    assert_equal 1, bids_when_published
+    assert_equal 0, MarketBid.count
+    assert_equal 0, OutboxMessage.count
+  end
+
+  private
+
+  def with_failing_publisher(before_raise = -> {})
+    singleton = RabbitMQPublisher.singleton_class
+    singleton.alias_method(:original_publish_for_test, :publish)
+    singleton.define_method(:publish) do |*|
+      before_raise.call
+      raise "no se pudo escribir el outbox"
+    end
+    yield
+  ensure
+    singleton.alias_method(:publish, :original_publish_for_test)
+    singleton.remove_method(:original_publish_for_test)
   end
 end

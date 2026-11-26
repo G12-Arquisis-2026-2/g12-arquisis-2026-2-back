@@ -8,6 +8,15 @@
 class RabbitMQPublisher
   MARKET_EXCHANGE = "market".freeze
 
+  # El mensaje tiene que quedar en la misma transacción que el cambio de estado que lo origina (ADR8):
+  # o quedan los dos, o ninguno.
+  class NoTransactionError < StandardError
+    def initialize(msg = "RabbitMQPublisher se llama dentro de la transacción del cambio de estado " \
+                         "(ApplicationRecord.transaction do ... end)")
+      super
+    end
+  end
+
   # payload: hash con type y data, y opcionalmente cycleId, idpk y msgId.
   # idpk: se pasa cuando es un reintento, para repetir el idpk original.
   # Destino (opcional; sin destino va a la central, como en la E1):
@@ -16,6 +25,7 @@ class RabbitMQPublisher
   # Devuelve el msgId, que sirve para reconocer la respuesta (ack/nack).
   # Acepta el hash como argumento (como lo llaman los jobs) o los campos sueltos.
   def self.publish(payload = nil, idpk: nil, to_city: nil, to_market: false, **fields)
+    require_transaction!
     message = build_envelope((payload || fields).to_h.deep_stringify_keys, idpk)
     exchange, routing_key = destination(to_city, to_market)
 
@@ -28,6 +38,7 @@ class RabbitMQPublisher
   # Si todavía no hay respuesta (se está decidiendo) no se encola nada: la original saldrá sola.
   # Devuelve el msgId de la copia, o nil si no había respuesta.
   def self.resend_bid_reply(bid)
+    require_transaction!
     bid = bid.to_h.deep_stringify_keys
     original = OutboxMessage.reply_to_bid(bid.fetch("idpk"))
     return unless original
@@ -51,6 +62,12 @@ class RabbitMQPublisher
       reply_to_idpk: reply_to_idpk
     )
     message["msgId"]
+  end
+
+  # Se exige una transacción "joinable": la de los tests (fixtures) no lo es, así que en un test
+  # llamar sin transacción también falla, igual que en producción, sin tener que simularlo.
+  def self.require_transaction!
+    raise NoTransactionError unless OutboxMessage.connection.current_transaction.joinable?
   end
 
   # bid-accepted y bid-rejected apuntan al bid por su msgId (data.target); se guarda su idpk,

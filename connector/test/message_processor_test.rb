@@ -2,7 +2,6 @@ require 'minitest/autorun'
 require 'json'
 require_relative '../lib/master_client'
 require_relative '../lib/message_processor'
-require_relative '../lib/offer_memory'
 require_relative 'support/samples'
 
 # correr desde /connector: ruby test/message_processor_test.rb
@@ -53,7 +52,7 @@ class MessageProcessorTest < Minitest::Test
     end
   end
 
-  def build(queue: :city, offers: nil, **master_options)
+  def build(queue: :city, **master_options)
     @calls = []
     @logs = []
     @sleeps = []
@@ -61,8 +60,7 @@ class MessageProcessorTest < Minitest::Test
     @publisher = FakePublisher.new(@calls)
     # en la cola del mercado no hay publisher: si se intentara responder, revienta
     processor = MessageProcessor.new(master: @master, publisher: queue == :market ? nil : @publisher, queue: queue,
-                                     log: ->(text) { @logs << text }, sleeper: ->(seconds) { @sleeps << seconds },
-                                     offers: offers)
+                                     log: ->(text) { @logs << text }, sleeper: ->(seconds) { @sleeps << seconds })
     # por omision los mensajes de prueba llegan como los publica la central: con user_id "central"
     original = processor.method(:process)
     processor.define_singleton_method(:process) do |body, user_id = 'central', routing_key = nil|
@@ -86,28 +84,6 @@ class MessageProcessorTest < Minitest::Test
     assert_equal valid_message, @master.delivered.first
     assert_equal valid_message['msgId'], @publisher.acks.first['msgId']
     assert_nil @publisher.acks.first['respondidoA']
-  end
-
-  # anomalia 5: el connector necesita el ciclo y el lastOfferAt vigentes para republicar la oferta
-  def test_saved_status_statement_is_remembered_for_the_offer
-    offers = OfferMemory.new
-    status = Samples.message('status-statement')
-    offer = Samples.message('offer', 'cycleId' => status['cycleId'], 'cityId' => 'TK3')
-    offers.offer_published(offer, 'market', 'market.offer.TK3')
-    before_close = Time.iso8601(status['data']['market']['lastOfferAt']) - 1
-
-    assert_nil offers.offer_to_republish(before_close)
-    assert_equal :done, build(offers: offers).process(JSON.generate(status))
-    assert_equal offer, offers.offer_to_republish(before_close).message
-  end
-
-  def test_status_statement_the_api_did_not_save_is_not_remembered
-    offers = OfferMemory.new
-    status = Samples.message('status-statement')
-    offers.offer_published(Samples.message('offer', 'cycleId' => status['cycleId']), 'market', 'market.offer.TK3')
-
-    build(offers: offers, status: 503).process(JSON.generate(status))
-    assert_nil offers.offer_to_republish(Time.iso8601(status['data']['market']['lastOfferAt']) - 1)
   end
 
   def test_master_down_means_no_reply_and_retry
