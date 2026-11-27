@@ -14,3 +14,10 @@
 .env.*
 !.env.example
 *.pem
+
+# Terraform
+.terraform/
+*.tfstate
+*.tfstate.*
+*.tfvars
+crash.log
