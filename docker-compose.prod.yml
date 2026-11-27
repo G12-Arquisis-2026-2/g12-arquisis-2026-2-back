@@ -5,12 +5,16 @@ services:
     env_file: .env
     volumes:
       - pgdata:/var/lib/postgresql/data
-    # Sin "ports": solo accesible desde la red interna de compose
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
       interval: 10s
       timeout: 5s
       retries: 5
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
 
   web:
     image: ${ECR_REGISTRY:-624005845126.dkr.ecr.us-east-2.amazonaws.com}/energyshark-back-web:latest
@@ -18,9 +22,8 @@ services:
     env_file: .env
     environment:
       RAILS_ENV: production
-      # Solid Queue corre dentro de Puma (config/puma.rb): sin esto el orquestador se encola y nunca corre
       SOLID_QUEUE_IN_PUMA: "true"
-    # Thruster escucha en el 80 del contenedor y hace proxy a Puma (3000)
+      AWS_REGION: us-east-2
     ports:
       - "127.0.0.1:3000:80"
     depends_on:
@@ -32,17 +35,27 @@ services:
       timeout: 5s
       retries: 5
       start_period: 30s
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
 
   connector:
     image: ${ECR_REGISTRY:-624005845126.dkr.ecr.us-east-2.amazonaws.com}/energyshark-back-connector:latest
     restart: unless-stopped
     env_file: .env
     environment:
-      # Solo "true" publica hacia la central; si falta en el .env queda apagado
       ENABLE_PUBLISHER: ${ENABLE_PUBLISHER:-false}
+      AWS_REGION: us-east-2
     depends_on:
       web:
         condition: service_healthy
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
 
 volumes:
   pgdata:
