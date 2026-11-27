@@ -12,7 +12,8 @@
 !/tmp/storage/.keep
 
 # Secretos
-.env
+.env*
+!.env.example
 
 # Otros
 node_modules
