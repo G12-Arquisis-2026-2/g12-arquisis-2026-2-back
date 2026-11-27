@@ -26,44 +26,46 @@ class MarketCycleJob < ApplicationJob
 
     wallet_kwh = available_wallet_kwh
     offer_id = "#{ENV.fetch('CITY_ID', 'TK3')}-#{cycle.cycle_id}"
-    offer = MarketOffer.lock.find_or_initialize_by(
-      cycle_id: cycle.cycle_id,
-      city_id: ENV.fetch("CITY_ID", "TK3"),
-      offer_id: offer_id
-    )
-    remaining = [cycle.sellable - settled_sales(cycle), wallet_kwh + offer.reserved_quantity.to_i].min
-    remaining = [remaining, 0].max
-    offer_payload = NegotiationStrategyService.build_offer(
-      cycle: cycle,
-      offer_id: offer_id,
-      quantity: remaining,
-      strategy: strategy,
-      now: now
-    )
-    return unless offer_payload
-
-    price = offer_payload.dig(:data, :pricePerEnergy)
-    if offer.new_record?
-      offer.assign_attributes(
+    MarketOffer.transaction do
+      offer = MarketOffer.lock.find_or_initialize_by(
+        cycle_id: cycle.cycle_id,
+        city_id: ENV.fetch("CITY_ID", "TK3"),
+        offer_id: offer_id
+      )
+      remaining = [cycle.sellable - settled_sales(cycle), wallet_kwh + offer.reserved_quantity.to_i].min
+      remaining = [remaining, 0].max
+      offer_payload = NegotiationStrategyService.build_offer(
+        cycle: cycle,
+        offer_id: offer_id,
         quantity: remaining,
-        remaining: remaining,
-        reserved_quantity: 0,
-        price_per_energy: price,
-        active: remaining.positive?,
-        raw_payload: offer_payload
+        strategy: strategy,
+        now: now
       )
-      offer.save!
-      RabbitMQPublisher.publish(offer_payload, to_market: true) if remaining.positive?
-    elsif offer.remaining != remaining || offer.price_per_energy != price
-      offer.update!(remaining: remaining, quantity: [offer.quantity, remaining].max, price_per_energy: price)
-      RabbitMQPublisher.publish(
-        {
-          type: "offer-updated",
-          cycleId: cycle.cycle_id,
-          data: { offerId: offer_id, remaining: remaining - offer.reserved_quantity, pricePerEnergy: price }
-        },
-        to_market: true
-      )
+      return unless offer_payload
+
+      price = offer_payload.dig(:data, :pricePerEnergy)
+      if offer.new_record?
+        offer.assign_attributes(
+          quantity: remaining,
+          remaining: remaining,
+          reserved_quantity: 0,
+          price_per_energy: price,
+          active: remaining.positive?,
+          raw_payload: offer_payload
+        )
+        offer.save!
+        RabbitMQPublisher.publish(offer_payload, to_market: true) if remaining.positive?
+      elsif offer.remaining != remaining || offer.price_per_energy != price
+        offer.update!(remaining: remaining, quantity: [offer.quantity, remaining].max, price_per_energy: price)
+        RabbitMQPublisher.publish(
+          {
+            type: "offer-updated",
+            cycleId: cycle.cycle_id,
+            data: { offerId: offer_id, remaining: remaining - offer.reserved_quantity, pricePerEnergy: price }
+          },
+          to_market: true
+        )
+      end
     end
   end
 
@@ -84,22 +86,25 @@ class MarketCycleJob < ApplicationJob
     )
     return unless candidate
 
-    message_id = RabbitMQPublisher.publish(candidate[:payload], to_city: candidate[:city_id])
-    outbox = OutboxMessage.find_by!(msg_id: message_id)
-    MarketBid.create!(
-      cycle_id: cycle.cycle_id,
-      offer_id: candidate[:offer_id],
-      bid_idpk: outbox.idpk,
-      bid_msg_id: message_id,
-      side: "buy",
-      buyer_city: ENV.fetch("CITY_ID", "TK3"),
-      seller_city: candidate[:city_id],
-      quantity: candidate[:quantity],
-      price_per_energy: candidate[:price_per_energy],
-      amount: (candidate[:quantity] * candidate[:price_per_energy]).round(2),
-      status: "sent",
-      raw_payload: candidate[:payload]
-    )
+    # idpk y msgId se fijan antes, para guardar el bid antes de publicarlo
+    message = candidate[:payload].merge(idpk: SecureRandom.uuid, msgId: SecureRandom.uuid)
+    MarketBid.transaction do
+      MarketBid.create!(
+        cycle_id: cycle.cycle_id,
+        offer_id: candidate[:offer_id],
+        bid_idpk: message[:idpk],
+        bid_msg_id: message[:msgId],
+        side: "buy",
+        buyer_city: ENV.fetch("CITY_ID", "TK3"),
+        seller_city: candidate[:city_id],
+        quantity: candidate[:quantity],
+        price_per_energy: candidate[:price_per_energy],
+        amount: (candidate[:quantity] * candidate[:price_per_energy]).round(2),
+        status: "sent",
+        raw_payload: candidate[:payload]
+      )
+      RabbitMQPublisher.publish(message, to_city: candidate[:city_id])
+    end
   end
 
   def remaining_deficit(cycle)

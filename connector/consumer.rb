@@ -1,20 +1,26 @@
 require 'bunny'
 require 'fileutils'
+require 'socket'
+require_relative 'lib/broker_session'
+require_relative 'lib/broker_supervisor'
 require_relative 'lib/central_publisher'
 require_relative 'lib/master_client'
 require_relative 'lib/message_processor'
-require_relative 'lib/offer_memory'
 require_relative 'lib/outbox_sender'
+require_relative 'lib/saga_starter'
 
 # esto para que no los logs no tengar atraso.
 $stdout.sync = true
 
 RETRY_SECONDS = 5
 OUTBOX_SECONDS = 2
-MAX_SECONDS_OFFLINE = 120
 ALIVE_FILE = '/tmp/connector_alive'.freeze
 # apagado por defecto: solo publica hacia la central si ENABLE_PUBLISHER es exactamente "true"
 PUBLISHER_ENABLED = ENV.fetch('ENABLE_PUBLISHER', 'false') == 'true'
+# apagado por defecto: con "true" el relay reserva las filas (POST /events/outbox/claim) en vez del GET (ADR8)
+OUTBOX_CLAIM_ENABLED = ENV.fetch('OUTBOX_CLAIM_ENABLED', 'false') == 'true'
+# apagado por defecto: con "true" el relay inicia las sagas (StartExecution) de las filas step_functions (ADR8)
+SAGA_START_ENABLED = ENV.fetch('SAGA_START_ENABLED', 'false') == 'true'
 # routing key para responderle a otra ciudad: city.{CODE} (contratos v3.0.2, tabla "Mensajes AMQP")
 PEER_ROUTING_KEY_FORMAT = ENV.fetch('PEER_ROUTING_KEY_FORMAT', 'city.%s')
 
@@ -26,6 +32,7 @@ def now
   Process.clock_gettime(Process::CLOCK_MONOTONIC)
 end
 
+# un solo intento: si falla, el supervisor vuelve a intentar en 5 s
 def connect(url)
   # verify_peer en true porque bunny con una URL no revisa el certificado del broker, y hay que revisarlo
   # heartbeat de 10s para darse cuenta rapido de un corte de red silencioso (si no, pasan mas de 2 minutos)
@@ -33,11 +40,6 @@ def connect(url)
                               automatically_recover: true, network_recovery_interval: RETRY_SECONDS)
   connection.start
   connection
-rescue StandardError => e
-  # ojo: no imprimir e.message, puede traer la URL con la clave
-  log "No se pudo conectar al broker (#{e.class}). Reintentando en #{RETRY_SECONDS}s..."
-  sleep RETRY_SECONDS
-  retry
 end
 
 # la pausa entre reintentos (5s, 15s, 45s) la hace el processor antes de devolver :retry.
@@ -86,8 +88,8 @@ def subscribe(channel, queue_name, processor)
   log "Escuchando en '#{queue_name}'..."
 end
 
-# si la cola del mercado no existe o no tenemos permiso, se sigue solo con la de la ciudad:
-# caerse aca dejaria sin responder tambien a la central. el canal queda cerrado y fuera de la vigilancia
+# si la cola del mercado no existe o no tenemos permiso, se sigue solo con la de la ciudad y el supervisor
+# lo reintenta cada 30 s: caerse aca dejaria sin responder tambien a la central
 def subscribe_market(connection, master)
   channel = consumer_channel(connection)
   # nil: en la cola del mercado nunca se publica una respuesta
@@ -107,12 +109,12 @@ def outbox_channel(connection)
 end
 
 # cada 2 segundos publica lo que la API dejo pendiente. si algo falla se loguea y se sigue en la otra vuelta
-def start_outbox_thread(sender, connection)
+def start_outbox_thread(sender, supervisor)
   Thread.new do
     loop do
       begin
         # sin conexion ni se intenta, asi no se llena el log mientras el broker esta caido
-        sender.run_once if connection.open?
+        sender.run_once if supervisor.connected?
       rescue StandardError => e
         log "Error publicando pendientes (#{e.class}: #{e.message})."
       end
@@ -121,70 +123,70 @@ def start_outbox_thread(sender, connection)
   end
 end
 
+# conexion nueva con los consumidores de las dos colas. bunny la recupera sola tras un corte; si se rinde,
+# el supervisor llama de nuevo a esto
+def open_session(master, sender)
+  connection = connect(ENV.fetch('RABBITMQ_URL'))
+  # bunny ya reabrio los canales y volvio a suscribir los consumidores
+  connection.after_recovery_completed do
+    log 'Bunny recuperó la conexión y los consumidores.'
+    sender.connection_recovered!
+  end
+  BrokerSession.new(
+    connection,
+    # city.TK3: central, otras ciudades y wallet. aca si se responde ack/nack
+    subscribe_city: lambda { |conn|
+      channel = consumer_channel(conn)
+      subscribe(channel, ENV.fetch('QUEUE_NAME'), MessageProcessor.new(master: master, publisher: central_publisher(channel)))
+      channel
+    },
+    # market.TK3: canal y consumidor propios, misma politica de reintentos
+    subscribe_market: ->(conn) { subscribe_market(conn, master) }
+  )
+rescue StandardError
+  # ej: la cola de la ciudad no existe. sin cerrarla quedaria una conexion abierta por cada reintento
+  BrokerSession.close_quietly(connection) if connection
+  raise
+end
+
 log 'ENABLE_PUBLISHER apagado: no se publica nada hacia la central, solo se loguea.' unless PUBLISHER_ENABLED
 
 unless ENV.fetch('RABBITMQ_USER') == "city.#{ENV.fetch('CITY_ID')}"
   log "OJO: RABBITMQ_USER no es city.#{ENV.fetch('CITY_ID')}, la central va a rechazar lo que publiquemos."
 end
 
-connection = connect(ENV.fetch('RABBITMQ_URL'))
 master = MasterClient.new(ENV.fetch('MASTER_URL'))
-# nuestra oferta vigente y el ultimo status-statement, para republicarla tras un corte
-offers = OfferMemory.new
 
-# city.TK3: central, otras ciudades y wallet. aca si se responde ack/nack
-city_channel = consumer_channel(connection)
-city_processor = MessageProcessor.new(master: master, publisher: central_publisher(city_channel), offers: offers)
-subscribe(city_channel, ENV.fetch('QUEUE_NAME'), city_processor)
-
-# market.TK3: canal y consumidor propios, misma politica de reintentos
-market_channel = subscribe_market(connection, master)
-
-outbox_publisher = central_publisher(outbox_channel(connection), open_channel: -> { outbox_channel(connection) })
-sender = OutboxSender.new(master: master, publisher: outbox_publisher,
-                          city_id: ENV.fetch('CITY_ID'), log: method(:log), enabled: PUBLISHER_ENABLED,
-                          peer_routing_key_format: PEER_ROUTING_KEY_FORMAT, offers: offers)
-start_outbox_thread(sender, connection)
-
-# bunny ya reabrio los canales y volvio a suscribir los consumidores
-connection.after_recovery_completed do
-  log 'Bunny recuperó la conexión y los consumidores.'
-  sender.connection_recovered!
+# credenciales: la cadena por omision del SDK, que en la EC2 toma las del rol (IMDSv2). no se pasan llaves
+def saga_client
+  require 'aws-sdk-states'
+  log 'OJO: hay AWS_ACCESS_KEY_ID en el entorno; las sagas deberían usar el rol de la EC2.' if ENV['AWS_ACCESS_KEY_ID']
+  Aws::States::Client.new(region: ENV.fetch('AWS_REGION'))
 end
 
-# solo los canales de consumo: si el broker cierra el del outbox, el hilo del outbox abre otro
-channels = [city_channel, market_channel].compact
+sagas = SagaStarter.new(client: SAGA_START_ENABLED ? saga_client : nil, log: method(:log), enabled: SAGA_START_ENABLED,
+                        arns: { 'seller' => ENV['SAGA_SELLER_ARN'], 'buyer' => ENV['SAGA_BUYER_ARN'] })
+log 'SAGA_START_ENABLED apagado: las sagas quedan pendientes en el outbox.' unless SAGA_START_ENABLED
+supervisor = nil
+# sin canal al partir: el hilo del outbox lo abre en la conexion vigente (connection_replaced!)
+outbox_publisher = central_publisher(nil, open_channel: -> { outbox_channel(supervisor.session.connection) })
+sender = OutboxSender.new(master: master, publisher: outbox_publisher,
+                          city_id: ENV.fetch('CITY_ID'), log: method(:log), enabled: PUBLISHER_ENABLED,
+                          peer_routing_key_format: PEER_ROUTING_KEY_FORMAT,
+                          claim_as: OUTBOX_CLAIM_ENABLED ? "connector-#{Socket.gethostname}" : nil,
+                          sagas: sagas)
 
-offline_since = nil
-channel_was_closed = false
-connected = true
+supervisor = BrokerSupervisor.new(
+  open_session: -> { open_session(master, sender) },
+  # tambien en el primer arranque: abre el canal del outbox y republica la oferta vigente
+  on_new_session: ->(_session) { sender.connection_replaced! },
+  log: method(:log),
+  alive: -> { FileUtils.touch(ALIVE_FILE) }, # lo revisa el HEALTHCHECK del Dockerfile
+  exit_process: ->(code) { exit(code) }
+)
+start_outbox_thread(sender, supervisor)
 
 loop do
+  supervisor.tick
   sleep RETRY_SECONDS
-
-  if connection.open?
-    log 'Conexión con el broker recuperada.' unless connected
-    connected = true
-    offline_since = nil
-    if channels.all?(&:open?)
-      channel_was_closed = false
-      FileUtils.touch(ALIVE_FILE) # lo revisa el HEALTHCHECK del Dockerfile
-    else
-      # se espera a verlo cerrado 2 veces, al reconectar el canal vuelve un poco despues que la conexion
-      if channel_was_closed
-        log 'Un canal quedó cerrado con la conexión abierta. Saliendo.'
-        # exit(1) para que docker reinicie el contenedor y parta con una conexion limpia
-        exit(1)
-      end
-      channel_was_closed = true
-    end
-  else
-    log 'Se perdió la conexión con el broker. Bunny reconecta solo.' if connected
-    connected = false
-    offline_since ||= now
-    if now - offline_since > MAX_SECONDS_OFFLINE
-      log "Más de #{MAX_SECONDS_OFFLINE}s sin conexión al broker. Saliendo."
-      exit(1)
-    end
-  end
 end

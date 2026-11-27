@@ -19,7 +19,7 @@ class GiveTransferWaitTest < ActiveJob::TestCase
     payload = NegotiationService.build_proposal(cycle_id: CYCLE_ID, direction: "give", energy: 600)
     @proposal = Proposal.create!(idpk: payload[:idpk], cycle_id: CYCLE_ID, direction: "give", quantity: 600,
                                  price_per_energy: 10.5, generation_cost: 10, status: :pending)
-    @proposal_msg_id = RabbitMQPublisher.publish(payload)
+    @proposal_msg_id = publish_outbox(payload)
   end
 
   teardown do

@@ -116,7 +116,7 @@ class CycleService
     return due if now < due
 
     Rails.logger.info "[CycleService] Pidiendo #{ask} a la central (intento #{sent.size + 1}/#{MAX_REQUESTS})"
-    RabbitMQPublisher.publish(build_direct_request(ask: ask))
+    OutboxMessage.transaction { RabbitMQPublisher.publish(build_direct_request(ask: ask)) }
     attempts = sent.size + 1
     now + REQUEST_RETRY_DELAYS[attempts - 1] if attempts < MAX_REQUESTS
   end
@@ -145,11 +145,12 @@ class CycleService
     payload = build_negotiation_report(
       cycle_id: cycle.cycle_id, budget_balance: balances[:budget], energy_balance: balances[:energy], idpk: idpk
     )
-    msg_id = RabbitMQPublisher.publish(payload, idpk: idpk)
-    Rails.logger.info "[CycleService] negotiation-report del ciclo #{cycle.cycle_id} encolado (#{msg_id})"
-
-    cycle.update!(report_sent: true, report_idpk: idpk, report_msg_id: msg_id, report_not_before: nil,
-                  reported_budget: balances[:budget], reported_energy: balances[:energy])
+    Cycle.transaction do
+      msg_id = RabbitMQPublisher.publish(payload, idpk: idpk)
+      cycle.update!(report_sent: true, report_idpk: idpk, report_msg_id: msg_id, report_not_before: nil,
+                    reported_budget: balances[:budget], reported_energy: balances[:energy])
+      Rails.logger.info "[CycleService] negotiation-report del ciclo #{cycle.cycle_id} encolado (#{msg_id})"
+    end
   end
 
   # Ciclos recién cerrados sin un reporte publicado: no se envía nada, solo queda registro.

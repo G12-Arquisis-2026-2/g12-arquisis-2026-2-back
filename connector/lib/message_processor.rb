@@ -19,13 +19,11 @@ class MessageProcessor
   # no se pudo publicar el ack o el nack: es problema de la conexion con el broker, no del mensaje
   class PublishError < StandardError; end
 
-  # offers: OfferMemory donde se anota cada status-statement guardado (nil = no se anota)
   def initialize(master:, publisher:, queue: :city, log: ->(text) { puts "[Connector] #{text}" },
-                 sleeper: ->(s) { sleep s }, offers: nil)
+                 sleeper: ->(s) { sleep s })
     @master = master
     @publisher = publisher
     @queue = queue
-    @offers = offers
     @log = log
     @sleeper = sleeper
     # fallos por msgId. en memoria: con prefetch(1) el requeue vuelve altiro a este mismo consumer
@@ -147,7 +145,6 @@ class MessageProcessor
     if result.saved?
       # ojo: primero guardar y despues el ack, si no podemos perder el mensaje
       publish { @publisher.ack(message, to_city: decision.reply_to) } if decision.send_ack
-      @offers&.status_received(message)
       @log.call("Mensaje #{message['msgId']} (#{message['type']}) guardado.")
       :done
     elsif result.invalid?

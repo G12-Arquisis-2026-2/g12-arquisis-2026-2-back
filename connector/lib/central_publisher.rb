@@ -1,17 +1,23 @@
 require 'json'
 require 'securerandom'
 require 'time'
+require 'timeout'
 require_relative 'message_validator'
 
 # publica en el broker: ack/nack a la central o a otra ciudad, y los pendientes del outbox a su destino.
 # (se llama CentralPublisher porque en la E1 solo le hablaba a la central)
 class CentralPublisher
+  # bunny no acepta un tiempo maximo en wait_for_confirms (espera el continuation_timeout, 15 s)
+  CONFIRM_TIMEOUT = 5
+
   # enabled: false es ENABLE_PUBLISHER apagado: no se manda nada al broker, solo se loguea
   # peer_routing_key_format: routing key de otra ciudad, "city.%s" -> city.HGW (PEER_ROUTING_KEY_FORMAT)
   # open_channel: como abrir un canal nuevo si el broker cierra este (solo lo usa el outbox)
   def initialize(channel, exchange:, routing_key:, user_id:, city_id:, peer_routing_key_format: 'city.%s',
-                 enabled: true, log: ->(text) { puts "[Connector] #{text}" }, open_channel: nil)
+                 enabled: true, log: ->(text) { puts "[Connector] #{text}" }, open_channel: nil,
+                 confirm_timeout: CONFIRM_TIMEOUT)
     @channel = channel
+    @confirm_timeout = confirm_timeout
     @open_channel = open_channel
     @exchange = exchange
     @routing_key = routing_key
@@ -38,21 +44,26 @@ class CentralPublisher
 
   # para los mensajes del outbox: se publica tal cual y se espera a que el broker confirme que lo recibio
   # sin exchange ni routing key va a la central, como en la E1.
-  # apagado devuelve false (no confirmado), asi nunca se marca como enviado algo que no salio
+  # apagado devuelve false (no confirmado), asi nunca se marca como enviado algo que no salio.
+  # si el broker no confirma a tiempo lanza Timeout::Error: el mensaje queda pendiente
   def publish_confirmed(message, exchange: nil, routing_key: nil)
     return false unless publish(message, exchange || @exchange, routing_key || @routing_key)
 
-    @channel.wait_for_confirms
+    Timeout.timeout(@confirm_timeout) { @channel.wait_for_confirms }
+  rescue Timeout::Error
+    discard_channel
+    raise
   end
 
+  # sin canal todavia (nil): el outbox lo abre cuando hay conexion
   def channel_open?
-    @channel.open?
+    !@channel.nil? && @channel.open?
   end
 
   # motivo con que el broker cerro el canal (ej: "ACCESS_REFUSED - ..."), o nil si sigue abierto o si
   # se cerro por un corte de red. bunny no expone el motivo, pero lo guarda al recibir el channel.close
   def closed_by_broker
-    return nil if @channel.open?
+    return nil if @channel.nil? || @channel.open?
 
     @channel.instance_variable_get(:@last_channel_error)&.message
   end
@@ -63,6 +74,20 @@ class CentralPublisher
   end
 
   private
+
+  # el canal queda esperando esa confirmacion y trabaria las siguientes: se cambia por uno nuevo.
+  # el viejo se cierra aparte, porque cerrarlo tambien espera al broker
+  def discard_channel
+    return unless @open_channel
+
+    old = @channel
+    @channel = @open_channel.call
+    Thread.new do
+      old.close
+    rescue StandardError
+      nil
+    end
+  end
 
   def routing_key_for(city)
     city ? format(@peer_format, city) : @routing_key

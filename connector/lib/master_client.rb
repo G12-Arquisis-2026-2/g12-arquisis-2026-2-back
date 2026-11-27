@@ -68,6 +68,24 @@ class MasterClient
     []
   end
 
+  # como pending_outbox, pero la API reserva las filas para este relay (ADR8): otro relay no las toma
+  def claim_outbox(relay)
+    result = post(URI("#{@outbox_url}/claim"), { 'relay' => relay })
+    list = result.saved? ? JSON.parse(result.body.to_s) : []
+    list.is_a?(Array) ? list : []
+  rescue JSON::ParserError
+    []
+  end
+
+  # nuestra ultima oferta enviada del ciclo vigente ({id, payload, exchange, routing_key}) o nil si no hay.
+  # si la API no responde lanza error, para intentarlo en la otra vuelta
+  def current_offer
+    result = send_request(Net::HTTP::Get.new(URI("#{@outbox_url}/current-offer")))
+    raise "GET /outbox/current-offer respondio #{result.status.inspect}" unless result.saved?
+
+    result.status == 204 ? nil : JSON.parse(result.body.to_s)
+  end
+
   def mark_outbox(id, status, reason = nil)
     post(URI("#{@outbox_url}/#{id}"), { 'status' => status, 'reason' => reason })
   end

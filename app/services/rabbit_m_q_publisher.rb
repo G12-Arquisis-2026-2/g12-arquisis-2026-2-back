@@ -1,4 +1,5 @@
-# Deja un mensaje listo para que el connector lo publique: a la central, a otra ciudad o al mercado.
+# Deja un mensaje listo para que el connector lo publique: a la central, a otra ciudad o al mercado,
+# o el inicio de una saga en Step Functions (start_saga).
 #
 # No abre ninguna conexión al broker: solo guarda el mensaje como pendiente.
 # Así, si el broker se cae, la API sigue funcionando y el mensaje no se pierde.
@@ -7,6 +8,23 @@
 # RabbitMQPublisher (con MQ en mayúsculas) en un archivo con ese nombre.
 class RabbitMQPublisher
   MARKET_EXCHANGE = "market".freeze
+  # Destino de las filas que inician una saga (ADR8): no es un exchange de RabbitMQ. El connector las
+  # ejecuta con StartExecution; la routing key dice qué máquina (seller o buyer).
+  SAGA_EXCHANGE = "step_functions".freeze
+  SAGA_ROLES = %w[seller buyer].freeze
+  # Step Functions acepta hasta 80 caracteres sin espacios ni símbolos; con esto basta para un UUID.
+  SAGA_NAME = /\A[A-Za-z0-9_-]{1,80}\z/
+  # Tope de Step Functions para el input de una ejecución.
+  SAGA_INPUT_MAX_BYTES = 256 * 1024
+
+  # El mensaje tiene que quedar en la misma transacción que el cambio de estado que lo origina (ADR8):
+  # o quedan los dos, o ninguno.
+  class NoTransactionError < StandardError
+    def initialize(msg = "RabbitMQPublisher se llama dentro de la transacción del cambio de estado " \
+                         "(ApplicationRecord.transaction do ... end)")
+      super
+    end
+  end
 
   # payload: hash con type y data, y opcionalmente cycleId, idpk y msgId.
   # idpk: se pasa cuando es un reintento, para repetir el idpk original.
@@ -16,10 +34,40 @@ class RabbitMQPublisher
   # Devuelve el msgId, que sirve para reconocer la respuesta (ack/nack).
   # Acepta el hash como argumento (como lo llaman los jobs) o los campos sueltos.
   def self.publish(payload = nil, idpk: nil, to_city: nil, to_market: false, **fields)
+    require_transaction!
     message = build_envelope((payload || fields).to_h.deep_stringify_keys, idpk)
     exchange, routing_key = destination(to_city, to_market)
 
     enqueue(message, exchange, routing_key, replied_bid_idpk(message))
+  end
+
+  # Deja lista la ejecución de una saga (AD7) para que el connector haga StartExecution.
+  # role: :seller o :buyer. name: el idpk (nombre de la ejecución: un reenvío no crea una segunda saga).
+  # input: hash que recibe la máquina tal cual, como JSON. Devuelve name.
+  def self.start_saga(role:, name:, input:)
+    require_transaction!
+    data = saga_data(role.to_s, name.to_s, input)
+    message = {
+      "msgId" => SecureRandom.uuid,
+      "idpk" => data["name"],
+      "type" => "saga-start",
+      "timestamp" => Time.now.utc.iso8601,
+      "cityId" => ENV.fetch("CITY_ID"),
+      "data" => data
+    }
+    enqueue(message, SAGA_EXCHANGE, data["role"], nil)
+    data["name"]
+  end
+
+  def self.saga_data(role, name, input)
+    raise ArgumentError, "role debe ser seller o buyer, no #{role.inspect}" unless SAGA_ROLES.include?(role)
+    raise ArgumentError, "name debe tener 1 a 80 letras, números, - o _ (un idpk)" unless name.match?(SAGA_NAME)
+    raise ArgumentError, "input debe ser un Hash" unless input.is_a?(Hash)
+
+    input = plain_numbers(input.deep_stringify_keys)
+    raise ArgumentError, "input supera los 256 KB de Step Functions" if input.to_json.bytesize > SAGA_INPUT_MAX_BYTES
+
+    { "role" => role, "name" => name, "input" => input }
   end
 
   # Bid repetido (mismo idpk): se vuelve a enviar la respuesta que ya dimos (anomalía 1).
@@ -28,6 +76,7 @@ class RabbitMQPublisher
   # Si todavía no hay respuesta (se está decidiendo) no se encola nada: la original saldrá sola.
   # Devuelve el msgId de la copia, o nil si no había respuesta.
   def self.resend_bid_reply(bid)
+    require_transaction!
     bid = bid.to_h.deep_stringify_keys
     original = OutboxMessage.reply_to_bid(bid.fetch("idpk"))
     return unless original
@@ -51,6 +100,12 @@ class RabbitMQPublisher
       reply_to_idpk: reply_to_idpk
     )
     message["msgId"]
+  end
+
+  # Se exige una transacción "joinable": la de los tests (fixtures) no lo es, así que en un test
+  # llamar sin transacción también falla, igual que en producción, sin tener que simularlo.
+  def self.require_transaction!
+    raise NoTransactionError unless OutboxMessage.connection.current_transaction.joinable?
   end
 
   # bid-accepted y bid-rejected apuntan al bid por su msgId (data.target); se guarda su idpk,

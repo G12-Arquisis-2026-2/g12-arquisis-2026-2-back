@@ -22,7 +22,7 @@ class CycleServiceTest < ActiveSupport::TestCase
     %w[status-statement distance-table].each do |ask|
       assert_equal({ ask: ask }, CycleService.build_direct_request(ask: ask)[:data])
 
-      msg_id = RabbitMQPublisher.publish(CycleService.build_direct_request(ask: ask))
+      msg_id = publish_outbox(CycleService.build_direct_request(ask: ask))
       payload = OutboxMessage.find_by!(msg_id: msg_id).payload
       assert_equal "request", payload["type"]
       assert_equal({ "ask" => ask }, payload["data"])
@@ -216,7 +216,7 @@ class CycleServiceTest < ActiveSupport::TestCase
   end
 
   test "the outbox keeps a report of an unknown cycle" do
-    msg_id = RabbitMQPublisher.publish(type: "negotiation-report", cycleId: "cycle-desconocido", data: {})
+    msg_id = publish_outbox(type: "negotiation-report", cycleId: "cycle-desconocido", data: {})
 
     OutboxMessage.expire_late_reports!
 
@@ -261,5 +261,24 @@ class CycleServiceTest < ActiveSupport::TestCase
       "type" => "error", "idpk" => SecureRandom.uuid, "msgId" => SecureRandom.uuid, "sender" => "central",
       "reason" => reason, "code" => 425, "data" => { "target" => target, "opensAt" => opensAt }
     }
+  end
+  test "if saving the report state fails, the report does not stay in the outbox" do
+    cycle = Cycle.create!(cycle_id: "cycle-tx", valid_until: 10.minutes.from_now)
+    cycle.define_singleton_method(:update!) { |*| raise ActiveRecord::RecordInvalid, Cycle.new }
+
+    assert_raises(ActiveRecord::RecordInvalid) { CycleService.send(:send_report, cycle) }
+
+    assert_equal 0, OutboxMessage.where(message_type: "negotiation-report").count
+    assert_not cycle.reload.report_sent?
+  end
+
+  test "the report and its cycle state are saved together" do
+    cycle = Cycle.create!(cycle_id: "cycle-tx", valid_until: 10.minutes.from_now)
+
+    CycleService.send(:send_report, cycle)
+
+    report = OutboxMessage.find_by!(message_type: "negotiation-report")
+    assert_equal report.msg_id, cycle.reload.report_msg_id
+    assert_equal report.idpk, cycle.report_idpk
   end
 end

@@ -176,8 +176,11 @@ ActiveRecord::Schema[8.1].define(version: 2026_11_26_000001) do
     t.string "exchange"
     t.string "routing_key"
     t.string "reply_to_idpk"
+    t.datetime "locked_until"
+    t.string "locked_by"
     t.index ["msg_id"], name: "index_outbox_messages_on_msg_id", unique: true
     t.index ["reply_to_idpk"], name: "index_outbox_messages_on_reply_to_idpk"
+    t.index ["status", "created_at"], name: "index_outbox_messages_on_status_and_created_at"
     t.index ["status"], name: "index_outbox_messages_on_status"
   end
 

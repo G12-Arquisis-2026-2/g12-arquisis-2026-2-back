@@ -18,8 +18,16 @@ class CentralPublisherTest < Minitest::Test
       @published << { payload: payload, exchange: exchange, routing_key: routing_key, options: options }
     end
 
+    attr_accessor :confirm_delay, :closed
+
     def wait_for_confirms
       @confirms_asked = true
+      sleep confirm_delay if confirm_delay
+      true
+    end
+
+    def close
+      @closed = true
     end
 
     def confirms_asked?
@@ -246,5 +254,37 @@ class CentralPublisherTest < Minitest::Test
     assert_nil publisher.closed_by_broker
     assert_equal 1, fresh.published.size
     assert_empty closed.published
+  end
+  # --- tiempo maximo para la confirmacion del broker ---
+
+  def test_a_confirmation_that_takes_too_long_raises_and_replaces_the_channel
+    fresh = FakeChannel.new
+    @channel.confirm_delay = 1
+    publisher = CentralPublisher.new(@channel, exchange: 'energy.x', routing_key: 'central', user_id: 'city.12',
+                                               city_id: '12', confirm_timeout: 0.05, open_channel: -> { fresh })
+    message = { 'msgId' => 'a', 'idpk' => 'b', 'type' => 'negotiation-report', 'cityId' => '12' }
+
+    assert_raises(Timeout::Error) { publisher.publish_confirmed(message) }
+
+    assert publisher.publish_confirmed(message)
+    assert_equal 1, fresh.published.size
+  end
+
+  def test_the_default_confirm_timeout_is_5_seconds
+    assert_equal 5, CentralPublisher::CONFIRM_TIMEOUT
+  end
+  # --- sin canal al partir (lo abre el outbox cuando hay conexion) ---
+
+  def test_without_a_channel_yet_it_is_not_open_and_was_not_closed_by_the_broker
+    fresh = FakeChannel.new
+    publisher = CentralPublisher.new(nil, exchange: 'energy.x', routing_key: 'central', user_id: 'city.12',
+                                          city_id: '12', open_channel: -> { fresh })
+
+    refute publisher.channel_open?
+    assert_nil publisher.closed_by_broker
+
+    publisher.reopen_channel
+    publisher.publish_confirmed({ 'msgId' => 'a', 'idpk' => 'b', 'type' => 'negotiation-report', 'cityId' => '12' })
+    assert_equal 1, fresh.published.size
   end
 end
